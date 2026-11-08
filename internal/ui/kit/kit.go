@@ -5,7 +5,6 @@
 package kit
 
 import (
-	"embed"
 	"image/color"
 	"runtime"
 
@@ -15,14 +14,14 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
-)
 
-//go:embed fonts/*.ttf
-var fonts embed.FS
+	"github.com/lfdominguez/desk/internal/fonts"
+)
 
 var (
 	Sans = font.Font{Typeface: "Manrope"}
 	Mono = font.Font{Typeface: "Geist Mono"} // card keys, tool lines, code, the terminal
+	Hand = font.Font{Typeface: "Excalifont"} // drawings' hand-drawn text
 )
 
 func Semi(f font.Font) font.Font   { f.Weight = font.SemiBold; return f }
@@ -91,9 +90,9 @@ func New() *Kit {
 		"Manrope-Regular": Sans, "Manrope-Medium": Medium(Sans), "Manrope-SemiBold": Semi(Sans), "Manrope-Bold": Bold(Sans),
 		"GeistMono-Regular": Mono, "GeistMono-Bold": Bold(Mono),
 		"GeistMono-Italic": Italic(Mono), "GeistMono-BoldItalic": Italic(Bold(Mono)),
-		"seti": Seti,
+		"seti": Seti, "Excalifont-Regular": Hand,
 	} {
-		b, _ := fonts.ReadFile("fonts/" + file + ".ttf")
+		b, _ := fonts.FS.ReadFile(file + ".ttf")
 		if face, err := opentype.Parse(b); err == nil {
 			faces = append(faces, font.FontFace{Font: f, Face: face})
 		}

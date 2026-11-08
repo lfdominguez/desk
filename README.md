@@ -577,8 +577,12 @@ Planned, not there yet:
   [fzf](https://github.com/junegunn/fzf)'s matching algorithm for every
   search box, [go-adf](https://github.com/nyactl/go-adf) and
   [go-passbolt](https://github.com/passbolt/go-passbolt).
-- Fonts: [Manrope](https://github.com/sharanda/manrope) and
-  [Geist Mono](https://github.com/vercel/geist-font), under the SIL Open Font License; the
+- Drawings follow [Excalidraw](https://github.com/excalidraw/excalidraw)'s file format and look:
+  their hand-drawn strokes are a Go port of [rough.js](https://github.com/rough-stuff/rough)
+  (MIT), and their outlines of [perfect-freehand](https://github.com/steveruizok/perfect-freehand)'s idea.
+- Fonts: [Manrope](https://github.com/sharanda/manrope),
+  [Geist Mono](https://github.com/vercel/geist-font) and
+  [Excalifont](https://github.com/excalidraw/excalidraw), under the SIL Open Font License; the
   file icons are [Seti UI](https://github.com/jesseweed/seti-ui)'s font and colors, as VS Code
   ships them, under the MIT License.
 
