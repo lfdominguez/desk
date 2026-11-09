@@ -138,6 +138,21 @@ func linesAt(e *Element, f *faces, sc float64) []TextLine {
 	return out
 }
 
+// FitText sizes a text element to its text: the widest line, and a line
+// height per line.
+func (e *Element) FitText() {
+	lh := e.LineHeight
+	if lh == 0 {
+		lh = 1.25
+	}
+	f, w := newFaces(e.FontFamily, e.FontSize), 0.0
+	lines := strings.Split(e.Text, "\n")
+	for _, l := range lines {
+		w = math.Max(w, f.measure(l))
+	}
+	e.Width, e.Height = w, float64(len(lines))*e.FontSize*lh
+}
+
 // drawText paints a text element: drawn upright at pixel size into its own
 // image, then placed through m.
 func drawText(img *image.RGBA, e *Element, m Aff, sc float64) {

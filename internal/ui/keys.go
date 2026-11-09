@@ -102,14 +102,14 @@ func (u *ui) keys(gtx layout.Context) {
 // quiet is when the shortcuts stay off: a dialog is open, an editor has
 // the keyboard, or a card's session fills the window (its keys are for it).
 func (u *ui) quiet(gtx layout.Context) bool {
-	return u.edit != nil || u.unlock != nil || u.cfg != nil || u.pick != "" || u.pal != nil || u.typing(gtx) || strings.HasPrefix(u.view, "sess:") || strings.HasPrefix(u.view, "ws:")
+	return u.edit != nil || u.unlock != nil || u.cfg != nil || u.pick != "" || u.pal != nil || u.typing(gtx) || strings.HasPrefix(u.view, "sess:") || strings.HasPrefix(u.view, "ws:") || strings.HasPrefix(u.view, "draw:")
 }
 
 // typing reports whether one of the window's own editors (not a dialog's:
 // those turn the board keys off whole) has the keyboard. Any new editor
 // outside a dialog goes here, or typing an E in it opens the card's sheet.
 func (u *ui) typing(gtx layout.Context) bool {
-	if gtx.Focused(&u.search) || gtx.Focused(&u.chatIn) || u.wsTyping(gtx) {
+	if gtx.Focused(&u.search) || gtx.Focused(&u.chatIn) || u.wsTyping(gtx) || u.drawTyping(gtx) {
 		return true
 	}
 	if u.selFocus != nil && u.selFocus.Focused() { // selected chat text: Ctrl+C, not the board's keys
@@ -152,6 +152,8 @@ func (u *ui) escape(gtx layout.Context) {
 	case gtx.Focused(&u.search) || u.search.Len() > 0:
 		u.search.SetText("")
 		u.blur = true
+	case u.drawOpen() != nil: // the drawing backs out step by step, from its text too
+		u.drawEscape(u.drawOpen())
 	case strings.HasPrefix(u.view, "ws:"): // the workspace, from its editors too: back to the session
 		u.view, u.blur = "sess:"+strings.TrimPrefix(u.view, "ws:"), true
 	case u.typing(gtx) && !gtx.Focused(&u.chatIn): // an answer field: leave it, not the session

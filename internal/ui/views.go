@@ -76,6 +76,9 @@ func (u *ui) count(v string) int {
 	if org, ok := strings.CutPrefix(v, "ci:"); ok {
 		return u.ciCount(org)
 	}
+	if org, ok := strings.CutPrefix(v, "dr:"); ok {
+		return len(u.drawings(org))
+	}
 	if org, ok := strings.CutPrefix(v, "al:"); ok {
 		return u.alertCount(org)
 	}
@@ -155,6 +158,11 @@ func (u *ui) sections() []struct {
 	for i, o := range u.tree {
 		infraOrgs[i] = o.Name
 	}
+	for _, o := range u.orgList { // an organization with drawings shows for them
+		if len(u.drawings(o)) > 0 {
+			infraOrgs = append(infraOrgs, o)
+		}
+	}
 	for _, o := range slices.Concat(slices.Collect(maps.Keys(u.tickets)), slices.Collect(maps.Keys(u.alerts)), slices.Collect(maps.Keys(u.ci)), infraOrgs) {
 		if !slices.Contains(orgSeen, o) {
 			orgSeen = append(orgSeen, o)
@@ -173,6 +181,7 @@ func (u *ui) sections() []struct {
 		if _, ok := u.ci[o]; ok {
 			orgItems = append(orgItems, sideItem{"ci:" + o, "CI", kit.IcoCheck, u.ciTone(o)})
 		}
+		orgItems = append(orgItems, sideItem{"dr:" + o, "Drawings", kit.IcoPencil, kit.CText3})
 		orgItems = append(orgItems, u.serverItems(o)...)
 	}
 	for _, l := range labSeen {
@@ -245,6 +254,12 @@ func (u *ui) viewTitle() string {
 	if org, ok := strings.CutPrefix(u.view, "srv:"); ok {
 		return org + " · servers"
 	}
+	if org, ok := strings.CutPrefix(u.view, "dr:"); ok {
+		return org + " · drawings"
+	}
+	if st := u.drawOpen(); st != nil {
+		return st.org + " · " + drawName(st.path)
+	}
 	if id, ok := strings.CutPrefix(u.view, "term:"); ok {
 		if c := u.b.Card(id); c != nil {
 			return c.Key() + " · Claude Code"
@@ -295,6 +310,12 @@ func (u *ui) sentence() string {
 	}
 	if strings.HasPrefix(u.view, "sess:") {
 		return "The card's Claude session, full window; Esc goes back to the board"
+	}
+	if org, ok := strings.CutPrefix(u.view, "dr:"); ok {
+		return plural(len(u.drawings(org)), "drawing", "drawings") + " · .excalidraw files in the organization's .desk folder"
+	}
+	if strings.HasPrefix(u.view, "draw:") {
+		return "Draw with the toolbar or its keys; Esc steps back to the list"
 	}
 	if strings.HasPrefix(u.view, "ws:") {
 		return "The card's projects and a Claude that reads them with you; Esc goes back to the session"
@@ -385,7 +406,7 @@ func (u *ui) sideRow(gtx layout.Context, it sideItem) layout.Dimensions {
 	}
 	n := u.count(it.view)
 	in := layout.Inset{Top: 5, Bottom: 5, Left: 8, Right: 8}
-	if strings.HasPrefix(it.view, "tk:") || strings.HasPrefix(it.view, "al:") || strings.HasPrefix(it.view, "ci:") { // under its organization
+	if strings.HasPrefix(it.view, "tk:") || strings.HasPrefix(it.view, "al:") || strings.HasPrefix(it.view, "ci:") || strings.HasPrefix(it.view, "dr:") { // under its organization
 		in.Left = 24
 	}
 	row := serverIndent(it.view) > 0 && !strings.HasPrefix(it.view, "srv:") // a server row: no count, its own click

@@ -52,6 +52,9 @@ func Demo() (string, error) {
 		os.MkdirAll(filepath.Dir(p), 0o755)
 		os.WriteFile(p, []byte(text), 0o644)
 	}
+	if err := demoDrawings(work); err != nil {
+		return "", err
+	}
 	path := kanban.Path()
 	b := kanban.Default()
 	for _, s := range demoBoard() {

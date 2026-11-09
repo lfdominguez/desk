@@ -171,13 +171,19 @@ type ui struct {
 	ws      map[string]*wsState // cards' workspaces (workspace.go), by card
 	wsGen   int                 // bumps on any workspace change, for sig
 	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
+
+	draws    map[string]*drawState // open drawings (drawview.go), by file
+	drawList map[string][]drawItem // organizations' drawings, read once (drawings.go)
+	thumbs   map[string]drawThumb  // their pictures, by file
+	drawGen  int                   // bumps when a list changes, for sig
+	drList   layout.List
 }
 
 func newUI(b *kanban.Board, path string) *ui {
 	home, _ := os.UserHomeDir()
 	u := &ui{w: new(app.Window), k: kit.New(), b: b, path: path, side: true, root: orgs.Root(), home: home,
 		chats: map[string][]kanban.ChatMsg{}, procs: map[string]session{}, pending: map[string]claude.Directives{}, locked: map[string]*vault.LockedError{}, events: make(chan func(), 256),
-		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}}
+		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}, draws: map[string]*drawState{}, drawList: map[string][]drawItem{}, thumbs: map[string]drawThumb{}}
 	u.orgList = orgs.List(u.root)
 	u.search.SingleLine, u.search.Submit = true, true
 	u.pickQ.SingleLine, u.pickQ.Submit, u.pickList.Axis = true, true, layout.Vertical
@@ -187,6 +193,7 @@ func newUI(b *kanban.Board, path string) *ui {
 	u.chatList.Axis, u.chatList.ScrollToEnd = layout.Vertical, true
 	u.teamList.Axis, u.teamList.ScrollToEnd = layout.Vertical, true
 	u.subList.Axis, u.subList.ScrollToEnd, u.railList.Axis, u.histList.Axis = layout.Vertical, true, layout.Vertical, layout.Vertical
+	u.drList.Axis = layout.Vertical
 	u.sideList.Axis, u.archList.Axis, u.tkList.Axis, u.alList.Axis, u.ciList.Axis = layout.Vertical, layout.Vertical, layout.Vertical, layout.Vertical, layout.Vertical
 	for c := range b.Columns { // a session that was on a turn when desk last closed is no longer
 		for i := range b.Columns[c].Cards {
@@ -294,7 +301,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom())
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom(), u.drawGen, u.drawSig())
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click
@@ -351,9 +358,13 @@ func (u *ui) frame(gtx layout.Context) {
 				main = u.sessionView
 			} else if strings.HasPrefix(u.view, "ws:") {
 				main = u.wsView
+			} else if strings.HasPrefix(u.view, "dr:") {
+				main = u.drawingsView
+			} else if strings.HasPrefix(u.view, "draw:") {
+				main = u.drawView
 			}
 			kids = append(kids, layout.Flexed(1, main))
-			if u.panel != "" && !strings.HasPrefix(u.view, "term:") && !strings.HasPrefix(u.view, "sess:") && !strings.HasPrefix(u.view, "ws:") {
+			if u.panel != "" && !strings.HasPrefix(u.view, "term:") && !strings.HasPrefix(u.view, "sess:") && !strings.HasPrefix(u.view, "ws:") && !strings.HasPrefix(u.view, "draw:") {
 				kids = append(kids, layout.Rigid(kit.HGap(1)), layout.Rigid(u.chatPanel))
 			}
 			return layout.Flex{}.Layout(gtx, kids...)
