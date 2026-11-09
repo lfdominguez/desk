@@ -56,6 +56,8 @@ Taken from `desk demo`: the organizations, tickets and servers are made up.
 | **The session.** Commands in plain words, subagents, every edit as a diff. | **Your turn.** Permission prompts and answers right in the conversation. |
 | ![An organization's Nagios alerts: web-02 critical, db-01 warning](docs/screenshots/alerts.png) | ![The infra workspace: an SSH pane on web-02 shared with the infra Claude, which found the full disk and fixed it after approval](docs/screenshots/servers.png) |
 | **Alerts.** Each organization's Nagios alerts, next to the work. | **Servers.** SSH panes shared with an infra Claude that asks before every change. |
+| ![Acme's drawings: New drawing, Import a file…, then Whiteboard and Login flow with their pictures](docs/screenshots/drawing-list.png) | ![A drawing with its Claude: asked for a cache, it drew one, marked as its own, and suggested an audit log to approve, rework or dismiss](docs/screenshots/drawing-claude.png) |
+| **Drawings.** Excalidraw diagrams for each organization and card, as `.excalidraw` files. | **Claude in drawings.** It draws when you ask and suggests the rest; every edit undoes. |
 
 ## Install
 
