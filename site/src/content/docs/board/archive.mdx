@@ -1,6 +1,6 @@
 ---
 title: Done archive
-description: Where Done and archived cards go, how to archive a card, undo it, and restore it to the board.
+description: Where Done and archived cards go; grouping, filters, the preview, acting on many cards at once, undo and restore.
 ---
 
 import { Steps } from '@astrojs/starlight/components';
@@ -9,18 +9,72 @@ The board doesn't show the Done column. Cards you move to Done (from Review, onc
 checked Claude's work, or from any column) wait in the **Done archive**, along with the cards you archived.
 
 Open it from the bottom of the sidebar: **Archive** → **Done archive**. Its count
-is the Done cards plus the archived ones. The header reads "1 done · 1 archived".
+is the Done cards plus the archived ones. The header reads "1 done · 5 archived".
 
-![The Done archive: DESK-8 "Done · not archived yet" above DESK-6 "Archived from In progress"](../../../assets/shots/board-archive.png)
+![The Done archive: Group by and filter chips over sections Today, Yesterday, This week, October 2026 and September 2026, one row per card](../../../assets/shots/board-archive.png)
 
 <figure class="cut">
 
-![Two cards in the archive: "Done … · not archived yet" over DESK-8, "Archived … from In progress" over DESK-6](../../../assets/shots/board-archive-list.png)
+![Rows in the archive: a Done or Archived badge, the key and title, the organization, labels, links, cost and when it finished](../../../assets/shots/board-archive-list.png)
 
-<figcaption>Done cards come first, then the archived ones, newest first. The line above each card says which it is.</figcaption>
+<figcaption>One row per card: Done or Archived, its key and title, organization, up to two labels, up to two links, its cost and when it finished.</figcaption>
 </figure>
 
+## Group and filter
+
+**Group by** sorts the cards into sections, newest first:
+
+- **Date**: Today, Yesterday, This week, This month, then one section per earlier month, by when each card went to Done.
+- **Organization**: one section per organization, alphabetical, with cards that have none last.
+
+The chips beside it filter the list. Each shows how many of the cards it would match.
+
+- **Done** and **Archived** start lit. Click one to hide that kind.
+- Each organization, and the six labels used most, start unlit. Light one to show only the cards
+  that have it. Lit chips of the same kind add up: Acme and Globex together show both.
+
 The toolbar's search filters the archive too. See [Search](/board/search/).
+
+## Preview a card
+
+Click a row to read the card beside the list, without leaving the archive. The preview shows:
+
+- its key, title and organization, and when it finished
+- **Open session**, **Restore** (an archived card) or **Archive** (a Done card), and **Delete**
+- its labels, links, turns, tokens and cost
+- its notes, and its last five messages, read-only
+
+![An archived card previewed on the right of the archive: Open session, Restore and Delete over its labels, links and numbers](../../../assets/shots/board-archive-preview.png)
+
+**Open session** shows the whole conversation full window. An archived card's session is
+read-only until it's back on the board.
+
+## Act on many cards
+
+Each row has a checkbox, and each section's header has one for all its cards. Once a card is
+checked, a bar over the list says how many and offers:
+
+- **Archive**: the Done cards checked go to the archive (shown when one is checked).
+- **Restore**: the archived cards checked go back to the board (shown when one is checked).
+- **Delete**: the checked cards are deleted. Their conversation files stay on disk.
+- **Clear**: uncheck everything.
+
+![Two cards checked, one a whole section; the bar "2 selected" with Restore, Delete and Clear](../../../assets/shots/board-archive-bulk.png)
+
+The bar acts only on checked cards the search and chips show. One toast undoes the whole
+action: see [Undo](#undo).
+
+## Keys
+
+| Key | What it does |
+|---|---|
+| <kbd>↑</kbd> <kbd>↓</kbd> | Preview the card above or below |
+| <kbd>Space</kbd> | Check or uncheck the previewed card |
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | Check every card shown |
+| <kbd>Enter</kbd> | Open the previewed card's session |
+| <kbd>Delete</kbd> | Delete the checked cards, or the previewed one when none are checked |
+| <kbd>Esc</kbd> | Uncheck everything, then clear the search |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Undo, while the toast shows |
 
 ## Archive a card
 
@@ -29,6 +83,7 @@ its session is running, desk stops it.
 
 - Right-click the card and choose **Archive** (or press <kbd>Backspace</kbd> while its menu is open). See [the card menu](/board/cards/#the-card-menu).
 - Or click the archive icon in the card's [session panel](/sessions/panel/).
+- Or, for Done cards, **Archive** in the archive's preview or its bar.
 
 A toast at the window's foot says what happened: "Archived DESK-6", or
 "Archived DESK-6; its session stopped".
@@ -42,8 +97,9 @@ A toast at the window's foot says what happened: "Archived DESK-6", or
 <figcaption>The bar on the right runs down. Once it's gone, the undo is gone too.</figcaption>
 </figure>
 
-Click **Undo**, or press <kbd>Ctrl</kbd>+<kbd>Z</kbd> on the board, within six seconds.
-The card goes back to its column.
+Click **Undo**, or press <kbd>Ctrl</kbd>+<kbd>Z</kbd>, within six seconds. The card goes back
+where it was. After an action on many cards ("Archived 3 cards", "Deleted 2 cards"), every
+card goes back where it was, as it was.
 
 ## Archive every Done card
 
@@ -61,22 +117,21 @@ how many ("Archived 3 done cards"). This one has no undo, but you can still rest
 
 <Steps>
 
-1. Open **Done archive** and click the card. Its session panel opens: you can read the conversation.
-2. Click the archive icon in the panel's header, **Restore to the board**.
+1. Open **Done archive** and click the card.
+2. Click **Restore** in the preview. To restore several, check them and click **Restore** in the bar.
 
 </Steps>
 
-The card goes back to the end of the column it was archived from, and desk switches
-back to All cards. A toast says "Restored DESK-6".
-
-![An archived card's panel open beside the archive, its Restore to the board button outlined](../../../assets/shots/board-archive-restore.png)
+The card goes back to the end of the column it was archived from. A toast says "Restored DESK-6".
 
 <figure class="cut">
 
-![The Restore to the board button in the panel's header](../../../assets/shots/board-archive-restore-restore.png)
+![The preview's Open session, Restore and Delete buttons, Restore outlined](../../../assets/shots/board-archive-preview-actions.png)
 
-<figcaption>Restore to the board.</figcaption>
+<figcaption>Restore, beside Open session and Delete.</figcaption>
 </figure>
+
+The archive icon in an archived card's [session panel](/sessions/panel/) restores it too.
 
 :::note
 An archived card is read-only. You can't edit it or message its session until it's back on the board.

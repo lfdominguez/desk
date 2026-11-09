@@ -44,6 +44,9 @@ func (u *ui) keys(gtx layout.Context) {
 		if u.menu != nil {
 			filters = append(filters, u.menuFilters()...)
 		}
+		if u.view == viewArchive {
+			filters = append(filters, key.Filter{Name: key.NameSpace}, key.Filter{Name: key.NameDeleteForward}, key.Filter{Name: "A", Required: key.ModShortcut})
+		}
 	}
 	for {
 		ev, ok := gtx.Event(filters...)
@@ -66,6 +69,9 @@ func (u *ui) keys(gtx layout.Context) {
 			continue
 		}
 		if u.menu != nil && u.menuKey(e.Name) {
+			continue
+		}
+		if u.view == viewArchive && u.archKey(e) {
 			continue
 		}
 		move := e.Modifiers.Contain(key.ModShortcut)
@@ -149,6 +155,9 @@ func (u *ui) escape(gtx layout.Context) {
 	case u.snoozing != "":
 		u.snoozing = ""
 		u.tkGen++
+	case u.view == viewArchive && u.arch.anyChecked() && !gtx.Focused(&u.search): // the archive's checks, then its search
+		u.arch.sel = nil
+		u.arch.ver++
 	case gtx.Focused(&u.search) || u.search.Len() > 0:
 		u.search.SetText("")
 		u.blur = true

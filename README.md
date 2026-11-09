@@ -189,8 +189,10 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   session's turns, tokens and cost.
 - **Review and Done**: a card Claude finishes waits in **Review** ("Ready for review") until you
   move it to Done; nothing else does. No view shows the Done column; Done cards show in
-  **Done archive**, above the archived ones. The box in the toolbar archives every Done card; archived cards stay searchable
-  and can be restored from their panel.
+  **Done archive** with the archived ones: in sections by date or organization, filtered by chips
+  (Done, Archived, organizations, top labels) and the search, a click previews a card beside the
+  list (notes, numbers, last messages; Open session, Restore or Archive, Delete), and checkboxes act on
+  many at once with one undo. The box in the toolbar archives every Done card.
 - **My tickets**: under each organization with a Jira, GitHub or GitLab account, **Tickets** lists
   the open issues assigned to you there, by project. Click one to open its card, or to make one
   linked to it.
@@ -523,7 +525,8 @@ refuses its file and says so (an export is read anyway).
 | Select | **arrows** |
 | Search | **/** or **Ctrl+F**: key, title, notes, org, links, `#labels` (fzf syntax) |
 | Improve the request | **Ctrl+J** in the new-card dialog |
-| Undo an archive | **Ctrl+Z** |
+| Undo an archive or delete | **Ctrl+Z** |
+| In the Done archive | **↑/↓** preview, **Space** check, **Ctrl+A** check all, **Enter** session, **Delete**, **Esc** uncheck |
 | Back out | **Esc**: the dialog, the search, a field, the panel, then the selection |
 | Text size | **Ctrl+=** bigger, **Ctrl+-** smaller, **Ctrl+0** back to 100%: the terminals and the session panel, anywhere |
 

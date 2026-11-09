@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -41,7 +42,37 @@ type archState struct {
 	off   map[string]bool // "done", "archived" turned off
 	on    map[string]bool // "org:…", "label:…" turned on
 	sel   map[string]bool // the cards checked, by id
+	cur   string          // the card previewed
 	ver   int             // bumped by every change, for sig
+
+	shown  []archEntry // last frame's rows, in order: what the keys move over
+	scroll bool        // bring cur into view on the next frame
+	prev   layout.List // the preview's
+}
+
+// anyChecked is whether a card is checked.
+func (a *archState) anyChecked() bool {
+	for _, on := range a.sel {
+		if on {
+			return true
+		}
+	}
+	return false
+}
+
+// step moves the preview d rows down the list as last drawn (the first row
+// when none is previewed), and brings it into view.
+func (a *archState) step(d int) {
+	i := slices.IndexFunc(a.shown, func(e archEntry) bool { return e.c.ID == a.cur })
+	if i < 0 {
+		i = 0
+	} else {
+		i = max(i+d, 0)
+	}
+	if i < len(a.shown) { // past the last row it stays
+		a.cur, a.scroll = a.shown[i].c.ID, true
+		a.ver++
+	}
 }
 
 // check checks or unchecks the cards es.
@@ -221,7 +252,7 @@ func archChips(es []archEntry) (chips []string, n map[string]int) {
 
 // archive is the Done column's cards and the archived ones, filtered by the
 // search and the chips, in sections by date or organization, one compact
-// row each; a click opens a card's session to read or restore it.
+// row each; a click previews a card beside the list.
 func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 	k, a := u.k, &u.arch
 	gtx.Constraints.Min = gtx.Constraints.Max
@@ -242,20 +273,47 @@ func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 		e *archEntry
 	}
 	var items []item
+	var pv *archEntry // the card previewed, when shown
+	a.shown = a.shown[:0]
 	for i := range gs {
 		items = append(items, item{g: &gs[i]})
 		for j := range gs[i].es {
-			items = append(items, item{e: &gs[i].es[j]})
+			e := &gs[i].es[j]
+			if e.c.ID == a.cur {
+				pv = e
+				if p := u.archList.Position; a.scroll && (len(items) <= p.First || len(items) >= p.First+p.Count-1) { // out of view, or at its edge
+					u.archList.ScrollTo(len(items) - 1) // the row over it kept in view
+				}
+			}
+			items = append(items, item{e: e})
+			a.shown = append(a.shown, *e)
 		}
 	}
+	a.scroll = false
 	chk := a.checked(es)
-	var act func() // the bulk bar's, run once the list is drawn from the board as it was
+	var act func() // the buttons', run once the list is drawn from the board as it was
 	w := min(gtx.Constraints.Max.X-gtx.Dp(48), gtx.Dp(960))
+	if pv != nil {
+		w = gtx.Constraints.Max.X - gtx.Dp(48)
+	}
 	defer func() {
 		if act != nil {
 			act()
 		}
 	}()
+	list := func(gtx layout.Context) layout.Dimensions {
+		if len(items) == 0 {
+			return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: 40}.Layout(gtx, k.Lbl("Nothing matches the search and filters.", 13, kit.CText3, kit.Sans))
+			})
+		}
+		return u.archList.Layout(gtx, len(items), func(gtx layout.Context, n int) layout.Dimensions {
+			if g := items[n].g; g != nil {
+				return u.archHead(gtx, g, n == 0)
+			}
+			return u.archRow(gtx, *items[n].e)
+		})
+	}
 	return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Constraints{Min: image.Pt(w, gtx.Constraints.Max.Y), Max: image.Pt(w, gtx.Constraints.Max.Y)}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -269,19 +327,54 @@ func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.archBulkBar(gtx, chk, &act) })
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				if len(items) == 0 {
-					return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{Top: 40}.Layout(gtx, k.Lbl("Nothing matches the search and filters.", 13, kit.CText3, kit.Sans))
-					})
+				if pv == nil {
+					return list(gtx)
 				}
-				return u.archList.Layout(gtx, len(items), func(gtx layout.Context, n int) layout.Dimensions {
-					if g := items[n].g; g != nil {
-						return u.archHead(gtx, g, n == 0)
-					}
-					return u.archRow(gtx, *items[n].e)
-				})
+				return layout.Flex{}.Layout(gtx,
+					layout.Flexed(1, list),
+					layout.Rigid(kit.HGap(16)),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						pw := min(gtx.Dp(460), gtx.Constraints.Max.X/2)
+						gtx.Constraints.Min.X, gtx.Constraints.Max.X = pw, pw
+						return layout.Inset{Bottom: 16}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.archPreview(gtx, *pv, &act) })
+					}))
 			}))
 	})
+}
+
+// archKey is the archive's keys, over last frame's rows: ↑/↓ move the
+// preview, Space checks it, Ctrl+A checks every row, Enter opens its
+// session, Delete deletes the checked rows (or else it). Every arrow is
+// taken: the board's would move a card nobody sees.
+func (u *ui) archKey(e key.Event) bool {
+	a := &u.arch
+	i := slices.IndexFunc(a.shown, func(e archEntry) bool { return e.c.ID == a.cur })
+	switch e.Name {
+	case key.NameUpArrow, key.NameDownArrow:
+		if !e.Modifiers.Contain(key.ModShortcut) {
+			a.step(map[key.Name]int{key.NameUpArrow: -1, key.NameDownArrow: 1}[e.Name])
+		}
+	case key.NameLeftArrow, key.NameRightArrow:
+	case "A":
+		a.check(a.shown, true)
+	case key.NameSpace:
+		if i >= 0 {
+			a.check(a.shown[i:i+1], !a.sel[a.cur])
+		}
+	case key.NameReturn:
+		if i >= 0 {
+			u.openSession(a.cur)
+		}
+	case key.NameDeleteForward:
+		if chk := a.checked(a.shown); len(chk) > 0 {
+			u.archBulk("delete", chk)
+		} else if i >= 0 {
+			u.archBulk("delete", a.shown[i:i+1])
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 // archBulkBar is "N selected" and what can be done to them: Archive the
@@ -328,8 +421,7 @@ func (u *ui) archBulk(op string, es []archEntry) {
 			spots = append(spots, s)
 		}
 	}
-	// es comes in board order (archMatches), so each column's and the
-	// archive's spots are lowest index first, as Put needs them back
+	slices.SortFunc(spots, func(a, b kanban.Spot) int { return cmp.Or(a.Col-b.Col, a.At-b.At) }) // as Put needs them back: the keys hand rows in list order
 	for _, s := range spots {
 		id := s.Card.ID
 		u.endSession(id)
@@ -501,7 +593,7 @@ func (u *ui) archCard(gtx layout.Context, e archEntry, on bool) layout.Dimension
 	switch {
 	case on:
 		bg = kit.Mix(kit.CAcc, kit.CPane, .88)
-	case c.ID == u.panel:
+	case c.ID == u.arch.cur:
 		bg = kit.CPanelCard
 	}
 	d, ok := k.Button(gtx, id, bg, kit.CHover, kit.RCtl, layout.Inset{Top: 7, Bottom: 7, Left: 8, Right: 10}, func(gtx layout.Context) layout.Dimensions {
@@ -545,7 +637,8 @@ func (u *ui) archCard(gtx layout.Context, e archEntry, on bool) layout.Dimension
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, append(head, tail...)...)
 	})
 	if ok {
-		u.openPanel(c.ID)
+		u.arch.cur = c.ID
+		u.arch.ver++
 	}
 	return d
 }

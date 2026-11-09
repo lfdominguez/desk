@@ -6,6 +6,20 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The Done archive, reworked**: cards in sections by date (Today, Yesterday, This week, This
+  month, then by month) or by organization, compact rows (key, title, organization, labels, links,
+  cost, when it finished), and filter chips with counts for Done, Archived, each organization and
+  the top labels.
+  - A click previews a card beside the list: its notes, labels, links, numbers and last five
+    messages, with Open session, Restore or Archive, and Delete.
+  - Checkboxes, on rows and whole sections, and a bar to archive, restore or delete many cards at
+    once; one undo puts them all back.
+  - Keys: ↑/↓ preview, Space checks, Ctrl+A checks all, Enter opens the session, Delete deletes,
+    Esc unchecks.
+- Cards remember when they went to Done, which the archive sorts by.
+
 ### Fixed
 
 - Dead keys work in terminals on Linux: on a layout with them (US International, for one), a

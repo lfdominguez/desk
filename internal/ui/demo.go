@@ -68,6 +68,9 @@ func Demo() (string, error) {
 		b.ArchiveCard(c.ID)
 		at := time.Now().Add(-s.ago)
 		b.Archive[0].Finished, b.Archive[0].Archived = at, at.Add(time.Hour)
+		for _, m := range s.chat {
+			kanban.AppendChat(kanban.ChatPath(path, c.ID), m)
+		}
 	}
 	if err := b.Save(path); err != nil {
 		return "", err
@@ -207,20 +210,29 @@ func demoPR(repo string, n int, state, tone string) kanban.Link {
 func demoArchived() []struct {
 	card kanban.Card
 	ago  time.Duration
+	chat []kanban.ChatMsg
 } {
 	day := 24 * time.Hour
 	return []struct {
 		card kanban.Card
 		ago  time.Duration
+		chat []kanban.ChatMsg
 	}{
 		{kanban.Card{Title: "Dashboard for the audit log", Org: "Initech", Dir: "portal", Labels: []string{"ui"}, Status: kanban.StatusDone,
-			Session: kanban.Session{Turns: 9, Cost: 2.41}, Links: []kanban.Link{demoPR("initech/portal", 88, "merged", links.ToneDone)}}, 41 * day},
+			Session: kanban.Session{Turns: 9, Cost: 2.41}, Links: []kanban.Link{demoPR("initech/portal", 88, "merged", links.ToneDone)}}, 41 * day, nil},
 		{kanban.Card{Title: "Move the billing cron to the queue", Org: "Globex", Dir: "billing", Labels: []string{"billing", "infra"}, Status: kanban.StatusDone,
-			Session: kanban.Session{Turns: 12, Cost: 3.05}, Links: []kanban.Link{demoPR("globex-org/billing", 212, "merged", links.ToneDone)}}, 19 * day},
+			Session: kanban.Session{Turns: 12, Cost: 3.05}, Links: []kanban.Link{demoPR("globex-org/billing", 212, "merged", links.ToneDone)}}, 19 * day, nil},
 		{kanban.Card{Title: "Fix the flaky checkout test", Org: "Globex", Dir: "shop", Labels: []string{"tests"}, Status: kanban.StatusDone,
-			Session: kanban.Session{Turns: 4, Cost: 0.58}, Links: []kanban.Link{demoPR("globex-org/shop", 431, "merged", links.ToneDone)}}, 3 * day},
+			Session: kanban.Session{Turns: 4, Cost: 0.58}, Links: []kanban.Link{demoPR("globex-org/shop", 431, "merged", links.ToneDone)}}, 3 * day, nil},
 		{kanban.Card{Title: "Rotate the API keys", Org: "Acme", Dir: "api", Labels: []string{"security"}, Status: kanban.StatusDone,
-			Session: kanban.Session{Turns: 3, Cost: 0.64}}, day + 2*time.Hour},
+			Notes:   "Rotate the **staging** and **production** API keys before the old ones expire.\n\n- update the vault items\n- restart the API pods\n- revoke the old keys",
+			Session: kanban.Session{Turns: 3, Tokens: 41000, Cost: 0.64}}, day + 2*time.Hour, []kanban.ChatMsg{
+			{Who: "you", Text: "Rotate the staging and production API keys; the old ones expire Friday."},
+			{Who: "claude", Text: "New keys are in the vault for both environments, and the API pods restarted on them. Staging's health check passes."},
+			{Who: "you", Text: "Production too?"},
+			{Who: "claude", Text: "Production restarted cleanly: **0 errors** in the last 15 minutes. I revoked the old keys."},
+			{Who: "you", Text: "Thanks, that's it."},
+		}},
 	}
 }
 

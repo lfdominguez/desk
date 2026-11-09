@@ -98,22 +98,20 @@ func init() {
 			s.shot("board-archive-undo", cut{"toast", boardToast(s), true})
 			boardSideEnd(s)
 			s.click("side" + viewArchive)
-			s.move(boardAway)
+			all, list := around(s.at("tbArchive"), 6), around(union(s.at("archChkGroupToday"), s.at("arch"+archivedID(s, "Rotate the API keys"))), 6)
+			s.move(boardAway) // finding buttons hovers them
 			s.settle()
-			s.shot("board-archive",
-				cut{"all", around(s.at("tbArchive"), 6), true},
-				cut{"list", dp(546, 64, 1286, 392), false},
-			)
+			s.shot("board-archive", cut{"all", all, true}, cut{"list", list, false})
 			s.click("archChkGroupYesterday")
 			s.click("archChk" + id)
 			s.move(boardAway)
 			s.settle()
 			s.shot("board-archive-bulk", cut{"bar", around(s.at("archBulkDelete"), 6), true})
 			s.click("archBulkClear")
-			s.click("arch" + id)
+			s.click("arch" + archivedID(s, "Rotate the API keys")) // the demo's card with notes and a chat
 			s.move(boardAway)
 			s.settle()
-			s.shot("board-archive-restore", cut{"restore", around(s.at("pnRestore"), 6), true})
+			s.shot("board-archive-preview", cut{"actions", around(s.at("archPvRestore"), 6), true})
 		}},
 		scene{"board-palette", func(s *shooter) {
 			s.key("K", key.ModShortcut)
@@ -250,6 +248,18 @@ func boardOrigin(s *shooter) image.Point {
 }
 
 // boardCard is the card titled title on the board.
+// archivedID is the id of the archived card titled title.
+func archivedID(s *shooter, title string) string {
+	s.t.Helper()
+	for _, c := range s.u.b.Archive {
+		if c.Title == title {
+			return c.ID
+		}
+	}
+	s.t.Fatalf("no archived card %q", title)
+	return ""
+}
+
 func boardCard(s *shooter, title string) *kanban.Card {
 	s.t.Helper()
 	for ci := range s.u.b.Columns {

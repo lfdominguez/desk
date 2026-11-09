@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"gioui.org/io/key"
 	"gioui.org/layout"
 
 	"github.com/lfdominguez/desk/internal/kanban"
@@ -260,6 +261,165 @@ func TestArchiveBulk(t *testing.T) {
 	click("archBulkClear")
 	if len(h.u.arch.checked(h.u.archMatches())) != 0 {
 		t.Fatal("cleared")
+	}
+}
+
+// TestArchivePreview: a click previews a card beside the list: its notes,
+// numbers and last five messages; its buttons open the session, restore,
+// archive and delete it.
+func TestArchivePreview(t *testing.T) {
+	h := newHarness(t)
+	done := h.u.b.Column("Done")
+	d := h.u.b.Add(done, kanban.Card{Title: "Ship login", Org: "Acme", Finished: time.Now(), Notes: "Uses **OAuth**.", Labels: []string{"auth"},
+		Links: []kanban.Link{{Ref: "PR #7"}}, Session: kanban.Session{Turns: 3, Tokens: 12000, Cost: 0.5}})
+	old := h.u.b.Add(0, kanban.Card{Title: "Old idea"})
+	h.u.b.ArchiveCard(old.ID)
+	for i, who := range []string{"you", "claude", "you", "claude", "claude", "claude", "you"} { // the last 5: a name line where the speaker changes
+		h.u.say(d.ID, who, fmt.Sprint("message ", i))
+	}
+	h.u.view = viewArchive
+	sz := image.Pt(1400, 900)
+	all := image.Rectangle{Max: sz}
+	view := func(gtx layout.Context) layout.Dimensions { return h.u.archive(gtx) }
+	shows := func(s string) bool { h.draw(sz, view); _, ok := h.shown(s); return ok }
+	if shows("NOTES") {
+		t.Fatal("a preview with nothing picked")
+	}
+	h.clickIn(sz, all, view, "arch"+d.ID)
+	for _, s := range []string{"NOTES", "3 turns · 12k tokens · $0.50", "LAST MESSAGES · 5 OF 7", "Finished "} { // markdown and messages draw no labels
+		if !shows(s) {
+			t.Errorf("no %q", s)
+		}
+	}
+	if you, claude := h.count("You", all), h.count("Claude", all); you != 2 || claude != 1 {
+		t.Errorf("name lines: You %d, Claude %d", you, claude)
+	}
+	h.clickIn(sz, all, view, "archPvArchive")
+	if len(h.u.b.Columns[done].Cards) != 0 || h.u.b.Archive[0].ID != d.ID {
+		t.Fatal("not archived")
+	}
+	h.clickIn(sz, all, view, "archPvRestore") // still previewed, now archived
+	if len(h.u.b.Columns[done].Cards) != 1 {
+		t.Fatal("not restored")
+	}
+	h.clickIn(sz, all, view, "archPvDelete")
+	if h.u.b.Card(d.ID) != nil || shows("NOTES") {
+		t.Fatal("not deleted, or still previewed")
+	}
+	h.u.runUndo()
+	h.clickIn(sz, all, view, "arch"+old.ID)
+	if shows("LAST MESSAGES") || shows("NOTES") || shows("turns ·") {
+		t.Fatal("a bare card shows empty parts")
+	}
+	h.clickIn(sz, all, view, "archPvOpen")
+	if h.u.view != "sess:"+old.ID {
+		t.Fatalf("view %q", h.u.view)
+	}
+}
+
+// TestArchiveKeys: ↑/↓ move the preview down the list as drawn, Space and
+// Ctrl+A check, Delete deletes the checked rows (else the previewed one)
+// in one undo, Enter opens the session, esc clears the checks then the
+// search; the board's arrows stay off.
+func TestArchiveKeys(t *testing.T) {
+	h := newHarness(t)
+	done := h.u.b.Column("Done")
+	at := func(title string, ago time.Duration) kanban.Card {
+		return h.u.b.Add(done, kanban.Card{Title: title, Finished: time.Now().Add(-ago)})
+	}
+	d1, d2, d3, _ := at("One", 2*time.Hour), at("Two", time.Hour), at("Three", 0), at("Four", 3*time.Hour)
+	old := h.u.b.Add(0, kanban.Card{Title: "Old"})
+	h.u.b.ArchiveCard(old.ID)
+	h.u.b.Archive[0].Finished = time.Now().Add(-4 * time.Hour)
+	h.u.view = viewArchive
+	h.u.sel = d1.ID
+	h.frame() // the list, newest first: Three, Two, One, Four, Old
+	ids := func() string {
+		var out []string
+		for _, c := range h.u.b.Columns[done].Cards {
+			out = append(out, c.Title)
+		}
+		return fmt.Sprint(out, len(h.u.b.Archive))
+	}
+	step := func(n key.Name, want string) {
+		t.Helper()
+		h.send(press(n, 0))
+		if c := h.u.b.Card(h.u.arch.cur); c == nil || c.Title != want {
+			t.Fatalf("after %s: %+v", n, c)
+		}
+	}
+	step(key.NameDownArrow, "Three")
+	step(key.NameDownArrow, "Two")
+	step(key.NameUpArrow, "Three")
+	step(key.NameUpArrow, "Three")
+	step(key.NameLeftArrow, "Three")
+	if h.u.sel != d1.ID {
+		t.Fatal("the board's arrows moved")
+	}
+	h.send(press(key.NameSpace, 0))
+	step(key.NameDownArrow, "Two")
+	h.send(press(key.NameSpace, 0))
+	if !h.u.arch.sel[d3.ID] || !h.u.arch.sel[d2.ID] {
+		t.Fatalf("checked %v", h.u.arch.sel)
+	}
+	h.send(press(key.NameDeleteForward, 0)) // Three then Two, as listed: undone, they go back in board order
+	if ids() != "[One Four] 1" || h.u.toast != "Deleted 2 cards" {
+		t.Fatalf("deleted: %s, %q", ids(), h.u.toast)
+	}
+	h.send(press("Z", key.ModShortcut))
+	if ids() != "[One Two Three Four] 1" {
+		t.Fatalf("undone: %s", ids())
+	}
+	for range 6 {
+		h.send(press(key.NameDownArrow, 0))
+	}
+	step(key.NameDownArrow, "Old")
+	h.send(press(key.NameDeleteForward, 0))
+	if len(h.u.b.Archive) != 0 || h.u.toast != "Deleted "+old.Key() {
+		t.Fatalf("delete the previewed: %s %q", ids(), h.u.toast)
+	}
+	h.send(press("Z", key.ModShortcut))
+	h.send(press(key.NameSpace, 0))
+	h.send(press("A", key.ModShortcut))
+	if len(h.u.arch.checked(h.u.arch.shown)) != 5 {
+		t.Fatalf("Ctrl+A: %v", h.u.arch.sel)
+	}
+	h.u.search.SetText("o")
+	h.send(press(key.NameEscape, 0))
+	if h.u.arch.anyChecked() || h.u.search.Text() != "o" {
+		t.Fatal("esc: the checks first")
+	}
+	h.send(press(key.NameEscape, 0))
+	if h.u.search.Text() != "" {
+		t.Fatal("esc: then the search")
+	}
+	h.send(press(key.NameReturn, 0))
+	if h.u.view != "sess:"+old.ID || h.u.panel != "" {
+		t.Fatalf("enter: view %q, panel %q (the board's enter too)", h.u.view, h.u.panel)
+	}
+}
+
+// TestArchiveKeysScroll: moving the preview past the rows in view scrolls
+// the list to it.
+func TestArchiveKeysScroll(t *testing.T) {
+	h := newHarness(t)
+	done := h.u.b.Column("Done")
+	for i := range 40 {
+		h.u.b.Add(done, kanban.Card{Title: fmt.Sprint("Card ", i), Finished: time.Now().Add(-time.Duration(i) * time.Minute)})
+	}
+	h.u.view = viewArchive
+	h.frame()
+	for range 41 { // the first press previews Card 0; the last one stays on Card 39
+		h.send(press(key.NameDownArrow, 0))
+	}
+	if p := h.u.archList.Position; p.First == 0 || h.u.b.Card(h.u.arch.cur).Title != "Card 39" {
+		t.Fatalf("at the last card: first %d", p.First)
+	}
+	for range 39 {
+		h.send(press(key.NameUpArrow, 0))
+	}
+	if p := h.u.archList.Position; p.First != 0 {
+		t.Fatalf("back at the first: first %d", p.First)
 	}
 }
 

@@ -1341,7 +1341,7 @@ func TestCoverCardMenu(t *testing.T) {
 }
 
 // TestCoverArchiveView: Done cards then archived ones, by the search; a
-// click opens one; none says so.
+// click previews one; none says so.
 func TestCoverArchiveView(t *testing.T) {
 	h := newHarness(t)
 	done := h.u.b.Add(h.u.b.Column("Done"), kanban.Card{Title: "Ship login", Org: "Acme"})
@@ -1355,8 +1355,8 @@ func TestCoverArchiveView(t *testing.T) {
 	sz := image.Pt(900, 600)
 	view := func(gtx layout.Context) layout.Dimensions { return h.u.archive(gtx) }
 	h.clickIn(sz, image.Rectangle{Max: sz}, view, "arch"+gone.ID)
-	if h.u.panel != gone.ID {
-		t.Fatalf("panel %q", h.u.panel)
+	if h.u.arch.cur != gone.ID || h.u.panel != "" {
+		t.Fatalf("previewed %q, panel %q", h.u.arch.cur, h.u.panel)
 	}
 	h.u.search.SetText("login")
 	h.u.archList.Position.Count = -1
