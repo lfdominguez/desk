@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.09] - 2026-11-09
+
 ### Added
 
 - **Drawings**: Excalidraw diagrams for each organization (**Drawings** under it in the sidebar)
@@ -41,9 +43,6 @@ day). A release's section here is its notes on GitHub. The format follows
 - A card whose Claude is working is always in In progress: every turn, the ones Claude starts
   itself when a subagent finishes included, takes it out of any column, Review and Done too, even
   when it was dragged there by mistake.
-
-### Fixed
-
 - In the infra workspace the keyboard follows the console: picking a server in the sidebar, or
   closing a pane (<kbd>Ctrl</kbd>+<kbd>D</kbd>) while another one stays, leaves the server's
   console ready to type in, with no extra click. It doesn't take the keys while you are typing in
@@ -183,7 +182,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.08...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.09...HEAD
+[2026.11.09]: https://github.com/lfdominguez/desk/compare/2026.11.08...2026.11.09
 [2026.11.08]: https://github.com/lfdominguez/desk/compare/2026.11.07.1...2026.11.08
 [2026.11.07.1]: https://github.com/lfdominguez/desk/compare/2026.11.07...2026.11.07.1
 [2026.11.07]: https://github.com/lfdominguez/desk/compare/2026.11.05.1...2026.11.07
