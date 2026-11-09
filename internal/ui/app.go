@@ -227,7 +227,8 @@ func (u *ui) startInfra() {
 		},
 		New: func(org, title, notes string) (string, error) {
 			return onBoard(u, func() (string, error) { return u.cardNew(org, title, notes) })
-		}})
+		},
+		Draw: func(who, name string, args []byte) (string, bool) { return u.drawTool(who, name, args) }})
 }
 
 // Run opens the window on board b and returns when it closes.
@@ -358,7 +359,7 @@ func (u *ui) frame(gtx layout.Context) {
 				main = u.sessionView
 			} else if strings.HasPrefix(u.view, "ws:") {
 				main = u.wsView
-			} else if strings.HasPrefix(u.view, "dr:") {
+			} else if strings.HasPrefix(u.view, "dr:") || strings.HasPrefix(u.view, "drc:") {
 				main = u.drawingsView
 			} else if strings.HasPrefix(u.view, "draw:") {
 				main = u.drawView

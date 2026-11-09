@@ -232,7 +232,16 @@ func TestDirectivesMore(t *testing.T) {
 	if s := System("DESK-1", "t", "Acme"); !strings.Contains(s, "board for the Acme organization") {
 		t.Fatalf("%s", s)
 	}
-	if s := Workspace("DESK-7", "Fix it"); !strings.Contains(s, `workspace Claude of card DESK-7 ("Fix it")`) || !strings.Contains(s, "suggest_to_card") {
+	if s := Workspace("DESK-7", "Fix it"); !strings.Contains(s, `workspace Claude of card DESK-7 ("Fix it")`) || !strings.Contains(s, "suggest_to_card") || !strings.HasSuffix(s, DrawingTools) {
+		t.Fatalf("%s", s)
+	}
+	if !strings.HasSuffix(CardTools, DrawingTools) {
+		t.Fatal("a card's Claude draws too")
+	}
+	if s := Drawing("Flow", "Acme", ""); !strings.Contains(s, `drawing "Flow" (of organization Acme)`) || !strings.HasSuffix(s, DrawingTools) {
+		t.Fatalf("%s", s)
+	}
+	if s := Drawing("Flow", "Acme", "DESK-3"); !strings.Contains(s, `drawing "Flow" (of card DESK-3 of organization Acme)`) {
 		t.Fatalf("%s", s)
 	}
 	clean, d := Take("hi\nDESK-TICKET: Fix login\nDESK-CARD: write docs\nDESK-CARD:\n")

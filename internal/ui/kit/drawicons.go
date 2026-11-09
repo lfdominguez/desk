@@ -42,6 +42,12 @@ var (
 	IcoLine IconPath = func(p *clip.Path, s float32) {
 		poly(p, s, .14, .5, .86, .5)
 	}
+	IcoShapes IconPath = func(p *clip.Path, s float32) { // a drawing: a square, a circle over its corner
+		poly(p, s, .14, .14, .54, .14, .54, .54, .14, .54, .14, .14)
+		c := f32.Pt(s*.62, s*.62)
+		p.MoveTo(f32.Pt(s*.86, s*.62))
+		p.ArcTo(c, c, 6.2832)
+	}
 	IcoPencil IconPath = func(p *clip.Path, s float32) { // freedraw
 		poly(p, s, .2, .8, .24, .62, .66, .2, .8, .34, .38, .76, .2, .8)
 		poly(p, s, .58, .28, .72, .42)

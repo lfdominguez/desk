@@ -100,7 +100,7 @@ func (t *Tab) changes(p *Pane, hours int) toolResult {
 	out := b.Bytes()
 	audit(auditEntry{Org: t.org, Group: t.group, Host: p.name, Event: "command", By: "claude", Cmd: fmt.Sprintf("(changes tool, last %dh)", hours)})
 	if err != nil && len(out) == 0 {
-		return toolResult{"changes: " + err.Error(), true}
+		return toolResult{Text: "changes: " + err.Error(), IsError: true}
 	}
 	return toolResult{Text: fmt.Sprintf("changes on %s in the last %dh:\n%s", p.name, hours, tailLines(string(out), 250, 30000))}
 }

@@ -181,7 +181,7 @@ func (u *ui) sections() []struct {
 		if _, ok := u.ci[o]; ok {
 			orgItems = append(orgItems, sideItem{"ci:" + o, "CI", kit.IcoCheck, u.ciTone(o)})
 		}
-		orgItems = append(orgItems, sideItem{"dr:" + o, "Drawings", kit.IcoPencil, kit.CText3})
+		orgItems = append(orgItems, sideItem{"dr:" + o, "Drawings", kit.IcoShapes, kit.CText3})
 		orgItems = append(orgItems, u.serverItems(o)...)
 	}
 	for _, l := range labSeen {
@@ -257,6 +257,9 @@ func (u *ui) viewTitle() string {
 	if org, ok := strings.CutPrefix(u.view, "dr:"); ok {
 		return org + " · drawings"
 	}
+	if p, ok := u.placeOf(u.view); ok {
+		return u.b.Card(p.card).Key() + " · drawings"
+	}
 	if st := u.drawOpen(); st != nil {
 		return st.org + " · " + drawName(st.path)
 	}
@@ -313,6 +316,9 @@ func (u *ui) sentence() string {
 	}
 	if org, ok := strings.CutPrefix(u.view, "dr:"); ok {
 		return plural(len(u.drawings(org)), "drawing", "drawings") + " · .excalidraw files in the organization's .desk folder"
+	}
+	if p, ok := u.placeOf(u.view); ok {
+		return plural(len(u.drawingsIn(u.placeDir(p))), "drawing", "drawings") + " of the card · its Claudes read and draw them too"
 	}
 	if strings.HasPrefix(u.view, "draw:") {
 		return "Draw with the toolbar or its keys; Esc steps back to the list"

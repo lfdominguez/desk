@@ -42,10 +42,19 @@ var startClaude = func(o claude.Options, on func(claude.Event)) (session, error)
 func (u *ui) chat(id string) []kanban.ChatMsg {
 	m, ok := u.chats[id]
 	if !ok {
-		m = kanban.LoadChat(kanban.ChatPath(u.path, id))
+		m = kanban.LoadChat(u.chatFile(id))
 		u.chats[id] = m
 	}
 	return m
+}
+
+// chatFile is where conversation id is kept: a card's among the board's
+// chats, a drawing's Claude's beside the drawing.
+func (u *ui) chatFile(id string) string {
+	if p, ok := strings.CutPrefix(id, "draw:"); ok {
+		return drawSide(p, "chat.jsonl")
+	}
+	return kanban.ChatPath(u.path, id)
 }
 
 // say adds a message to card id's conversation, in memory and on disk.
@@ -55,7 +64,7 @@ func (u *ui) say(id, who, text string) { u.sayMsg(id, kanban.ChatMsg{Who: who, T
 func (u *ui) sayMsg(id string, m kanban.ChatMsg) {
 	m.At = time.Now()
 	u.chats[id] = append(u.chat(id), m)
-	if err := kanban.AppendChat(kanban.ChatPath(u.path, id), m); err != nil {
+	if err := kanban.AppendChat(u.chatFile(id), m); err != nil {
 		u.showToast("Chat not saved: "+err.Error(), true)
 	}
 }

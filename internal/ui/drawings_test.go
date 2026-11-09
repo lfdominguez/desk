@@ -32,10 +32,11 @@ func (h *harness) drawing(name string, els ...*draw.Element) (*drawState, f32.Po
 	if err := s.Save(path); err != nil {
 		h.t.Fatal(err)
 	}
-	h.u.drawRead("Acme")
+	h.u.drawRead()
 	h.u.openDrawing("Acme", path)
 	st := h.u.draws[path]
 	st.placed, st.zoom, st.pan = true, 1, f32.Point{}
+	st.claude.hide = true // the canvas the whole width; drawchat_test.go shows the chat
 	h.frame()
 	// a press on empty space starts a selection box at the scene's point under it
 	p := f32.Pt(float32(h.size.X-150), float32(h.size.Y/2))
@@ -133,13 +134,13 @@ func TestDrawingsList(t *testing.T) {
 	}
 	old := time.Now().Add(-time.Hour)
 	os.Chtimes(st.path, old, old)
-	h.u.drawRead("Acme")
+	h.u.drawRead()
 	if l := h.u.drawings("Acme"); l[0].name != "Untitled 2" || l[1].name != "Untitled" {
 		t.Errorf("newest first: %v", l)
 	}
 	os.WriteFile(filepath.Join(h.u.drawingsDir("Acme"), "notes.txt"), nil, 0o644)
 	os.Mkdir(filepath.Join(h.u.drawingsDir("Acme"), "dir.excalidraw"), 0o755)
-	h.u.drawRead("Acme")
+	h.u.drawRead()
 	if n := len(h.u.drawings("Acme")); n != 2 {
 		t.Errorf("other files listed: %d", n)
 	}
@@ -171,7 +172,7 @@ func TestDrawingThumb(t *testing.T) {
 	}
 	s := draw.NewScene()
 	s.Save(filepath.Join(h.u.drawingsDir("Acme"), "Empty.excalidraw"))
-	h.u.drawRead("Acme")
+	h.u.drawRead()
 	for _, it := range h.u.drawings("Acme") {
 		if _, ok := h.u.thumb(it); ok == (it.name == "Empty") {
 			t.Errorf("%s: picture %v", it.name, ok)
@@ -194,11 +195,11 @@ func TestDrawingDelete(t *testing.T) {
 	if _, err := os.Stat(st.path); err != nil || len(h.u.drawings("Acme")) != 1 {
 		t.Fatal("undo didn't bring it back")
 	}
-	h.u.deleteDrawing("Acme", filepath.Join(h.u.drawingsDir("Acme"), "nope.excalidraw"))
+	h.u.deleteDrawing(filepath.Join(h.u.drawingsDir("Acme"), "nope.excalidraw"))
 	if !strings.Contains(h.u.toast, "Couldn't delete") || !h.u.toastBad {
 		t.Errorf("toast %q", h.u.toast)
 	}
-	h.u.deleteDrawing("Acme", st.path)
+	h.u.deleteDrawing(st.path)
 	os.Remove(h.u.drawingsDir("Acme"))
 	os.WriteFile(h.u.drawingsDir("Acme"), nil, 0o644) // a file where the folder was: undo can't write
 	h.u.runUndo()
@@ -217,7 +218,7 @@ func TestDrawingOpenFails(t *testing.T) {
 		t.Errorf("view %q, toast %q", h.u.view, h.u.toast)
 	}
 	os.WriteFile(filepath.Join(h.u.root, "Acme", ".desk"), nil, 0o644) // .desk a file: no drawings folder
-	h.u.newDrawing("Acme")
+	h.u.newDrawing(drawPlace{org: "Acme"})
 	if !strings.Contains(h.u.toast, "Couldn't make") || !h.u.toastBad {
 		t.Errorf("toast %q", h.u.toast)
 	}
@@ -870,7 +871,7 @@ func (h *harness) areaOf(id string) image.Rectangle {
 func TestDrawReadBumps(t *testing.T) {
 	h := newHarness(t)
 	g := h.u.drawGen
-	h.u.drawRead("Acme")
+	h.u.drawRead()
 	if h.u.drawGen <= g {
 		t.Error("a list read again draws nothing new")
 	}
@@ -880,7 +881,7 @@ func TestDrawingNameCounts(t *testing.T) {
 	h := newHarness(t)
 	h.drawing("Untitled")
 	h.drawing("Untitled 2")
-	if n := h.u.drawingName("Acme", "Untitled"); n != "Untitled 3" {
+	if n := drawingName(h.u.drawingsDir("Acme"), "Untitled"); n != "Untitled 3" {
 		t.Errorf("next: %s", n)
 	}
 }
@@ -940,7 +941,7 @@ func TestDrawingListColumns(t *testing.T) {
 			at := time.Now().Add(-time.Duration(i) * time.Hour)
 			os.Chtimes(p, at, at)
 		}
-		h.u.drawRead("Acme")
+		h.u.drawRead()
 		h.u.view = "dr:Acme"
 		first := h.areaOf("drNewAcme")
 		last := h.areaOf("drDel" + filepath.Join(h.u.drawingsDir("Acme"), fmt.Sprint("D", c.items-1, ".excalidraw")))

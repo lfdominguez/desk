@@ -195,6 +195,7 @@ type toolCall struct {
 type toolResult struct {
 	Text    string `json:"text"`
 	IsError bool   `json:"isError"`
+	Image   string `json:"image,omitempty"` // a PNG, base64
 }
 
 // orgTools are offered only when the org's desk.toml configures that group.
@@ -251,16 +252,19 @@ var orgTools = map[string][]map[string]any{
 func mcpMain(sock, groups string) { mcpServe(sock, groups, os.Stdin, os.Stdout) }
 
 func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
-	tools := slices.Clone(mcpTools)
+	tools := append(slices.Clone(mcpTools), drawingTools...)
 	for _, g := range strings.Split(groups, ",") {
 		tools = append(tools, orgTools[g]...)
 	}
 	card, isCard := strings.CutPrefix(groups, "card=")
 	if isCard {
-		tools = cardTools
+		tools = append(slices.Clone(cardTools), drawingTools...)
 	}
 	if id, ok := strings.CutPrefix(groups, "ws="); ok { // a card's workspace Claude: reads, and suggests to the card's
 		tools, card = workspaceTools, "ws:"+id
+	}
+	if path, ok := strings.CutPrefix(groups, "draw="); ok { // a drawing's own Claude
+		tools, card = drawingTools, "draw:"+path
 	}
 	in := bufio.NewScanner(r)
 	in.Buffer(make([]byte, 1024*1024), 16*1024*1024)
@@ -293,7 +297,7 @@ func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
 			json.Unmarshal(req.Params, &c)
 			c.Card = card
 			r := forward(sock, c)
-			result = map[string]any{"content": []map[string]any{{"type": "text", "text": r.Text}}, "isError": r.IsError}
+			result = map[string]any{"content": r.content(), "isError": r.IsError}
 		case "ping":
 			result = map[string]any{}
 		default:
@@ -308,13 +312,13 @@ func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
 func forward(sock string, c toolCall) toolResult {
 	conn, err := net.Dial("unix", sock)
 	if err != nil {
-		return toolResult{"desk is not reachable: " + err.Error(), true}
+		return toolResult{Text: "desk is not reachable: " + err.Error(), IsError: true}
 	}
 	defer conn.Close()
 	json.NewEncoder(conn).Encode(c)
 	var r toolResult
 	if err := json.NewDecoder(conn).Decode(&r); err != nil {
-		return toolResult{"desk closed the call: " + err.Error(), true}
+		return toolResult{Text: "desk closed the call: " + err.Error(), IsError: true}
 	}
 	return r
 }
@@ -377,7 +381,7 @@ var cardTools = []map[string]any{
 
 // workspaceTools are the card's workspace Claude's (`desk mcp <sock>
 // ws=<id>`): the card tools that only read, and suggest_to_card.
-var workspaceTools = append(slices.Clone(cardTools[:5]), map[string]any{
+var workspaceTools = append(append(slices.Clone(cardTools[:5]), readDrawingTools()...), map[string]any{
 	"name": "suggest_to_card",
 	"description": "Send a suggestion (a change as a diff or snippet, with why) to the card's main Claude, which does the work. " +
 		"Only when the user asks you to pass it on.",
@@ -405,8 +409,7 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 				defer conn.Close()
 				var c toolCall
 				if json.NewDecoder(conn).Decode(&c) == nil {
-					text, ok := handle(c.Card, c.Name, c.Args)
-					json.NewEncoder(conn).Encode(toolResult{redact(text), !ok})
+					json.NewEncoder(conn).Encode(resultOf(handle(c.Card, c.Name, c.Args)))
 				}
 			}()
 		}
@@ -417,7 +420,9 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 // CardMCP is claude's --mcp-config that gives card id's session the card
 // tools through sock (ServeCards'), and the tools to allow without asking:
 // they only read. "" without a socket.
-func CardMCP(sock, id string) (string, []string) { return toolsMCP(sock, "card="+id, cardTools) }
+func CardMCP(sock, id string) (string, []string) {
+	return toolsMCP(sock, "card="+id, append(slices.Clone(cardTools), drawingTools...))
+}
 
 // WorkspaceMCP is CardMCP for card id's workspace Claude.
 func WorkspaceMCP(sock, id string) (string, []string) {
@@ -520,9 +525,12 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		defer cancel()
 		out, err := t.orgCall(ctx, c.Name, a.orgArgs, a.Reason)
 		if err != nil {
-			return toolResult{err.Error(), true}
+			return toolResult{Text: err.Error(), IsError: true}
 		}
 		return toolResult{Text: out}
+	}
+	if slices.ContainsFunc(drawingTools, func(d map[string]any) bool { return d["name"] == c.Name }) {
+		return t.drawTool(c)
 	}
 	switch c.Name {
 	case "hosts":
@@ -558,19 +566,19 @@ func (t *Tab) callTool(c toolCall) toolResult {
 	case "save_runbook":
 		p, err := saveRunbook(t, a.Name, a.Markdown)
 		if err != nil {
-			return toolResult{err.Error(), true}
+			return toolResult{Text: err.Error(), IsError: true}
 		}
 		return toolResult{Text: "saved " + p + "; the user starts it from the palette (" + modText("K") + ")"}
 	case "connect":
 		n, err := t.findHost(a.Host)
 		if err != nil {
-			return toolResult{err.Error(), true}
+			return toolResult{Text: err.Error(), IsError: true}
 		}
 		return t.openPane(n)
 	}
 	p, err := t.pane(a.Pane)
 	if err != nil {
-		return toolResult{err.Error(), true}
+		return toolResult{Text: err.Error(), IsError: true}
 	}
 	switch c.Name {
 	case "split":
@@ -585,7 +593,7 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		return t.changes(p, a.Hours)
 	case "note":
 		if err := addNote(t.org, p.name, a.Text); err != nil {
-			return toolResult{err.Error(), true}
+			return toolResult{Text: err.Error(), IsError: true}
 		}
 		t.mu.Lock()
 		if t.notesSent == nil {
@@ -596,20 +604,20 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		return toolResult{Text: "noted for " + p.name}
 	case "close_pane":
 		if !p.claude {
-			return toolResult{fmt.Sprintf("pane %d is the user's; you can only close panes you opened", p.id), true}
+			return toolResult{Text: fmt.Sprintf("pane %d is the user's; you can only close panes you opened", p.id), IsError: true}
 		}
 		t.closePane(p)
 		notify() // the redraw drops it
 		return toolResult{Text: fmt.Sprintf("closed pane %d", p.id)}
 	case "run":
 		if strings.TrimSpace(a.Command) == "" {
-			return toolResult{"empty command", true}
+			return toolResult{Text: "empty command", IsError: true}
 		}
 		if a.Timeout <= 0 {
 			a.Timeout = 30
 		}
 		if compound.MatchString(a.Command) && len(a.Explain) == 0 {
-			return toolResult{"not run: this command chains several pieces; call run again with explain, one entry per piece", true}
+			return toolResult{Text: "not run: this command chains several pieces; call run again with explain, one entry per piece", IsError: true}
 		}
 		cmd, note, denied := t.gate(a.Command, a.Reason, needsApproval(a.Effect, a.Command), false, p.id, a.Explain...)
 		if denied != nil {
@@ -620,11 +628,11 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		return res
 	case "send_keys":
 		if a.Keys == "" {
-			return toolResult{"no keys", true}
+			return toolResult{Text: "no keys", IsError: true}
 		}
 		if p.term.ShellReads() { // refuse before asking the user to approve it
-			return toolResult{fmt.Sprintf("pane %d is at an idle shell prompt: send_keys only talks to running programs. "+
-				"Use run instead; for htop or tail -f give it a short timeout_seconds so it keeps running.", p.id), true}
+			return toolResult{IsError: true, Text: fmt.Sprintf("pane %d is at an idle shell prompt: send_keys only talks to running programs. "+
+				"Use run instead; for htop or tail -f give it a short timeout_seconds so it keeps running.", p.id)}
 		}
 		why := ""
 		if a.Effect != "read" {
@@ -638,7 +646,7 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		res.Text = fmt.Sprintf("pane %d · ", p.id) + note + res.Text
 		return res
 	}
-	return toolResult{"unknown tool " + c.Name, true}
+	return toolResult{Text: "unknown tool " + c.Name, IsError: true}
 }
 
 // findHost picks one of the org's servers by name, group/name or address.
@@ -685,7 +693,7 @@ func (t *Tab) openPane(n node) toolResult {
 		done := make(chan *Pane, 1)
 		dispatch(paneMsg{t, n, done})
 		if p = <-done; p == nil {
-			return toolResult{"could not open a pane on " + n.label, true}
+			return toolResult{Text: "could not open a pane on " + n.label, IsError: true}
 		}
 	}
 	term := func() (*Term, bool) { t.mu.Lock(); defer t.mu.Unlock(); return p.term, p.closed } // Retry swaps in a new one
@@ -699,20 +707,20 @@ func (t *Tab) openPane(n node) toolResult {
 			tm, closed := term()
 			switch {
 			case closed:
-				return toolResult{fmt.Sprintf("couldn't connect to %s and the user closed pane %d instead of retrying. Don't connect to it again; "+
-					"ask the user how to go on.", n.label, p.id), true}
+				return toolResult{IsError: true, Text: fmt.Sprintf("couldn't connect to %s and the user closed pane %d instead of retrying. Don't connect to it again; "+
+					"ask the user how to go on.", n.label, p.id)}
 			case tm.AtPrompt():
 				return toolResult{Text: t.notesFor(n.label) + fmt.Sprintf("opened pane %d on %s, at a shell prompt, after the user fixed the "+
 					"connection. Pass pane=%d; close_pane it when done.", p.id, n.label, p.id)}
 			case time.Now().After(end):
-				return toolResult{fmt.Sprintf("still can't connect to %s after %s; pane %d keeps its \"can't connect\" box. Don't open "+
-					"another: ask the user, and connect again once they say it's fixed.", n.label, connectHold, p.id), true}
+				return toolResult{IsError: true, Text: fmt.Sprintf("still can't connect to %s after %s; pane %d keeps its \"can't connect\" box. Don't open "+
+					"another: ask the user, and connect again once they say it's fixed.", n.label, connectHold, p.id)}
 			}
 		}
 	}
 	if !p.term.AtPrompt() {
-		return toolResult{fmt.Sprintf("opened pane %d on %s but it has no shell prompt (still connecting, a login prompt, or the "+
-			"connection failed; the user sees why). Screen:\n%s", p.id, n.label, p.term.Screen().Text), true}
+		return toolResult{IsError: true, Text: fmt.Sprintf("opened pane %d on %s but it has no shell prompt (still connecting, a login prompt, or the "+
+			"connection failed; the user sees why). Screen:\n%s", p.id, n.label, p.term.Screen().Text)}
 	}
 	return toolResult{Text: t.notesFor(n.label) + fmt.Sprintf("opened pane %d on %s, at a shell prompt. Pass pane=%d; close_pane it when done.", p.id, n.label, p.id)}
 }
@@ -788,7 +796,7 @@ func (t *Tab) gate(cmd, reason, why string, keys bool, pane int, explain ...step
 	}
 	r := t.approve(&approval{cmd: cmd, reason: reason, why: why, keys: keys, pane: pane, explain: explain, task: taskFrom(t)})
 	if !r.ok {
-		return "", "", &toolResult{"the user denied this" + r.note + ". Do not retry it; ask them what they want instead.", true}
+		return "", "", &toolResult{Text: "the user denied this" + r.note + ". Do not retry it; ask them what they want instead.", IsError: true}
 	}
 	if r.cmd != cmd {
 		return r.cmd, fmt.Sprintf("(the user edited it to: %s)\n", r.cmd), nil

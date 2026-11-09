@@ -92,6 +92,8 @@ type Cards struct {
 	Is   func(name string) bool                         // a card's key; any goroutine
 	Tell func(key, text string) error                   // into the card's session
 	New  func(org, title, notes string) (string, error) // a card in To do: its key
+	// Draw answers a drawing tool for who ("infra:<org>"): text, or ImageResult's
+	Draw func(who, name string, args []byte) (string, bool)
 }
 
 var cards Cards
@@ -176,14 +178,14 @@ func (t *Tab) tellCard(key, text string) toolResult {
 	c := cards
 	hub.Unlock()
 	if c.Tell == nil {
-		return toolResult{"no desk board here", true}
+		return toolResult{Text: "no desk board here", IsError: true}
 	}
 	key = strings.ToUpper(strings.TrimSpace(key))
 	if !c.Is(key) {
-		return toolResult{key + " is not a card key (like DESK-12)", true}
+		return toolResult{Text: key + " is not a card key (like DESK-12)", IsError: true}
 	}
 	if err := c.Tell(key, formatEvent(key, peerEvent{Kind: "message", Org: t.org, Text: text})); err != nil {
-		return toolResult{err.Error(), true}
+		return toolResult{Text: err.Error(), IsError: true}
 	}
 	hub.Lock()
 	hub.last[t] = key
@@ -197,11 +199,11 @@ func (t *Tab) newCard(title, notes string) toolResult {
 	c := cards
 	hub.Unlock()
 	if c.New == nil {
-		return toolResult{"no desk board here", true}
+		return toolResult{Text: "no desk board here", IsError: true}
 	}
 	key, err := c.New(t.org, title, notes)
 	if err != nil {
-		return toolResult{err.Error(), true}
+		return toolResult{Text: err.Error(), IsError: true}
 	}
 	return toolResult{Text: key + " is on the board in To do, for the user to start"}
 }
@@ -430,7 +432,7 @@ func (t *Tab) askPeer(to, q string) toolResult {
 	}
 	if to == "" {
 		hub.Unlock()
-		return toolResult{"no peer Claude has contacted this session, so there is nobody to ask", true}
+		return toolResult{Text: "no peer Claude has contacted this session, so there is nobody to ask", IsError: true}
 	}
 	id := nextID()
 	pq := &peerQuestion{ch: make(chan string, 1), tab: t, to: to}
@@ -444,7 +446,7 @@ func (t *Tab) askPeer(to, q string) toolResult {
 		hub.Lock()
 		delete(hub.questions, id)
 		hub.Unlock()
-		return toolResult{fmt.Sprintf("%s did not answer in 15 minutes (it may not be running desk peer wait)", to), true}
+		return toolResult{Text: fmt.Sprintf("%s did not answer in 15 minutes (it may not be running desk peer wait)", to), IsError: true}
 	}
 }
 
@@ -459,7 +461,7 @@ func (t *Tab) taskDone(id int, peer, status, summary string) toolResult {
 		return toolResult{Text: fmt.Sprintf("result of task %d sent to %s", id, peer)}
 	}
 	if k == nil || k.tab != t {
-		return toolResult{fmt.Sprintf("no open task %d in this session (desk restarted? pass peer, the task's from)", id), true}
+		return toolResult{Text: fmt.Sprintf("no open task %d in this session (desk restarted? pass peer, the task's from)", id), IsError: true}
 	}
 	delete(hub.tasks, id)
 	hub.taskGen++

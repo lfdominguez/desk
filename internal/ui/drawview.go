@@ -28,6 +28,14 @@ import (
 // pointer's press, the text being typed.
 type drawState struct {
 	org, path string
+	card      string      // the card it belongs to, "" the organization's
+	side      drawSidecar // desk's file beside it: its Claude's session, suggestions
+	marks     map[string]string // elements a Claude drew last: who
+	claude    drawClaude
+	ghosts    []drawGhost // the suggestions over the drawing, for ghostGen
+	ghostGen  int
+	rework    string        // the suggestion being sent back, "" none
+	reworkIn  widget.Editor // its comment
 	ed        *draw.Editor
 	written   []byte // the file as last written
 	failed    int    // the editor's Gen a save failed at
@@ -90,6 +98,9 @@ func (st *drawState) fit(size image.Point, px float32) {
 	st.pan = f32.Pt((float32(size.X)-float32(x1-x0)*s)/2-float32(x0)*s, (float32(size.Y)-float32(y1-y0)*s)/2-float32(y0)*s)
 }
 
+// place is the list st is in.
+func (st *drawState) place() drawPlace { return drawPlace{org: st.org, card: st.card} }
+
 func (st *drawState) dark() bool { return st.ed.Scene.AppState["theme"] == "dark" }
 
 // drawSig is the open drawing's state a frame draws from, for sig.
@@ -98,7 +109,7 @@ func (u *ui) drawSig() string {
 	if st == nil {
 		return ""
 	}
-	return fmt.Sprint(st.ed.Gen, st.ed.Tool, st.ed.Editing, st.pan, st.zoom, st.space)
+	return fmt.Sprint(st.ed.Gen, st.ed.Tool, st.ed.Editing, st.pan, st.zoom, st.space, len(st.marks), st.claude.hide, st.claude.busy, st.rework)
 }
 
 // drawOpen is the drawing in view, nil when none is.
@@ -112,7 +123,7 @@ func (u *ui) drawOpen() *drawState {
 // drawTyping reports the open drawing's editors having the keyboard.
 func (u *ui) drawTyping(gtx layout.Context) bool {
 	st := u.drawOpen()
-	return st != nil && (gtx.Focused(&st.text) || gtx.Focused(&st.title))
+	return st != nil && (gtx.Focused(&st.text) || gtx.Focused(&st.title) || gtx.Focused(&st.claude.in) || gtx.Focused(&st.reworkIn))
 }
 
 // drawEscape backs out of the drawing one step: the text being typed,
@@ -127,7 +138,7 @@ func (u *ui) drawEscape(st *drawState) {
 	case len(st.ed.Sel) > 0:
 		st.ed.Select()
 	default:
-		u.view = "dr:" + st.org
+		u.view = st.place().view()
 	}
 }
 
@@ -181,19 +192,38 @@ func (u *ui) drawView(gtx layout.Context) layout.Dimensions {
 					}
 					st.titleFoc = foc
 					return k.Editor(gtx, &st.title, "Name", 14, kit.Semi(kit.Sans), kit.CText)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d, ok := k.IconBtn(gtx, "drawChat", kit.IcoChat, !st.claude.hide)
+					k.Tip(gtx, "drawChat", d, map[bool]string{true: "Show the drawing's Claude", false: "Hide the drawing's Claude"}[st.claude.hide], true)
+					if ok {
+						act = func() { st.claude.hide = !st.claude.hide }
+					}
+					return d
 				}))
 		})
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(header),
 		layout.Rigid(kit.VGap(1)),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.drawCanvas(gtx, st, &act) }))
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if st.claude.hide {
+				return u.drawCanvas(gtx, st, &act)
+			}
+			return layout.Flex{}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.drawCanvas(gtx, st, &act) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					paint.FillShape(gtx.Ops, kit.CLine, clip.Rect(image.Rect(0, 0, gtx.Dp(1), gtx.Constraints.Max.Y)).Op())
+					return layout.Dimensions{Size: image.Pt(gtx.Dp(1), gtx.Constraints.Max.Y)}
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.drawChat(gtx, st) }))
+		}))
 }
 
 // drawEscapeAll leaves the drawing for its list, the text typed kept.
 func (u *ui) drawEscapeAll(st *drawState) {
 	st.ed.EndText()
-	u.view = "dr:" + st.org
+	u.view = st.place().view()
 }
 
 // drawSave writes the drawing once a change settles (no press or typing
@@ -212,7 +242,7 @@ func (u *ui) drawSave(st *drawState) {
 		return
 	}
 	st.written = b
-	u.drawRead(st.org)
+	u.drawRead()
 }
 
 // drawCanvas is the drawing itself: the scene, the selection, the
@@ -238,8 +268,11 @@ func (u *ui) drawCanvas(gtx layout.Context, st *drawState, act *func()) layout.D
 	s := st.zoom * px
 	t := op.Affine(f32.Affine2D{}.Scale(f32.Point{}, f32.Pt(s, s)).Offset(st.pan)).Push(gtx.Ops)
 	st.paintScene(gtx.Ops, st.shown, s, ed.Editing)
+	st.paintGhosts(gtx, s)
 	t.Pop()
 	u.drawSelection(gtx, st, px)
+	u.drawMarks(gtx, st, px)
+	u.drawGhostMarks(gtx, st, px)
 
 	hand := clip.Rect{Max: size}.Push(gtx.Ops)
 	st.cursor().Add(gtx.Ops)
@@ -247,6 +280,7 @@ func (u *ui) drawCanvas(gtx layout.Context, st *drawState, act *func()) layout.D
 	hand.Pop()
 	u.drawTextBox(gtx, st, px)
 	u.drawTools(gtx, st, size, act)
+	u.drawSuggestCards(gtx, st, size, act)
 	return layout.Dimensions{Size: size}
 }
 
@@ -294,6 +328,7 @@ func (u *ui) drawPointer(gtx layout.Context, st *drawState, px float32) {
 				st.pan = st.pan.Sub(e.Scroll)
 			}
 		case pointer.Press:
+			st.marks = nil // seen: the user goes on
 			if ed.Editing != "" {
 				ed.EndText() // its box goes, and the keyboard with it
 			}

@@ -143,7 +143,7 @@ func TestDrawingPictures(t *testing.T) {
 		os.Chtimes(filepath.Join(h.u.drawingsDir("Acme"), n+".excalidraw"), day, day)
 		day = day.Add(time.Hour)
 	}
-	h.u.drawRead("Acme")
+	h.u.drawRead()
 	h.u.view = "dr:Acme"
 	park()
 	list := image.Rect(int(o.X), int(o.Y)-40, h.size.X, int(o.Y)+260)

@@ -120,7 +120,7 @@ Prefer running commands over telling the user to run them, including starting ht
 When a command chains pieces (pipes, &&, ;, $( ), redirections), fill run's explain piece by piece in the
 user's language so they can check it before it runs. Only when the user should run something themselves
 (interactive, long-running, or they asked for the command), put it in one ` + "```sh" + ` fenced block: desk types it at
-their prompt without running it. Use other fence languages for anything that is not a command (config, logs). Be concise.`
+their prompt without running it. Use other fence languages for anything that is not a command (config, logs). Be concise.` + claude.DrawingTools
 }
 
 // toolLine is how a tool call shows in the chat.
@@ -198,7 +198,8 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 		// judges what runs on a server: run and send_keys.
 		"--allowedTools", "mcp__desk__screen,mcp__desk__split,mcp__desk__close_pane,mcp__desk__note,mcp__desk__save_runbook,mcp__desk__changes,mcp__desk__connect,mcp__desk__hosts,"+
 			"mcp__desk__ask_peer,mcp__desk__task_done,mcp__desk__message_card,mcp__desk__create_card,"+
-			"mcp__desk__nagios,mcp__desk__metrics,mcp__desk__secrets_search,mcp__desk__secret_get",
+			"mcp__desk__nagios,mcp__desk__metrics,mcp__desk__secrets_search,mcp__desk__secret_get,"+
+			"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_edit,mcp__desk__drawing_suggest",
 		"--append-system-prompt", systemPrompt(tab.org, host, org.describe()))...)
 	if err != nil {
 		return fail(err)

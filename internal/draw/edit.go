@@ -662,7 +662,9 @@ func (m Aff) Inverse() Aff {
 
 // remove deletes element id and every binding to it.
 func (ed *Editor) remove(id string) {
-	ed.Scene.Elements = slices.DeleteFunc(ed.Scene.Elements, func(e *Element) bool { return e.ID == id })
+	ed.Scene.Elements = slices.DeleteFunc(ed.Scene.Elements, func(e *Element) bool {
+		return e.ID == id || (e.ContainerID != nil && *e.ContainerID == id) // a shape's label goes with it
+	})
 	for _, e := range ed.Scene.Elements {
 		if e.StartBinding != nil && e.StartBinding.ElementID == id {
 			e.StartBinding = nil
@@ -928,6 +930,11 @@ func (ed *Editor) moved() {
 // follow re-routes the arrows bound to what the gesture holds.
 func (ed *Editor) follow() {
 	for _, a := range ed.Scene.Elements {
+		if a.Type == "text" && a.ContainerID != nil && ed.g.held(*a.ContainerID) && !a.IsDeleted {
+			if c := ed.Scene.Find(*a.ContainerID); c != nil {
+				center(a, c)
+			}
+		}
 		if a.Type != "arrow" || a.IsDeleted {
 			continue
 		}

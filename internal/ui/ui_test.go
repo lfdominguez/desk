@@ -42,6 +42,7 @@ type harness struct {
 	ops     op.Ops
 	size    image.Point   // the window, 1700×900 unless set
 	claudes []*fakeClaude // the sessions it started, in order
+	origin  f32.Point     // the open drawing's canvas origin in the window (suggested)
 }
 
 // newHarness runs a window on an empty board, over a root of two

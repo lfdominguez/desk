@@ -162,7 +162,6 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 			if c.Agent != "" {
 				top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Agent · "+c.Agent, pastels[0], kit.Mix(pastels[0], kit.CPanel, .84))))
 			}
-			top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Claude · "+u.accountName(c.Org), kit.CText2, kit.CPanelCard)))
 			if t, ok := u.cardTask(c.Key()); ok { // its server work: a click shows the infra session on it
 				top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					d, ok := k.Button(gtx, "pnTask"+id, kit.Mix(kit.COrange, kit.CPanel, .84), kit.Mix(kit.COrange, kit.CPanel, .74), kit.RCtl, layout.Inset{Top: 3, Bottom: 3, Left: 8, Right: 8},
@@ -186,9 +185,16 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 					return d
 				}))
 			}
-			top = append(top, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
-			}))
+			top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Claude · "+u.accountName(c.Org), kit.CText2, kit.CPanelCard))) // last: the one to cut
+			pills := top // what's left after the buttons, clipped: a long account name never pushes them off
+			top = []layout.FlexChild{layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
+				w := gtx.Constraints.Max.X
+				gtx.Constraints.Min.X = 0
+				d := layout.Flex{Alignment: layout.Middle}.Layout(gtx, pills...)
+				d.Size.X = w
+				return d
+			})}
 			if full && u.started(c) { // the canvas, or the session's own conversation
 				top = append(top, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					cur := 1
@@ -213,6 +219,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 				}
 				top = append(top,
 					ib("pnWS", kit.IcoCode, "Open the workspace: its files and a Claude that reads them", func() { u.openWS(id) }),
+					ib("pnDraw", kit.IcoShapes, "The card's drawings", func() { u.view = "drc:" + id }),
 					ib("pnEdit", kit.IcoEdit, "Edit the card (E)", func() { u.open(id) }),
 					ib("pnTerm", kit.IcoTerminal, "Open in the Claude Code terminal (T)", func() { u.terminal(id) }),
 					ib("pnArchive", kit.IcoArchive, "Archive the card", func() { u.archiveCard(id) }))

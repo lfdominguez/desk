@@ -994,7 +994,7 @@ func (t *Term) Paste(s string) {
 // command keeps running in front of the user.
 func (t *Term) Run(cmd string, timeout time.Duration) toolResult {
 	if strings.Contains(cmd, "\n") {
-		return toolResult{"one command line only", true}
+		return toolResult{Text: "one command line only", IsError: true}
 	}
 	t.mu.Lock()
 	idle := t.idle()
@@ -1006,7 +1006,7 @@ func (t *Term) Run(cmd string, timeout time.Duration) toolResult {
 	t.mu.Unlock()
 	if !idle {
 		s := t.Screen()
-		return toolResult{fmt.Sprintf("this pane is busy (running %q); not run. Use split to run it in another pane. Screen:\n%s", s.Running, s.Text), true}
+		return toolResult{Text: fmt.Sprintf("this pane is busy (running %q); not run. Use split to run it in another pane. Screen:\n%s", s.Running, s.Text), IsError: true}
 	}
 	for end := time.Now().Add(timeout); time.Now().Before(end); time.Sleep(100 * time.Millisecond) {
 		t.mu.Lock()
@@ -1022,7 +1022,7 @@ func (t *Term) Run(cmd string, timeout time.Duration) toolResult {
 		t.mu.Unlock()
 	}
 	s := t.Screen()
-	return toolResult{fmt.Sprintf("still running after %s (left running for the user). Screen:\n%s", timeout, s.Text), true}
+	return toolResult{Text: fmt.Sprintf("still running after %s (left running for the user). Screen:\n%s", timeout, s.Text), IsError: true}
 }
 
 // Status is one line on what the pane is doing, for Claude's pane list.
@@ -1124,12 +1124,12 @@ func (t *Term) TypeForClaude(s string) {
 func (t *Term) SendKeys(keys string) toolResult {
 	evs, err := parseKeys(keys)
 	if err != nil {
-		return toolResult{err.Error(), true}
+		return toolResult{Text: err.Error(), IsError: true}
 	}
 	t.mu.Lock()
 	if t.shellReads() {
 		t.mu.Unlock()
-		return toolResult{"the terminal is at an idle shell prompt; use run for commands", true}
+		return toolResult{Text: "the terminal is at an idle shell prompt; use run for commands", IsError: true}
 	}
 	for _, k := range evs {
 		t.emu.SendKey(k)

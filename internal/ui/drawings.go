@@ -42,51 +42,93 @@ func (u *ui) drawingsDir(org string) string {
 
 // drawings are org's drawings, newest first, read once and after desk
 // changes them (drawRead).
-func (u *ui) drawings(org string) []drawItem {
-	if l, ok := u.drawList[org]; ok {
+func (u *ui) drawings(org string) []drawItem { return u.drawingsIn(u.drawingsDir(org)) }
+
+// drawingsIn are the drawings in dir, newest first, read once and after
+// desk changes them (drawRead).
+func (u *ui) drawingsIn(dir string) []drawItem {
+	if l, ok := u.drawList[dir]; ok {
 		return l
 	}
-	var l []drawItem
-	ents, _ := os.ReadDir(u.drawingsDir(org))
-	for _, e := range ents {
-		name, ok := strings.CutSuffix(e.Name(), ".excalidraw")
-		if fi, err := e.Info(); ok && err == nil && !e.IsDir() {
-			l = append(l, drawItem{name, filepath.Join(u.drawingsDir(org), e.Name()), fi.ModTime()})
-		}
-	}
-	slices.SortFunc(l, func(a, b drawItem) int { return b.mod.Compare(a.mod) })
-	u.drawList[org] = l
+	l := readDrawings(dir)
+	u.drawList[dir] = l
 	return l
 }
 
-// drawRead forgets org's list, read again when next shown.
-func (u *ui) drawRead(org string) {
-	delete(u.drawList, org)
+// drawPlace is a list of drawings: an organization's (dr:<org>), or a
+// card's own (drc:<card id>), in a folder inside its organization's.
+type drawPlace struct{ org, card string }
+
+// placeOf is view's list of drawings; ok false: view isn't one.
+func (u *ui) placeOf(view string) (drawPlace, bool) {
+	if org, ok := strings.CutPrefix(view, "dr:"); ok {
+		return drawPlace{org: org}, true
+	}
+	if id, ok := strings.CutPrefix(view, "drc:"); ok {
+		if c := u.b.Card(id); c != nil {
+			return drawPlace{org: c.Org, card: id}, true
+		}
+	}
+	return drawPlace{}, false
+}
+
+func (u *ui) placeDir(p drawPlace) string {
+	if p.card != "" {
+		return u.cardDrawingsDir(p.org, p.card)
+	}
+	return u.drawingsDir(p.org)
+}
+
+func (p drawPlace) view() string {
+	if p.card != "" {
+		return "drc:" + p.card
+	}
+	return "dr:" + p.org
+}
+
+// readDrawings are the drawings in dir, newest first.
+func readDrawings(dir string) []drawItem {
+	var l []drawItem
+	ents, _ := os.ReadDir(dir)
+	for _, e := range ents {
+		name, ok := strings.CutSuffix(e.Name(), ".excalidraw")
+		if fi, err := e.Info(); ok && err == nil && !e.IsDir() && !strings.HasPrefix(name, ".") {
+			l = append(l, drawItem{name, filepath.Join(dir, e.Name()), fi.ModTime()})
+		}
+	}
+	slices.SortFunc(l, func(a, b drawItem) int { return b.mod.Compare(a.mod) })
+	return l
+}
+
+// drawRead forgets the lists read, read again when next shown.
+func (u *ui) drawRead() {
+	clear(u.drawList)
 	u.drawGen++
 }
 
-// drawingName is a name no drawing of org has yet: base, then "base 2"…
-func (u *ui) drawingName(org, base string) string {
+// drawingName is a name no drawing in dir has yet: base, then "base 2"…
+func drawingName(dir, base string) string {
 	name := base
 	for i := 2; ; i++ {
-		if _, err := os.Stat(filepath.Join(u.drawingsDir(org), name+".excalidraw")); err != nil { // free (or unreadable: Save says why)
+		if _, err := os.Stat(filepath.Join(dir, name+".excalidraw")); err != nil { // free (or unreadable: Save says why)
 			return name
 		}
 		name = fmt.Sprintf("%s %d", base, i)
 	}
 }
 
-// newDrawing makes an empty drawing in org and opens it.
-func (u *ui) newDrawing(org string) {
+// newDrawing makes an empty drawing in p and opens it.
+func (u *ui) newDrawing(p drawPlace) {
 	s := draw.NewScene()
 	s.AppState["theme"] = "dark" // desk is dark; the toggle keeps either
-	path := filepath.Join(u.drawingsDir(org), u.drawingName(org, "Untitled")+".excalidraw")
+	dir := u.placeDir(p)
+	path := filepath.Join(dir, drawingName(dir, "Untitled")+".excalidraw")
 	if err := s.Save(path); err != nil {
 		u.showToast("Couldn't make the drawing: "+err.Error(), true)
 		return
 	}
-	u.drawRead(org)
-	u.openDrawing(org, path)
+	u.drawRead()
+	u.openDrawing(p.org, path)
 }
 
 // openDrawing shows the drawing at path, read once while desk runs.
@@ -97,19 +139,26 @@ func (u *ui) openDrawing(org, path string) {
 			u.showToast("Couldn't open the drawing: "+err.Error(), true)
 			return
 		}
-		st := &drawState{org: org, path: path, ed: draw.NewEditor(s), zoom: 1}
+		st := &drawState{org: org, path: path, ed: draw.NewEditor(s), zoom: 1, side: loadSide(path)}
+		if dir := filepath.Dir(path); dir != u.drawingsDir(org) { // a card's own
+			st.card = filepath.Base(dir)
+		}
 		st.written, _ = s.Marshal()
 		st.title.SingleLine, st.title.Submit = true, true
+		st.claude.in.Submit, st.reworkIn.Submit = true, true // Enter sends; Shift+Enter a new line
 		st.title.SetText(drawName(path))
 		u.draws[path] = st
 	}
 	u.view = "draw:" + path
 }
 
+// drawSides are the kinds of desk's files beside a drawing (drawSide).
+var drawSides = []string{"desk.json", "chat.jsonl"}
+
 func drawName(path string) string { return strings.TrimSuffix(filepath.Base(path), ".excalidraw") }
 
 // deleteDrawing removes a drawing, with an undo that writes it back.
-func (u *ui) deleteDrawing(org, path string) {
+func (u *ui) deleteDrawing(path string) {
 	b, err := os.ReadFile(path)
 	if err == nil {
 		err = os.Remove(path)
@@ -118,13 +167,29 @@ func (u *ui) deleteDrawing(org, path string) {
 		u.showToast("Couldn't delete the drawing: "+err.Error(), true)
 		return
 	}
+	sides := map[string][]byte{} // its sidecars, back with the undo
+	for _, kind := range drawSides {
+		if b, err := os.ReadFile(drawSide(path, kind)); err == nil && os.Remove(drawSide(path, kind)) == nil {
+			sides[kind] = b
+		}
+	}
+	if st := u.draws[path]; st != nil {
+		st.drawStop()
+	}
 	delete(u.draws, path)
-	u.drawRead(org)
+	delete(u.chats, drawChatKey(path))
+	u.drawRead()
 	u.showUndo("Deleted "+drawName(path), func() {
-		if err := os.WriteFile(path, b, 0o644); err != nil {
+		err := os.WriteFile(path, b, 0o644)
+		for kind, b := range sides {
+			if e := os.WriteFile(drawSide(path, kind), b, 0o644); err == nil {
+				err = e
+			}
+		}
+		if err != nil {
 			u.showToast("Couldn't restore the drawing: "+err.Error(), true)
 		}
-		u.drawRead(org)
+		u.drawRead()
 	})
 }
 
@@ -145,11 +210,16 @@ func (u *ui) renameDrawing(st *drawState, name string) {
 		u.showToast("Couldn't rename the drawing: "+err.Error(), true)
 		return
 	}
+	for _, kind := range drawSides {
+		os.Rename(drawSide(st.path, kind), drawSide(to, kind)) // none is fine
+	}
+	st.drawStop() // its tools name the old file: the next message resumes it on the new one
+	delete(u.chats, drawChatKey(st.path))
 	delete(u.draws, st.path)
 	st.path = to
 	u.draws[to] = st
 	u.view = "draw:" + to
-	u.drawRead(st.org)
+	u.drawRead()
 }
 
 // thumb is item's picture, rendered again when its file changed.
@@ -166,9 +236,11 @@ func (u *ui) thumb(it drawItem) (drawThumb, bool) {
 	return t, t.size != image.Point{}
 }
 
-// drawingsView is the dr:<org> view: New drawing, then the drawings as cards.
+// drawingsView is a list of drawings (dr:<org>, drc:<card>): New
+// drawing, then the drawings as cards.
 func (u *ui) drawingsView(gtx layout.Context) layout.Dimensions {
-	org := strings.TrimPrefix(u.view, "dr:")
+	place, _ := u.placeOf(u.view)
+	org := place.org
 	gtx.Constraints.Min = gtx.Constraints.Max
 	kit.Fill(gtx, kit.CColumn)
 	k := u.k
@@ -178,7 +250,7 @@ func (u *ui) drawingsView(gtx layout.Context) layout.Dimensions {
 			act()
 		}
 	}()
-	items := u.drawings(org)
+	items := u.drawingsIn(u.placeDir(place))
 	const cw, ch, gap = 260, 210, 16
 	return layout.UniformInset(20).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		cols := max(1, (gtx.Constraints.Max.X+gtx.Dp(gap))/gtx.Dp(cw+gap))
@@ -204,7 +276,7 @@ func (u *ui) drawingsView(gtx layout.Context) layout.Dimensions {
 							})
 						})
 						if ok {
-							act = func() { u.newDrawing(org) }
+							act = func() { u.newDrawing(place) }
 						}
 						return d
 					}
@@ -255,7 +327,7 @@ func (u *ui) drawCard(gtx layout.Context, org string, it drawItem, act *func()) 
 							d, ok := k.IconBtn(gtx, "drDel"+it.path, kit.IcoTrash, false)
 							k.Tip(gtx, "drDel"+it.path, d, "Delete", true)
 							if ok {
-								*act = func() { u.deleteDrawing(org, it.path) }
+								*act = func() { u.deleteDrawing(it.path) }
 							}
 							return d
 						}))

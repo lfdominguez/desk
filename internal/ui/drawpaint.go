@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"strings"
 
 	"gioui.org/f32"
 	"gioui.org/op"
@@ -83,7 +84,7 @@ func (st *drawState) paintScene(ops *op.Ops, s *draw.Scene, sc float32, skip str
 		st.paintRaster(ops, s, e, sc)
 	}
 	for id := range st.rasters {
-		if !used[id] {
+		if !used[id] && !strings.HasPrefix(id, ghostID) { // paintGhosts keeps its own
 			delete(st.rasters, id)
 		}
 	}

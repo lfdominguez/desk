@@ -65,7 +65,7 @@ func TestIconsDistinct(t *testing.T) {
 		"lock": IcoLock, "down": IcoDown, "trash": IcoTrash,
 		"pointer": IcoPointer, "hand": IcoHand, "square": IcoSquare, "diamond": IcoDiamond, "circle": IcoCircle, "arrow": IcoArrow,
 		"line": IcoLine, "pencil": IcoPencil, "letter": IcoLetter, "eraser": IcoEraser, "undo": IcoUndo, "redo": IcoRedo, "moon": IcoMoon,
-		"copy": IcoCopy, "front": IcoFront, "forward": IcoForward, "backward": IcoBackward, "back": IcoBack, "fit": IcoFit, "minus": IcoMinus}
+		"copy": IcoCopy, "front": IcoFront, "forward": IcoForward, "backward": IcoBackward, "back": IcoBack, "fit": IcoFit, "minus": IcoMinus, "shapes": IcoShapes}
 	seen := map[string]string{}
 	for name, ico := range icons {
 		var ops op.Ops

@@ -152,8 +152,12 @@ func (u *ui) escape(gtx layout.Context) {
 	case gtx.Focused(&u.search) || u.search.Len() > 0:
 		u.search.SetText("")
 		u.blur = true
+	case u.drawOpen() != nil && (gtx.Focused(&u.drawOpen().claude.in) || u.drawOpen().rework != ""): // its chat, a suggestion's comment
+		u.drawOpen().rework, u.blur = "", true
 	case u.drawOpen() != nil: // the drawing backs out step by step, from its text too
 		u.drawEscape(u.drawOpen())
+	case strings.HasPrefix(u.view, "drc:"): // a card's drawings: back to the board, its panel open
+		u.view, u.blur = "", true
 	case strings.HasPrefix(u.view, "ws:"): // the workspace, from its editors too: back to the session
 		u.view, u.blur = "sess:"+strings.TrimPrefix(u.view, "ws:"), true
 	case u.typing(gtx) && !gtx.Focused(&u.chatIn): // an answer field: leave it, not the session
