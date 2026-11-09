@@ -27,7 +27,7 @@ func SVG(s *Scene, o Options) []byte {
 	w, h := x1-x0+2*o.Padding, y1-y0+2*o.Padding
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s" width="%s" height="%s">`, num(w), num(h), num(w*sc), num(h*sc))
-	used := map[string]bool{}
+	used, clips := map[string]bool{}, map[string]bool{}
 	var body strings.Builder
 	canvas := s.Background()
 	if !o.Transparent {
@@ -39,6 +39,15 @@ func SVG(s *Scene, o Options) []byte {
 			continue
 		}
 		m := view.Mul(e.Transform())
+		if f := s.FrameOf(e); f != nil { // clipped to its frame
+			fx0, fy0, fx1, fy1 := f.Bounds()
+			p := view.Apply(pt(fx0, fy0))
+			if !clips[f.ID] {
+				clips[f.ID] = true
+				fmt.Fprintf(&body, `<clipPath id="frame-%s"><rect x="%s" y="%s" width="%s" height="%s"/></clipPath>`, html.EscapeString(f.ID), num(p.X), num(p.Y), num(fx1-fx0), num(fy1-fy0))
+			}
+			fmt.Fprintf(&body, `<g clip-path="url(#frame-%s)">`, html.EscapeString(f.ID))
+		}
 		fmt.Fprintf(&body, `<g transform="matrix(%s %s %s %s %s %s)">`, num(m.A), num(m.B), num(m.C), num(m.D), num(m.E), num(m.F))
 		for _, set := range Shape(e, canvas) {
 			svgSet(&body, set)
@@ -64,6 +73,9 @@ func SVG(s *Scene, o Options) []byte {
 			}
 		}
 		body.WriteString(`</g>`)
+		if s.FrameOf(e) != nil {
+			body.WriteString(`</g>`)
+		}
 		if e.Type == "frame" || e.Type == "magicframe" {
 			name := "Frame"
 			if e.Name != nil && *e.Name != "" {

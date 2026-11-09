@@ -227,7 +227,8 @@ func TestSummary(t *testing.T) {
 		{"id":"c","type":"arrow","from":"a","to":"b"},
 		{"id":"t","type":"text","x":0,"y":300,"text":"say \"hi\""},
 		{"id":"f","type":"frame","x":0,"y":0,"width":500,"height":400,"name":"Flow"},
-		{"id":"g","type":"frame","x":0,"y":0,"width":5,"height":4}]}`))
+		{"id":"g","type":"frame","x":0,"y":0,"width":5,"height":4},
+		{"id":"in","type":"ellipse","x":1,"y":1,"width":2,"height":2,"frameId":"f","groupIds":["g1","g2"]}]}`))
 	got := Summary(s)
 	for _, want := range []string{
 		"a rectangle x=0 y=0 w=100 h=60 angle=0.12 stroke=#e03131 bg=#a5d8ff fill=hachure style=dashed roughness=0 label=\"Login\"\n",
@@ -238,12 +239,13 @@ func TestSummary(t *testing.T) {
 		" size=20 text=\"say \\\"hi\\\"\"\n",
 		"f frame x=0 y=0 w=500 h=400 roughness=0 name=\"Flow\"\n",
 		"g frame x=0 y=0 w=5 h=4 roughness=0\n",
+		"in ellipse x=1 y=1 w=2 h=2 frame=f groups=g1,g2\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in\n%s", want, got)
 		}
 	}
-	if strings.Count(got, "\n") != 6 {
+	if strings.Count(got, "\n") != 7 {
 		t.Errorf("labels aren't lines of their own:\n%s", got)
 	}
 	if strings.Contains(got, "c arrow x=0") || !strings.Contains(got, "points=[[0,0],[") {

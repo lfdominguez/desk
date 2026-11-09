@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"slices"
+	"strings"
 
 	"gioui.org/f32"
 	"gioui.org/layout"
@@ -12,6 +13,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/draw"
 	"github.com/lfdominguez/desk/internal/ui/kit"
@@ -33,8 +35,13 @@ var drawToolbar = []drawTool{
 	{draw.ToolLine, "Line — L or 6", kit.IcoLine},
 	{draw.ToolFreedraw, "Draw — P or 7", kit.IcoPencil},
 	{draw.ToolText, "Text — T or 8", kit.IcoLetter},
+	{drawImageTool, "Insert image — 9", kit.IcoImage},
 	{draw.ToolEraser, "Eraser — E or 0", kit.IcoEraser},
+	{draw.ToolFrame, "Frame — F", kit.IcoFrame},
 }
+
+// drawImageTool is the toolbar's Image: a file to choose, not a tool to draw with.
+const drawImageTool = "image"
 
 // Excalidraw's first picks of its palette.
 var (
@@ -79,6 +86,9 @@ func (u *ui) drawTools(gtx layout.Context, st *drawState, size image.Point, act 
 				if ok {
 					tool := t.tool
 					*act = func() { ed.EndText(); ed.SetTool(tool) }
+					if tool == drawImageTool {
+						*act = func() { u.drawPickImage(st.path) }
+					}
 				}
 				return d
 			}))
@@ -153,6 +163,14 @@ func (u *ui) drawTools(gtx layout.Context, st *drawState, size image.Point, act 
 				k.Tip(gtx, "drawFit", d, "Show it all — Shift+1", true)
 				if ok {
 					*act = func() { st.fit(size, gtx.Metric.PxPerDp) }
+				}
+				return d
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d, ok := k.IconBtn(gtx, "drawLib", kit.IcoLibrary, st.libOpen)
+				k.Tip(gtx, "drawLib", d, "Library", true)
+				if ok {
+					*act = func() { st.libOpen = !st.libOpen }
 				}
 				return d
 			}),
@@ -282,7 +300,12 @@ func (u *ui) drawStyle(gtx layout.Context, st *drawState, sel []*draw.Element, a
 	for _, c := range drawStrokes {
 		strokes = append(strokes, opt("s"+c, cur.StrokeColor == c, swatch(c), func(e *draw.Element) { e.StrokeColor = c }))
 	}
-	section("Stroke", strokes...)
+	if len(sel) == 1 && sel[0].Type == "frame" {
+		rows = append(rows, func(gtx layout.Context) layout.Dimensions { return u.drawFrameName(gtx, st, sel[0], act) })
+	}
+	if has("rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text") { // not images, frames
+		section("Stroke", strokes...)
+	}
 	if has("rectangle", "diamond", "ellipse", "line") {
 		var fills []layout.Widget
 		for _, c := range drawFills {
@@ -456,6 +479,31 @@ func (u *ui) drawStyle(gtx layout.Context, st *drawState, sel []*draw.Element, a
 				return d
 			}
 		}
+		grouped := slices.ContainsFunc(sel, func(e *draw.Element) bool { return len(e.GroupIDs) > 0 })
+		if len(sel) > 1 || grouped {
+			var gs []layout.Widget
+			if len(sel) > 1 {
+				gs = append(gs, func(gtx layout.Context) layout.Dimensions {
+					d, ok := k.Button(gtx, "drawGroup", kit.CPane, kit.CHover, kit.RCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, k.Lbl("Group", 11, kit.CText2, kit.Sans))
+					k.Tip(gtx, "drawGroup", d, "Group — Ctrl+G", false)
+					if ok {
+						*act = ed.Group
+					}
+					return d
+				})
+			}
+			if grouped {
+				gs = append(gs, func(gtx layout.Context) layout.Dimensions {
+					d, ok := k.Button(gtx, "drawUngroup", kit.CPane, kit.CHover, kit.RCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, k.Lbl("Ungroup", 11, kit.CText2, kit.Sans))
+					k.Tip(gtx, "drawUngroup", d, "Ungroup — Ctrl+Shift+G", false)
+					if ok {
+						*act = ed.Ungroup
+					}
+					return d
+				})
+			}
+			section("Group", gs...)
+		}
 		section("Layers",
 			btn("drawToBack", "Send to back — Ctrl+Shift+[", kit.IcoBack, func() { ed.Order(-2) }),
 			btn("drawBackward", "Send backward — Ctrl+[", kit.IcoBackward, func() { ed.Order(-1) }),
@@ -469,4 +517,51 @@ func (u *ui) drawStyle(gtx layout.Context, st *drawState, sel []*draw.Element, a
 		st.styles.Axis = layout.Vertical
 		return st.styles.Layout(gtx, len(rows), func(gtx layout.Context, i int) layout.Dimensions { return rows[i](gtx) })
 	})
+}
+
+// drawFrameName is a selected frame's name in the style panel: Enter or
+// leaving the field renames it (one undo step).
+func (u *ui) drawFrameName(gtx layout.Context, st *drawState, f *draw.Element, act *func()) layout.Dimensions {
+	k := u.k
+	name := "Frame"
+	if f.Name != nil {
+		name = *f.Name
+	}
+	foc := gtx.Focused(&st.frameName)
+	if st.nameOf != f.ID || (!foc && !st.nameFoc && st.frameName.Text() != name) {
+		st.nameOf = f.ID
+		st.frameName.SetText(name)
+	}
+	rename := func() {
+		v := strings.TrimSpace(st.frameName.Text())
+		if v == "" || v == name {
+			st.frameName.SetText(name)
+			return
+		}
+		id := f.ID
+		st.ed.Restyle(func(e *draw.Element) {
+			if e.ID == id {
+				e.Name = &v
+			}
+		})
+	}
+	for {
+		ev, ok := st.frameName.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			*act = func() { rename(); u.blur = true }
+		}
+	}
+	if st.nameFoc && !foc && *act == nil {
+		*act = rename
+	}
+	st.nameFoc = foc
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(k.Lbl("Name", 11, kit.CText3, kit.Medium(kit.Sans))), layout.Rigid(kit.VGap(4)),
+		layout.Rigid(kit.Boxed(kit.CPane, kit.CLine, kit.RCtl, layout.Inset{Top: 5, Bottom: 5, Left: 8, Right: 8}, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return k.Editor(gtx, &st.frameName, "Frame", 12, kit.Sans, kit.CText)
+		})))
 }

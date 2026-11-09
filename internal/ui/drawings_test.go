@@ -622,6 +622,9 @@ func TestDrawingToolbar(t *testing.T) {
 	h := newHarness(t)
 	st, _ := h.drawing("D")
 	for _, tb := range drawToolbar {
+		if tb.tool == drawImageTool { // a file to choose: drawlib_test.go
+			continue
+		}
 		h.clickButton("drawTool" + tb.tool)
 		if st.ed.Tool != tb.tool {
 			t.Errorf("%s: %s", tb.tool, st.ed.Tool)
@@ -647,6 +650,7 @@ func TestDrawingToolbar(t *testing.T) {
 // element, checking a few land.
 func TestDrawingStyle(t *testing.T) {
 	h := newHarness(t)
+	h.size = image.Pt(1700, 1150) // two selected: every section and the layer buttons, unscrolled
 	r := rect(0, 0, 100, 100, "#ffc9c9")
 	ar := draw.New("arrow")
 	ar.X, ar.Y, ar.Points = 0, 200, [][2]float64{{0, 0}, {100, 0}}
@@ -1132,7 +1136,7 @@ func TestDrawingToolsPlaced(t *testing.T) {
 	h := newHarness(t)
 	st, o := h.drawing("D", rect(500, 0, 50, 50, "#fff"))
 	st.ed.Select(st.ed.Scene.Elements[0].ID)
-	hand, eraser := h.areaOf("drawTool"+draw.ToolHand), h.areaOf("drawTool"+draw.ToolEraser)
+	hand, eraser := h.areaOf("drawTool"+draw.ToolHand), h.areaOf("drawTool"+drawToolbar[len(drawToolbar)-1].tool)
 	if mid := (hand.Min.X + eraser.Max.X) / 2; abs(mid-(int(o.X)+h.size.X)/2) > 2 {
 		t.Errorf("the toolbar's middle at %d, the canvas's %d", mid, (int(o.X)+h.size.X)/2)
 	}

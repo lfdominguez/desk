@@ -251,6 +251,12 @@ func Summary(s *Scene) string {
 		if e.Type == "frame" && e.Name != nil {
 			fmt.Fprintf(&b, " name=%q", *e.Name)
 		}
+		if f := s.FrameOf(e); f != nil {
+			fmt.Fprintf(&b, " frame=%s", f.ID)
+		}
+		if len(e.GroupIDs) > 0 {
+			fmt.Fprintf(&b, " groups=%s", strings.Join(e.GroupIDs, ","))
+		}
 		for _, bd := range e.BoundElements {
 			if t := s.Find(bd.ID); bd.Type == "text" && t != nil {
 				fmt.Fprintf(&b, " label=%q", t.Text)

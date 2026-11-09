@@ -146,6 +146,7 @@ func (u *ui) openDrawing(org, path string) {
 		st.written, _ = s.Marshal()
 		st.title.SingleLine, st.title.Submit = true, true
 		st.claude.in.Submit, st.reworkIn.Submit = true, true // Enter sends; Shift+Enter a new line
+		st.frameName.SingleLine, st.frameName.Submit = true, true
 		st.title.SetText(drawName(path))
 		u.draws[path] = st
 	}

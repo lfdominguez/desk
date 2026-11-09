@@ -6,8 +6,10 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -22,6 +24,7 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
+	"gioui.org/x/explorer"
 
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/infra"
@@ -173,6 +176,7 @@ type ui struct {
 	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
 
 	draws    map[string]*drawState // open drawings (drawview.go), by file
+	libs     map[string]*drawLib   // organizations' libraries (drawlib.go), read once
 	drawList map[string][]drawItem // organizations' drawings, read once (drawings.go)
 	thumbs   map[string]drawThumb  // their pictures, by file
 	drawGen  int                   // bumps when a list changes, for sig
@@ -183,7 +187,7 @@ func newUI(b *kanban.Board, path string) *ui {
 	home, _ := os.UserHomeDir()
 	u := &ui{w: new(app.Window), k: kit.New(), b: b, path: path, side: true, root: orgs.Root(), home: home,
 		chats: map[string][]kanban.ChatMsg{}, procs: map[string]session{}, pending: map[string]claude.Directives{}, locked: map[string]*vault.LockedError{}, events: make(chan func(), 256),
-		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}, draws: map[string]*drawState{}, drawList: map[string][]drawItem{}, thumbs: map[string]drawThumb{}}
+		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}, draws: map[string]*drawState{}, libs: map[string]*drawLib{}, drawList: map[string][]drawItem{}, thumbs: map[string]drawThumb{}}
 	u.orgList = orgs.List(u.root)
 	u.search.SingleLine, u.search.Submit = true, true
 	u.pickQ.SingleLine, u.pickQ.Submit, u.pickList.Axis = true, true, layout.Vertical
@@ -240,6 +244,14 @@ func Run(b *kanban.Board, path string) error {
 	}
 	u.w.Option(app.Title(title), app.Size(unit.Dp(1600), unit.Dp(950)), app.MinSize(unit.Dp(900), unit.Dp(500)))
 	u.startInfra()
+	files := explorer.NewExplorer(u.w)
+	pickImage = func() (io.ReadCloser, error) {
+		r, err := files.ChooseFile(".png", ".jpg", ".jpeg", ".gif", ".webp")
+		if errors.Is(err, explorer.ErrUserDecline) {
+			return nil, nil
+		}
+		return r, err
+	}
 	defer u.windowed()()
 	defer func() {
 		u.flushPending()
@@ -257,11 +269,16 @@ func Run(b *kanban.Board, path string) error {
 		for _, tt := range u.terms {
 			tt.t.Close()
 		}
+		for _, st := range u.draws {
+			st.drawStop()
+		}
 	}()
 	go u.pollLinks() // its first round brings the remote tickets in step with the board
 	var ops op.Ops
 	for {
-		switch e := u.w.Event().(type) {
+		ev := u.w.Event()
+		files.ListenEvents(ev)
+		switch e := ev.(type) {
 		case app.DestroyEvent:
 			return e.Err
 		case app.ConfigEvent:

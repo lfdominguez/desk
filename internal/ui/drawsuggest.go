@@ -216,7 +216,11 @@ func (u *ui) drawSuggestCards(gtx layout.Context, st *drawState, size image.Poin
 	}
 	d := layout.Flex{Axis: layout.Vertical}.Layout(g, kids...)
 	call := m.Stop()
-	defer op.Offset(image.Pt(size.X-w-pad, max(size.Y-d.Size.Y-pad, pad))).Push(gtx.Ops).Pop()
+	right := size.X - w - pad
+	if st.libOpen { // left of the library
+		right -= gtx.Dp(240) + pad
+	}
+	defer op.Offset(image.Pt(right, max(size.Y-d.Size.Y-pad, pad))).Push(gtx.Ops).Pop()
 	block := clip.Rect{Max: d.Size}.Push(gtx.Ops) // a press on a card isn't the canvas's
 	event.Op(gtx.Ops, &st.rework)
 	block.Pop()

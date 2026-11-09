@@ -36,6 +36,12 @@ type drawState struct {
 	ghostGen  int
 	rework    string        // the suggestion being sent back, "" none
 	reworkIn  widget.Editor // its comment
+	libOpen   bool          // the library panel shows
+	frameName widget.Editor // a frame's name, in the style panel
+	nameOf    string        // the frame frameName holds
+	nameFoc   bool
+	size      image.Point // the canvas, px, as last drawn
+	px        float32     // px per dp then
 	ed        *draw.Editor
 	written   []byte // the file as last written
 	failed    int    // the editor's Gen a save failed at
@@ -109,7 +115,7 @@ func (u *ui) drawSig() string {
 	if st == nil {
 		return ""
 	}
-	return fmt.Sprint(st.ed.Gen, st.ed.Tool, st.ed.Editing, st.pan, st.zoom, st.space, len(st.marks), st.claude.hide, st.claude.busy, st.rework)
+	return fmt.Sprint(st.ed.Gen, st.ed.Tool, st.ed.Editing, st.pan, st.zoom, st.space, len(st.marks), st.claude.hide, st.claude.busy, st.rework, st.libOpen)
 }
 
 // drawOpen is the drawing in view, nil when none is.
@@ -123,7 +129,7 @@ func (u *ui) drawOpen() *drawState {
 // drawTyping reports the open drawing's editors having the keyboard.
 func (u *ui) drawTyping(gtx layout.Context) bool {
 	st := u.drawOpen()
-	return st != nil && (gtx.Focused(&st.text) || gtx.Focused(&st.title) || gtx.Focused(&st.claude.in) || gtx.Focused(&st.reworkIn))
+	return st != nil && (gtx.Focused(&st.text) || gtx.Focused(&st.title) || gtx.Focused(&st.claude.in) || gtx.Focused(&st.reworkIn) || gtx.Focused(&st.frameName))
 }
 
 // drawEscape backs out of the drawing one step: the text being typed,
@@ -251,6 +257,7 @@ func (u *ui) drawCanvas(gtx layout.Context, st *drawState, act *func()) layout.D
 	size := gtx.Constraints.Max
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
 	px := gtx.Metric.PxPerDp
+	st.size, st.px = size, px
 	if st.rasters == nil {
 		st.rasters = map[string]*drawRaster{}
 	}
@@ -280,6 +287,9 @@ func (u *ui) drawCanvas(gtx layout.Context, st *drawState, act *func()) layout.D
 	hand.Pop()
 	u.drawTextBox(gtx, st, px)
 	u.drawTools(gtx, st, size, act)
+	if st.libOpen {
+		u.drawLibrary(gtx, st, size, act)
+	}
 	u.drawSuggestCards(gtx, st, size, act)
 	return layout.Dimensions{Size: size}
 }
@@ -382,7 +392,7 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 	}
 	mods := key.ModShortcut | key.ModShift | key.ModAlt
 	var fs []event.Filter
-	for _, n := range []key.Name{"V", "H", "R", "D", "O", "A", "L", "P", "T", "E", "Y", "Z", "[", "]", "0", "1", "2", "3", "4", "5", "6", "7", "8",
+	for _, n := range []key.Name{"V", "H", "R", "D", "O", "A", "L", "P", "T", "E", "Y", "Z", "F", "G", "[", "]", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 		key.NameDeleteBackward, key.NameDeleteForward, key.NameUpArrow, key.NameDownArrow, key.NameLeftArrow, key.NameRightArrow, key.NameSpace, key.NameReturn} {
 		fs = append(fs, key.Filter{Name: n, Optional: mods})
 	}
@@ -390,7 +400,7 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 	tools := map[key.Name]string{"V": draw.ToolSelect, "1": draw.ToolSelect, "H": draw.ToolHand, "R": draw.ToolRectangle, "2": draw.ToolRectangle,
 		"D": draw.ToolDiamond, "3": draw.ToolDiamond, "O": draw.ToolEllipse, "4": draw.ToolEllipse, "A": draw.ToolArrow, "5": draw.ToolArrow,
 		"L": draw.ToolLine, "6": draw.ToolLine, "P": draw.ToolFreedraw, "7": draw.ToolFreedraw, "T": draw.ToolText, "8": draw.ToolText,
-		"E": draw.ToolEraser, "0": draw.ToolEraser}
+		"E": draw.ToolEraser, "0": draw.ToolEraser, "F": draw.ToolFrame}
 	for {
 		ev, ok := gtx.Event(fs...)
 		if !ok {
@@ -421,6 +431,12 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 			ed.Duplicate()
 		case ctrl && e.Name == "A":
 			ed.SelectAll()
+		case ctrl && e.Name == "G" && shift:
+			ed.Ungroup()
+		case ctrl && e.Name == "G":
+			ed.Group()
+		case ctrl && e.Name == "V":
+			u.drawPaste(st.path)
 		case ctrl && e.Name == "]":
 			ed.Order(map[bool]int{true: 2, false: 1}[shift])
 		case ctrl && e.Name == "[":
@@ -444,6 +460,8 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 			ed.Nudge(-step, 0)
 		case e.Name == key.NameRightArrow:
 			ed.Nudge(step, 0)
+		case e.Name == "9":
+			u.drawPickImage(st.path)
 		case tools[e.Name] != "":
 			ed.SetTool(tools[e.Name])
 		}

@@ -788,8 +788,11 @@ func TestDuplicateNudgeOrder(t *testing.T) {
 		t.Fatalf("duplicates: %d, selection %v", len(ed.Scene.Elements), ed.Sel)
 	}
 	c, d := ed.Scene.Elements[3], ed.Scene.Elements[4]
-	if c.ID == a.ID || c.X != 10 || c.Y != 10 || c.Seed == a.Seed || len(c.BoundElements) != 0 || d.StartBinding != nil || d.EndBinding != nil {
+	if c.ID == a.ID || c.X != 10 || c.Y != 10 || c.Seed == a.Seed {
 		t.Errorf("a copy: %+v", c)
+	}
+	if len(c.BoundElements) != 1 || c.BoundElements[0].ID != d.ID || d.StartBinding == nil || d.StartBinding.ElementID != c.ID || d.EndBinding != nil {
+		t.Errorf("copied together, still joined; what wasn't copied lets go: %v %+v %+v", c.BoundElements, d.StartBinding, d.EndBinding)
 	}
 	ed.Undo()
 	if len(ed.Scene.Elements) != 3 {

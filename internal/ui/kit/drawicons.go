@@ -42,6 +42,24 @@ var (
 	IcoLine IconPath = func(p *clip.Path, s float32) {
 		poly(p, s, .14, .5, .86, .5)
 	}
+	IcoImage IconPath = func(p *clip.Path, s float32) { // a picture: a frame, a hill, the sun
+		poly(p, s, .16, .2, .84, .2, .84, .8, .16, .8, .16, .2)
+		poly(p, s, .16, .72, .4, .48, .56, .64, .66, .54, .84, .72)
+		c := f32.Pt(s*.66, s*.36)
+		p.MoveTo(f32.Pt(s*.72, s*.36))
+		p.ArcTo(c, c, 6.2832)
+	}
+	IcoFrame IconPath = func(p *clip.Path, s float32) { // a frame: a hash of lines
+		poly(p, s, .3, .12, .3, .88)
+		poly(p, s, .7, .12, .7, .88)
+		poly(p, s, .12, .3, .88, .3)
+		poly(p, s, .12, .7, .88, .7)
+	}
+	IcoLibrary IconPath = func(p *clip.Path, s float32) { // books on a shelf
+		poly(p, s, .18, .2, .34, .2, .34, .82, .18, .82, .18, .2)
+		poly(p, s, .42, .2, .58, .2, .58, .82, .42, .82, .42, .2)
+		poly(p, s, .64, .26, .78, .22, .9, .78, .76, .82, .64, .26)
+	}
 	IcoShapes IconPath = func(p *clip.Path, s float32) { // a drawing: a square, a circle over its corner
 		poly(p, s, .14, .14, .54, .14, .54, .54, .14, .54, .14, .14)
 		c := f32.Pt(s*.62, s*.62)

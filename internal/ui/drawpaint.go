@@ -128,6 +128,17 @@ func (st *drawState) paintRaster(ops *op.Ops, s *draw.Scene, e *draw.Element, sc
 		r = &drawRaster{key: key, img: paint.NewImageOp(img), size: img.Bounds().Size(), scaled: q, dx: float32(-pad), dy: float32(-pad)}
 		st.rasters[e.ID] = r
 	}
+	if f := s.FrameOf(e); f != nil { // clipped to its frame (scene units: under the view's transform)
+		fx0, fy0, fx1, fy1 := f.Bounds()
+		var p clip.Path
+		p.Begin(ops)
+		p.MoveTo(f32.Pt(float32(fx0), float32(fy0)))
+		p.LineTo(f32.Pt(float32(fx1), float32(fy0)))
+		p.LineTo(f32.Pt(float32(fx1), float32(fy1)))
+		p.LineTo(f32.Pt(float32(fx0), float32(fy1)))
+		p.Close()
+		defer clip.Outline{Path: p.End()}.Op().Push(ops).Pop()
+	}
 	x0, y0, _, _ := (&draw.Scene{Elements: []*draw.Element{e}}).Bounds()
 	t := op.Affine(f32.Affine2D{}.Scale(f32.Point{}, f32.Pt(1/r.scaled, 1/r.scaled)).Offset(f32.Pt(float32(x0)+r.dx, float32(y0)+r.dy))).Push(ops)
 	r.img.Add(ops)

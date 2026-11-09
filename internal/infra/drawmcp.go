@@ -17,7 +17,8 @@ var drawingProp = map[string]any{"type": "string", "description": "The drawing's
 var elementsDoc = "Excalidraw elements, with only what differs from the defaults (stroke #1e1e1e, " +
 	"no background, roughness 1 hand-drawn, 0 clean; strokeWidth 2; fontSize 20): type (rectangle, ellipse, diamond, arrow, line, text, freedraw, frame), " +
 	"x, y, width, height (scene units, y down), strokeColor, backgroundColor, fillStyle (solid, hachure, cross-hatch), strokeStyle " +
-	"(solid, dashed, dotted), roughness, text, fontSize, points (lines and arrows: [[0,0],[dx,dy],…] from x, y), name (frames). " +
+	"(solid, dashed, dotted), roughness, text, fontSize, points (lines and arrows: [[0,0],[dx,dy],…] from x, y), name (frames), " +
+	"frameId (the frame it sits in: drawn clipped to it, moves with it), groupIds (innermost first: a click selects the outermost whole). " +
 	"desk's own keys: label (text centered in a shape), from and to (an arrow's ends attach to these shapes' ids, " +
 	"drawn straight between them when it has no bends)."
 

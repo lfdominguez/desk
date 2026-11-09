@@ -53,14 +53,20 @@ func Render(s *Scene, o Options) *image.RGBA {
 			continue
 		}
 		m := view.Mul(e.Transform())
+		dst := img
+		if f := s.FrameOf(e); f != nil { // drawn clipped to its frame
+			x0, y0, x1, y1 := f.Bounds()
+			a, b := view.Apply(pt(x0, y0)), view.Apply(pt(x1, y1))
+			dst = img.SubImage(image.Rect(int(math.Floor(a.X)), int(math.Floor(a.Y)), int(math.Ceil(b.X)), int(math.Ceil(b.Y)))).(*image.RGBA)
+		}
 		for _, set := range Shape(e, canvas) {
-			paint(img, set, m, sc)
+			paint(dst, set, m, sc)
 		}
 		switch e.Type {
 		case "text":
-			drawText(img, e, m, sc)
+			drawText(dst, e, m, sc)
 		case "image":
-			drawImage(img, s, e, m)
+			drawImage(dst, s, e, m)
 		case "frame", "magicframe":
 			drawFrameName(img, e, view, sc)
 		}

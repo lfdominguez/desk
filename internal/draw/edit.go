@@ -19,6 +19,7 @@ const (
 	ToolFreedraw  = "freedraw"
 	ToolText      = "text"
 	ToolEraser    = "eraser"
+	ToolFrame     = "frame"
 )
 
 // Editor is a drawing being edited: the scene, the tool, the selection,
@@ -202,17 +203,27 @@ func (ed *Editor) Down(p Pt, tol float64, add bool) {
 			ed.g.kind, ed.Box = gBox, &[4]float64{p.X, p.Y, p.X, p.Y}
 			return
 		case hit != nil && add:
-			if ed.Sel[hit.ID] {
-				delete(ed.Sel, hit.ID)
-			} else {
-				ed.Sel[hit.ID] = true
+			on := !ed.Sel[ed.unit(hit)[0]]
+			for _, id := range ed.unit(hit) {
+				if on {
+					ed.Sel[id] = true
+				} else {
+					delete(ed.Sel, id)
+				}
 			}
 			ed.Gen++
-		case hit != nil && !ed.Sel[hit.ID]:
-			ed.Select(hit.ID)
+		case hit != nil && !ed.Sel[ed.unit(hit)[0]]:
+			ed.Select(ed.unit(hit)...)
 		}
 		ed.g.kind = gMove
 		ed.hold()
+		for _, e := range ed.with(ed.Sel) { // a frame's elements go with it
+			if !ed.g.held(e.ID) && e.ContainerID == nil {
+				c := *e
+				c.Points = slices.Clone(e.Points)
+				ed.g.orig[e.ID] = &c
+			}
+		}
 	default: // a shape tool
 		e := ed.styled(ed.Tool)
 		e.X, e.Y = p.X, p.Y
@@ -236,9 +247,14 @@ func (ed *Editor) hold() {
 	ed.g.box = boxOf(ed.Selected())
 }
 
-// styled is a new element of typ in the current style.
+// styled is a new element of typ in the current style (a frame has its own).
 func (ed *Editor) styled(typ string) *Element {
 	e, s := New(typ), ed.Style
+	if typ == ToolFrame {
+		name := "Frame"
+		e.Name = &name
+		return e
+	}
 	e.StrokeColor, e.BackgroundColor, e.FillStyle, e.StrokeWidth = s.StrokeColor, s.BackgroundColor, s.FillStyle, s.StrokeWidth
 	e.StrokeStyle, e.Roughness, e.Opacity = s.StrokeStyle, s.Roughness, s.Opacity
 	if typ == ToolText {
@@ -269,12 +285,7 @@ func (ed *Editor) Drag(p Pt, tol float64, shift bool) {
 		ed.erase(p, tol)
 	case gBox:
 		ed.Box[2], ed.Box[3] = p.X, p.Y
-		ed.Select()
-		for _, e := range ed.Scene.Elements {
-			if x0, y0, x1, y1 := e.Bounds(); !e.IsDeleted && !e.Locked && x0 >= math.Min(ed.Box[0], p.X) && y0 >= math.Min(ed.Box[1], p.Y) && x1 <= math.Max(ed.Box[0], p.X) && y1 <= math.Max(ed.Box[1], p.Y) {
-				ed.Sel[e.ID] = true
-			}
-		}
+		ed.selectInside([4]float64{math.Min(ed.Box[0], p.X), math.Min(ed.Box[1], p.Y), math.Max(ed.Box[0], p.X), math.Max(ed.Box[1], p.Y)})
 	case gCreate:
 		e := g.el
 		switch e.Type {
@@ -370,6 +381,10 @@ func (ed *Editor) Up() {
 		if e.Type == ToolArrow {
 			ed.bindEnds(e)
 		}
+		if e.Type == ToolFrame { // behind what it holds
+			ed.adopt(e)
+			ed.Scene.Elements = append([]*Element{e}, slices.DeleteFunc(ed.Scene.Elements, func(x *Element) bool { return x == e })...)
+		}
 		if e.Type != ToolFreedraw {
 			ed.Tool = ToolSelect
 			ed.Select(e.ID)
@@ -380,6 +395,8 @@ func (ed *Editor) Up() {
 				ed.bindEnds(e)
 			}
 		}
+	case gMove:
+		ed.reframe(g.orig)
 	}
 	if ed.Editing == "" { // a text just begun commits when its typing ends
 		ed.commit(g.before)
@@ -672,6 +689,9 @@ func (ed *Editor) remove(id string) {
 		if e.EndBinding != nil && e.EndBinding.ElementID == id {
 			e.EndBinding = nil
 		}
+		if e.FrameID != nil && *e.FrameID == id {
+			e.FrameID = nil
+		}
 		e.BoundElements = slices.DeleteFunc(e.BoundElements, func(b Bound) bool { return b.ID == id })
 	}
 	delete(ed.Sel, id)
@@ -680,7 +700,7 @@ func (ed *Editor) remove(id string) {
 // Delete removes the selection.
 func (ed *Editor) Delete() {
 	ed.change(func() {
-		for _, e := range ed.Selected() {
+		for _, e := range ed.with(ed.Sel) { // a frame's elements go with it
 			ed.remove(e.ID)
 		}
 	})
@@ -689,17 +709,15 @@ func (ed *Editor) Delete() {
 // Duplicate copies the selection 10 units down and right, selecting the copies.
 func (ed *Editor) Duplicate() {
 	ed.change(func() {
-		var ids []string
-		for _, e := range ed.Selected() {
-			b, _ := json.Marshal(e)
-			c := new(Element)
-			_ = json.Unmarshal(b, c)
-			c.ID, c.Seed, c.X, c.Y = NewID(), randInt(), e.X+10, e.Y+10
-			c.StartBinding, c.EndBinding, c.BoundElements = nil, nil, nil
+		cs := ed.Copies()
+		renew(cs, 10, 10, true)
+		ed.Sel = map[string]bool{}
+		for _, c := range cs {
 			ed.Scene.Elements = append(ed.Scene.Elements, c)
-			ids = append(ids, c.ID)
+			if c.ContainerID == nil {
+				ed.Sel[c.ID] = true
+			}
 		}
-		ed.Select(ids...)
 	})
 }
 
@@ -707,11 +725,15 @@ func (ed *Editor) Duplicate() {
 func (ed *Editor) Nudge(dx, dy float64) {
 	ed.change(func() {
 		ed.g.orig = map[string]*Element{}
-		for _, e := range ed.Selected() {
+		for _, e := range ed.with(ed.Sel) { // a frame's elements too; labels follow their shapes
+			if e.ContainerID != nil {
+				continue
+			}
 			e.X, e.Y = e.X+dx, e.Y+dy
 			ed.g.orig[e.ID] = e
 		}
 		ed.moved()
+		ed.reframe(ed.g.orig)
 		ed.g.orig = nil
 	})
 }
