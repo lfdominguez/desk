@@ -162,7 +162,7 @@ func (w *Workspace) OpenOrg(org string) bool {
 	for i, n := range u.st.Tree {
 		if n.Depth == 0 && n.Org == org {
 			u.d.open(i)
-			u.wantTerm = false
+			u.wantTerm, u.keyTerm = false, nil
 			return true
 		}
 	}
@@ -182,7 +182,7 @@ func (w *Workspace) OpenCard(org, card string) bool {
 					m.active, m.group = slices.Index(m.tabs, t), ""
 				}
 			})
-			u.wantTerm = false
+			u.wantTerm, u.keyTerm = false, nil
 			return true
 		}
 	}

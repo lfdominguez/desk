@@ -560,7 +560,11 @@ func (u *ui) openHost(i int) {
 		u.d.open(i)
 	}
 	u.wantTerm = true
+	u.keyTerm = paneNext // the new state comes frames later: the keyboard waits for its pane
 }
+
+// paneNext marks keyTerm as "whichever pane comes next".
+var paneNext = new(Term)
 
 func (u *ui) account(gtx layout.Context) layout.Dimensions {
 	name, sub := "desk", fmt.Sprintf("%d sessions", len(u.st.Tabs))

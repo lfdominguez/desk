@@ -58,6 +58,7 @@ type ui struct {
 	palQ, palScope               string // the palette's query; the kind it shows ("" all)
 	sheetSig, askSig             string
 	wantTerm, toggleComposer     bool
+	keyTerm                      *Term // the pane the keyboard was on (paneNext: the next shown); a new focused pane takes it
 	copySelection, pasteWanted   bool
 	sels                         map[string]*selText // chat text blocks by id
 	chatSel                      *selText            // the one with a selection

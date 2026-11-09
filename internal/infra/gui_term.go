@@ -228,6 +228,9 @@ func (u *ui) terminals(gtx layout.Context) layout.Dimensions {
 		fv = u.files[t.Key]
 	}
 	if t == nil || len(t.Panes) == 0 && fv == nil {
+		if u.keyTerm != paneNext { // no pane to follow: a later one doesn't take the composer's keys
+			u.keyTerm = nil
+		}
 		title, sub := "No session", "Pick a server in the sidebar, or press "+modText("K")+"."
 		if t != nil {
 			title, sub = t.Org+" · Claude", "No server open yet. Ask Claude to connect to one, or pick a host in the sidebar."
@@ -440,6 +443,16 @@ func (u *ui) grid(gtx layout.Context, t *guiTab, i int, p guiPane, area image.Re
 
 	// focus: the focused pane of the active tab owns the keyboard unless an
 	// editor or a sheet has it
+	if p.Focused {
+		switch {
+		case gtx.Focused(v):
+			u.keyTerm = p.Term
+		case u.keyTerm != nil && u.keyTerm != p.Term:
+			u.wantTerm = true
+		case u.keyTerm == p.Term: // the keyboard left for an editor
+			u.keyTerm = nil
+		}
+	}
 	if p.Focused && u.wantTerm && u.st.Approval == nil && u.st.Ask == "" && !u.pal {
 		gtx.Execute(key.FocusCmd{Tag: v})
 		u.wantTerm = false

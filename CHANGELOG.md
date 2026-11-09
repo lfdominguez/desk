@@ -11,6 +11,13 @@ day). A release's section here is its notes on GitHub. The format follows
 - In the infra workspace, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Page Down</kbd> and
   <kbd>Page Up</kbd> go to the organization's next and previous tab (⌘ on macOS).
 
+### Fixed
+
+- In the infra workspace the keyboard follows the console: picking a server in the sidebar, or
+  closing a pane (<kbd>Ctrl</kbd>+<kbd>D</kbd>) while another one stays, leaves the server's
+  console ready to type in, with no extra click. It doesn't take the keys while you are typing in
+  the Claude panel.
+
 ## [2026.11.08] - 2026-11-08
 
 ### Added
