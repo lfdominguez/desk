@@ -113,7 +113,7 @@ and hides them, so they never show in the conversation:
 | Line | What desk does |
 |---|---|
 | `DESK-STATUS: blocked — <reason>` | The card goes to **Blocked**, with the reason as its status line. |
-| `DESK-STATUS: done` | The card goes to **Done**. |
+| `DESK-STATUS: done` | The card goes to **Review**, "Ready for review", for you to check and move to Done. While a subagent or background shell still runs, it stays **Working** until a turn ends with nothing running. |
 | `DESK-LINK: <url>` | The link is attached to the card and its state checked. |
 
 You don't write these lines yourself: Claude is told to use them. For example, after Claude opens

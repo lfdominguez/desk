@@ -2204,7 +2204,7 @@ func TestCoverBoardPointer(t *testing.T) {
 	if h.u.colAccent(1) != kit.CAcc {
 		t.Error("To do's color")
 	}
-	h.u.b.Columns[1].Title = "Review"
+	h.u.b.Columns[1].Title = "QA"
 	if h.u.colAccent(1) != kit.Accents[1] {
 		t.Error("an unnamed column's color by place")
 	}

@@ -7,7 +7,7 @@ description: "The few ideas desk is built on: cards, organizations, statuses, li
 
 Every card on the board is one Claude Code session. You write what to do; the card's Claude works on it in the card's folder, and the conversation is the card's history. Click a card (or press <kbd>Enter</kbd> on it) to open its session and talk to Claude. Press <kbd>T</kbd> to open the same session in the full Claude Code TUI.
 
-The board has five columns: **Backlog**, **To do**, **In progress**, **Blocked** and **Done**. You move cards yourself (drag, or <kbd>Ctrl</kbd>+arrows), and sessions move their own card too: sending a message puts it in In progress, Claude reporting it's blocked puts it in Blocked, Claude saying it's done puts it in Done.
+The board has six columns: **Backlog**, **To do**, **In progress**, **Blocked**, **Review** and **Done**. You move cards yourself (drag, or <kbd>Ctrl</kbd>+arrows), and sessions move their own card too: sending a message puts it in In progress, Claude reporting it's blocked puts it in Blocked, Claude saying it's done puts it in Review, for you to check. Only you move a card to Done.
 
 Each card has a key (`DESK-12`), an organization, an optional folder inside it, labels, a priority, a due date and links.
 
@@ -38,9 +38,10 @@ A card's status is where its session stands. The sidebar's **Sessions** views li
 | **your turn** | Claude answered and waits for you: a reply, a question, or a permission to give. A stopped turn lands here too. |
 | **blocked** | Claude can't go on and says why ("Blocked by agent: waiting for PR #609"), or it needed a permission it didn't get. The card moves to Blocked. |
 | **failed** | The session hit an error, or Claude exited mid-turn. The card's line shows the error. |
-| **done** | Claude says the work is finished. The card moves to Done. |
+| **ready for review** | Claude says the work is finished, and nothing it started is still running. The card moves to Review. |
+| **done** | You moved the card to Done. desk never does. |
 
-A card with no session yet, or nothing going on, has no status. You get a desktop notification when a card turns to your turn, blocked, failed or done, unless you're looking at it.
+A card with no session yet, or nothing going on, has no status. You get a desktop notification when a card turns to your turn, blocked, failed or ready for review, unless you're looking at it.
 
 ## Links
 
@@ -69,7 +70,7 @@ Claude Code sessions outside desk can do the same through desk's bundled plugin.
 | **`desk.toml`** | An organization's settings file, in its folder's `.desk/`. |
 | **Claude profile** | A Claude Code login of its own for one organization, in `~/Secure/Claudes/<Org>/`. |
 | **Improve with Claude** | The new-card dialog's optional step: Haiku turns your request into a full brief. |
-| **Status** | Where a card's session stands: working, your turn, blocked, failed, done. |
+| **Status** | Where a card's session stands: working, your turn, blocked, failed, ready for review, done. |
 | **Link** | A PR, MR, issue or commit attached to a card, with its live state. |
 | **Account** | A GitHub, GitLab, Bitbucket, Jira or Nagios login in an organization's `desk.toml`. |
 | **Vault** | A Bitwarden, Vaultwarden or Passbolt account the tokens come from. |

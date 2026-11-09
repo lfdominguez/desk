@@ -37,7 +37,7 @@ func TestMoveBefore(t *testing.T) {
 	}
 }
 
-// TestMigrate: a board from before Blocked and numbers gets both.
+// TestMigrate: a board from before Blocked, Review and numbers gets them.
 func TestMigrate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "board.json")
 	old := `{"columns":[{"title":"To do","cards":[{"id":"a","title":"a"},{"id":"b","title":"b"}]},{"title":"Done","cards":[]}]}`
@@ -48,7 +48,7 @@ func TestMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.Column("blocked") != 1 || b.Column("Done") != 2 {
+	if b.Column("blocked") != 1 || b.Column("review") != 2 || b.Column("Done") != 3 {
 		t.Fatalf("columns: %+v", b.Columns)
 	}
 	if c := b.Card("b"); c.Num != 2 || c.Key() != "DESK-2" || b.Add(0, Card{Title: "c"}).Num != 3 {
@@ -114,7 +114,7 @@ func TestMatches(t *testing.T) {
 
 func TestSaveLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sub", "board.json")
-	if b, err := Load(path); err != nil || len(b.Columns) != 5 {
+	if b, err := Load(path); err != nil || len(b.Columns) != 6 {
 		t.Fatalf("missing file should give the default board: %v %v", b, err)
 	}
 	b := Default()

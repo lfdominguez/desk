@@ -25,6 +25,22 @@ day). A release's section here is its notes on GitHub. The format follows
     drawing's Claude publish it as a claude.ai artifact and keeps the link.
 - In the infra workspace, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Page Down</kbd> and
   <kbd>Page Up</kbd> go to the organization's next and previous tab (⌘ on macOS).
+- **A Review column**, between Blocked and Done ("Ready for review", in cyan, with its own
+  sidebar view and notification). Existing boards get it on start.
+
+### Changed
+
+- **Claude no longer moves a card to Done.** `DESK-STATUS: done` puts it in Review; only you move
+  it to Done (drag, <kbd>Ctrl</kbd>+arrows, Move to, the card editor). In ticket sync Review is
+  in progress: a GitHub issue still closes only in Done.
+
+### Fixed
+
+- A card no longer reports done while its subagents or background shells still run: it stays
+  Working, and goes to Review once a turn ends with nothing left running.
+- A card whose Claude is working is always in In progress: every turn, the ones Claude starts
+  itself when a subagent finishes included, takes it out of any column, Review and Done too, even
+  when it was dragged there by mistake.
 
 ### Fixed
 

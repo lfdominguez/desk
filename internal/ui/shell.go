@@ -102,9 +102,7 @@ func (u *ui) shell(id, cmd string) {
 	dir := orgs.Dir(u.root, c.Org, c.Dir)
 	before := c.Status
 	c.Status, c.Note, c.Updated = kanban.StatusWorking, "Running your command: "+firstLine(cmd), time.Now() // the user acts: not blocked, not Claude's
-	if col, _ := u.b.Find(id); col == u.b.Column("Backlog") || col == u.b.Column("To do") || col == u.b.Column("Blocked") {
-		u.moveTo(id, "In progress")
-	}
+	u.moveTo(id, "In progress")
 	if c := u.b.Card(id); c != nil {
 		u.notifyChange(c, before)
 	}

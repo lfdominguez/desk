@@ -480,7 +480,7 @@ func TestCardGraph(t *testing.T) {
 // no agents; Done when in Done; archived; a session working on a tool.
 func TestCardGraphPlain(t *testing.T) {
 	h := newHarness(t)
-	c := h.u.b.Card(h.u.b.Add(4, kanban.Card{Title: "Tidy", Status: kanban.StatusWorking, Note: "Reading"}).ID)
+	c := h.u.b.Card(h.u.b.Add(h.u.b.Column("Done"), kanban.Card{Title: "Tidy", Status: kanban.StatusWorking, Note: "Reading"}).ID)
 	g := h.u.cardGraph(c, time.Now())
 	if len(g.nodes) != 3 || len(g.wires) != 3 {
 		t.Fatalf("%d nodes, %d wires", len(g.nodes), len(g.wires))

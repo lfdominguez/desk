@@ -107,6 +107,8 @@ func statusLine(c kanban.Card) (kit.IconPath, string, color.NRGBA, bool) {
 		return kit.IcoWarn, note("Blocked by agent"), kit.COrange, true
 	case kanban.StatusFailed:
 		return kit.IcoWarn, note("Failed"), kit.CRed, true
+	case kanban.StatusReview:
+		return kit.IcoCheck, note("Ready for review"), kit.Accents[5], true
 	case kanban.StatusDone:
 		return kit.IcoCheck, note("Done"), kit.CGreen, true
 	}

@@ -235,6 +235,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		delete(u.asks, id)
 		u.say(id, "you", text)
 		c.Status, c.Note, c.Last, c.Updated = kanban.StatusWorking, "", text, time.Now()
+		u.moveTo(id, "In progress")
 		u.save()
 		return
 	}
@@ -298,9 +299,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		c.Last = text
 	}
 	c.Status, c.Note, c.Updated = kanban.StatusWorking, "", time.Now()
-	if col, _ := u.b.Find(id); col == u.b.Column("Backlog") || col == u.b.Column("To do") || col == u.b.Column("Blocked") {
-		u.moveTo(id, "In progress")
-	}
+	u.moveTo(id, "In progress") // work going on is never in Review or Done
 	u.save()
 }
 
@@ -433,11 +432,14 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		case d.Status == kanban.StatusBlocked:
 			c.Status, c.Note = kanban.StatusBlocked, d.Note
 			u.moveTo(id, "Blocked")
-		case d.Status == kanban.StatusDone:
-			c.Status, c.Note = kanban.StatusDone, d.Note
-			u.moveTo(id, "Done")
 		case u.backgrounded(id) != "": // the turn ended, the work didn't: Claude takes a turn of its own when they finish
 			c.Status, c.Note = kanban.StatusWorking, u.backgrounded(id)
+			if d.Status == kanban.StatusDone { // never up for review while work runs: held for the turn that ends idle, unless it says otherwise
+				u.pending[id] = claude.Directives{Status: d.Status, Note: d.Note}
+			}
+		case d.Status == kanban.StatusDone: // Claude's done is a review: only the user moves a card to Done
+			c.Status, c.Note = kanban.StatusReview, d.Note
+			u.moveTo(id, "Review")
 		default:
 			c.Status, c.Note = kanban.StatusWaiting, ""
 		}
@@ -452,6 +454,9 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			c.Status, c.Note = kanban.StatusFailed, firstLine(e.Text)
 			u.say(id, "error", e.Text)
 		}
+	}
+	if c := u.b.Card(id); c != nil && c.Status == kanban.StatusWorking { // a turn, its own included, or work still running: never in Review or Done, whoever put it there
+		u.moveTo(id, "In progress")
 	}
 	u.save()
 }
