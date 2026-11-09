@@ -49,6 +49,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Drawings',
+					items: ['drawings/overview', 'drawings/editor', 'drawings/claude', 'drawings/export'],
+				},
+				{
 					label: 'Organizations',
 					items: ['orgs/organizations', 'orgs/settings', 'orgs/accounts', 'orgs/vaults', 'orgs/tickets', 'orgs/ci', 'orgs/alerts', 'orgs/card-tools'],
 				},

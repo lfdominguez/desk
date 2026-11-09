@@ -40,6 +40,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
 | 🧭 **Workspace** | Each card's IDE view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
+| ✏️ **Drawings** | Excalidraw diagrams per organization and per card, in desk's own editor. Every Claude can read and draw in them: edits show live and undo, and what you didn't ask for comes as a suggestion to approve. |
 | 🔐 **Vaults** | Tokens from Bitwarden/Vaultwarden, Passbolt, env vars or a command. Unlocked keys stay in memory only. |
 | 🪶 **No CLIs needed** | Every provider and vault is spoken to in Go. No `gh`, `glab`, `bw` or `wl-paste`. |
 
@@ -275,6 +276,29 @@ runs under.
 - **Selecting text**: drag or double-click; Claude's replies select with formatting kept, and
   **Copy** takes a whole reply as Markdown.
 
+### Drawings
+
+Each organization has **Drawings** under its name in the sidebar, and each card its own (the
+panel header's shapes icon): `.excalidraw` files in `<Org>/.desk/drawings/`, which excalidraw.com
+opens too. A drawing opens in desk's editor, with Excalidraw's tools, keys and style panel
+(rectangles, diamonds, ellipses, arrows that stay attached, lines, free hand, text, eraser), hand-drawn
+or clean, light or dark; frames and groups; images from a file or the clipboard; the
+organization's library (`library.excalidrawlib`); and copy and paste that goes both ways with
+excalidraw.com.
+
+- **Its Claude**: a chat beside the canvas with a Claude of the drawing's own, which reads the
+  organization's files and draws only through desk's drawing tools. What you select goes with
+  your message.
+- **Every Claude draws**: card sessions, the infra Claude and each drawing's Claude get
+  `drawings`, `drawing_read` (a picture and the element list), `drawing_edit` and
+  `drawing_suggest`; the workspace Claude only reads and suggests. An edit shows live, outlined
+  and named as that Claude's, and **Ctrl+Z** takes it back.
+- **Suggestions**: a change nobody asked for floats over the drawing as a ghost, with **Approve**,
+  **Rework** (your comment goes back to that Claude) and **Dismiss**.
+- **Export, import, share**: PNG, SVG or `.excalidraw` through the save dialog; **Import a file…**
+  takes an `.excalidraw` (a new drawing) or an `.excalidrawlib` (into the library); **Share** has
+  the drawing's Claude publish it as a claude.ai artifact, and keeps the link.
+
 ### Links and organizations
 
 Add links in the card's sheet (E): GitHub PRs and issues, Bitbucket PRs, GitLab MRs, Jira issues,
@@ -501,7 +525,8 @@ refuses its file and says so (an export is read anyway).
 | Text size | **Ctrl+=** bigger, **Ctrl+-** smaller, **Ctrl+0** back to 100%: the terminals and the session panel, anywhere |
 
 Board keys work on the board only, not while you type in a field or in a dialog. A terminal takes
-every key, Esc included, for Claude Code, except the text size's.
+every key, Esc included, for Claude Code, except the text size's. A drawing has Excalidraw's keys
+(tool letters and digits, Ctrl+C/X/V, Ctrl+G, Ctrl+D…): see the docs' Keys page.
 
 ## Development
 

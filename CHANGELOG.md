@@ -8,6 +8,21 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Drawings**: Excalidraw diagrams for each organization (**Drawings** under it in the sidebar)
+  and each card (the shapes icon in its panel), kept as `.excalidraw` files that excalidraw.com
+  opens too. desk's own editor has Excalidraw's tools, keys and styles, hand-drawn or clean, light
+  or dark: shapes, arrows that stay attached, lines, free hand, text, the eraser, frames, groups,
+  images from a file or the clipboard, and the organization's library.
+  - Each drawing has a Claude of its own in a chat beside the canvas; what you select goes with
+    your message.
+  - Card sessions, the infra Claude and the drawing's Claude can read drawings and draw in them;
+    the workspace Claude reads them. An edit shows live, marked with the Claude's name, and
+    <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes it back.
+  - A change nobody asked for comes as a suggestion over the drawing, to **Approve**, send back
+    with a comment (**Rework**) or **Dismiss**.
+  - Copy and paste go both ways with excalidraw.com. **Export** writes a PNG, an SVG or the
+    `.excalidraw` file; **Import a file…** brings in a drawing or a library; **Share** has the
+    drawing's Claude publish it as a claude.ai artifact and keeps the link.
 - In the infra workspace, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Page Down</kbd> and
   <kbd>Page Up</kbd> go to the organization's next and previous tab (⌘ on macOS).
 

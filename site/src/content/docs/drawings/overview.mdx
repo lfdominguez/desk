@@ -1,0 +1,54 @@
+---
+title: Drawings
+description: Excalidraw drawings kept with each organization and each card, drawn by you and by Claude, in desk's own editor.
+---
+
+Each organization has **drawings**: diagrams and sketches in the look of
+[Excalidraw](https://excalidraw.com), hand-drawn or clean. You draw them in desk's own editor,
+and so does Claude: every Claude desk runs can read them, draw in them, or suggest a change for
+you to approve.
+
+They're plain `.excalidraw` files, so excalidraw.com opens them, and desk opens excalidraw.com's.
+
+![Acme's drawings: New drawing with Import a file…, then Login flow and Whiteboard with their pictures](../../../assets/shots/drawings-list.png)
+
+## Where they are
+
+- **An organization's drawings** are under **Drawings**, below its name in the
+  [sidebar](/board/sidebar/#organizations). The count is how many it has.
+- **A card's own drawings** open from the shapes icon in the card's
+  [panel header](/sessions/panel/#the-header). Use them for what belongs to that piece of work.
+  The card's Claude finds them first.
+
+Both lists look the same: **New drawing** first, then each drawing with its picture, its name and
+when it last changed. Click a drawing to open it. Its bin deletes it, with an **Undo** in the toast.
+
+**New drawing** makes an empty one named "Untitled" (then "Untitled 2"…), with the dark canvas,
+and opens it. **Import a file…** under it takes an Excalidraw file: see
+[Import](/drawings/export/#import).
+
+## A drawing
+
+![Login flow open: the header with its name, Share, Export and the chat button; the toolbar over the canvas, the zoom and undo buttons below](../../../assets/shots/drawings-editor.png)
+
+The header has the way back to the list, the drawing's **name** (click it to rename; <kbd>Enter</kbd>
+or clicking away keeps the new name), **Share** and **Export**
+(see [Export, import and share](/drawings/export/)), and the button that shows or hides the
+[drawing's Claude](/drawings/claude/).
+
+Below is the canvas with its tools: see [The editor](/drawings/editor/). Every change is saved
+by itself once it settles: there is no Save.
+
+<kbd>Esc</kbd> steps back one thing at a time: the text you're typing, the tool, the selection,
+then to the list.
+
+## The files
+
+An organization's drawings are in `<Org>/.desk/drawings/`, one `.excalidraw` file each, named
+after the drawing; a card's are in a folder named after the card inside it. desk keeps its own
+notes beside a drawing as hidden files that start with a dot: its Claude's session and
+suggestions, its chat, and the page it was last shared as. They are renamed, deleted and
+restored with the drawing. See [Files](/reference/files/#organizations-desk_root-work).
+
+The organization's [library](/drawings/editor/#the-library) is `library.excalidrawlib`, in the
+same folder.

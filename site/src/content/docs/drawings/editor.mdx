@@ -1,0 +1,106 @@
+---
+title: The editor
+description: Drawing in desk, Excalidraw's way: the tools and their keys, the style panel, text, arrows, frames, groups, images, the library, and copy and paste.
+---
+
+A drawing opens in desk's editor. It works the way Excalidraw does: the same tools, the same keys,
+the same choices of style.
+
+![Login flow with a new rectangle and an arrow drawn into it, the arrow selected and the style panel on the left](../../../assets/shots/drawings-draw.png)
+
+## The tools
+
+The toolbar sits over the top of the canvas. Each tool has a letter and a number:
+
+| Tool | Keys | What it does |
+|---|---|---|
+| Hand | <kbd>H</kbd> | Drag to move around the drawing. |
+| Selection | <kbd>V</kbd> or <kbd>1</kbd> | Click to select, drag to move; drag on empty canvas for a box that selects what's inside. |
+| Rectangle | <kbd>R</kbd> or <kbd>2</kbd> | Drag to draw one. |
+| Diamond | <kbd>D</kbd> or <kbd>3</kbd> | |
+| Ellipse | <kbd>O</kbd> or <kbd>4</kbd> | |
+| Arrow | <kbd>A</kbd> or <kbd>5</kbd> | Drag from one shape to another: its ends stay attached to them when they move. |
+| Line | <kbd>L</kbd> or <kbd>6</kbd> | |
+| Draw | <kbd>P</kbd> or <kbd>7</kbd> | Free hand. |
+| Text | <kbd>T</kbd> or <kbd>8</kbd> | Click and type. |
+| Image | <kbd>9</kbd> | Picks a picture file to put in: see [Images](#images). |
+| Eraser | <kbd>E</kbd> or <kbd>0</kbd> | Drag across what you want gone. |
+| Frame | <kbd>F</kbd> | See [Frames](#frames). |
+
+A selected shape has grips to resize it and a round one above to rotate it. A lone line or
+arrow has a grip on each of its points instead.
+
+Double-click empty canvas to type text there; double-click a text, or press <kbd>Enter</kbd> with
+it selected, to change it. Text a Claude puts inside a shape (its label) moves and goes with
+the shape.
+
+## Moving around
+
+Scroll to move around, <kbd>Ctrl</kbd>+scroll to zoom where the pointer is (10% to 3000%).
+Dragging with <kbd>Space</kbd> held, or with the middle button, moves too. The buttons at the
+bottom left zoom, undo and redo. The ones at the top right show it all (<kbd>Shift</kbd>+<kbd>1</kbd>),
+open the [library](#the-library) and switch between the dark and the light canvas
+(<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>), which is kept with the drawing as excalidraw.com
+keeps it.
+
+## The style panel
+
+With something selected, or a drawing tool picked, the panel on the left shows the choices that
+fit it, as Excalidraw does: **Stroke** and **Background** colors, **Fill** (hachure,
+cross-hatch, solid), **Stroke width**, **Stroke style** (solid, dashed, dotted),
+**Sloppiness** (from clean to very hand-drawn), **Edges** (sharp or round), **Arrowheads**,
+for text its **Font family**, **Font size** and **Text align**, and **Opacity**. **Layers**
+brings it forward or back, and **Actions** duplicates or deletes it. A choice made with a tool
+picked is used for what you draw next.
+
+## Frames
+
+A frame (<kbd>F</kbd>) is a named area that holds what's in it: what you draw it around goes in,
+and what you drag into or out of it changes frame. What's in a frame moves, duplicates and
+deletes with it, and is cut off at its edge on the canvas and in pictures. Select a frame to
+change its **Name** in the style panel.
+
+## Groups
+
+<kbd>Ctrl</kbd>+<kbd>G</kbd> groups the selection, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>
+ungroups it; the style panel has **Group** and **Ungroup** too. A click on anything in a group
+selects the whole group.
+
+## Images
+
+The toolbar's **Image** (<kbd>9</kbd>) opens your system's file chooser for a PNG, JPEG, GIF or
+WebP picture; <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes one from the clipboard. It goes in the middle of
+what you see, at most 600 units a side, and is kept inside the drawing's file.
+
+## The library
+
+The library is the organization's shelf of things to draw again, shared by all its drawings.
+Open it from the books icon at the top right.
+
+![The library open beside the canvas, its Cache item under Add selection](../../../assets/shots/drawings-library.png)
+
+**Add selection** puts what you selected in it, first. Click an item to put a copy in the middle
+of what you see. Its bin takes it out, with an **Undo** in the toast. The library is an
+`.excalidrawlib` file, the format excalidraw.com's library uses; see
+[Import](/drawings/export/#import) to bring one in.
+
+## Copy and paste
+
+<kbd>Ctrl</kbd>+<kbd>C</kbd> copies the selection, <kbd>Ctrl</kbd>+<kbd>X</kbd> cuts it, and
+<kbd>Ctrl</kbd>+<kbd>V</kbd> pastes in the middle of what you see. Copies go on the clipboard the
+way excalidraw.com puts them, so you can copy from one to the other both ways. Pasting a
+picture adds it as an image; pasting other text adds it as a text.
+
+## Other keys
+
+| Keys | What they do |
+|---|---|
+| <kbd>Delete</kbd> or <kbd>Backspace</kbd> | Delete the selection. |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd> | Undo, redo. |
+| <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate the selection. |
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | Select everything. |
+| Arrows | Move the selection by 1; with <kbd>Shift</kbd>, by 10. |
+| <kbd>Ctrl</kbd>+<kbd>]</kbd>, <kbd>Ctrl</kbd>+<kbd>[</kbd> | Bring forward, send backward; with <kbd>Shift</kbd>, to the front, to the back. |
+
+The drawing's keys don't work while you type in one of desk's fields: the name, the chat, a
+frame's name.

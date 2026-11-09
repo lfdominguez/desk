@@ -42,6 +42,8 @@ Older versions of desk kept `desk.toml` and `ssh_config` in the organization's f
 | `<Org>/.desk/servers-dynamic.conf` | What a `#@ hosts-cmd` printed last (`servers-dynamic-<group>.conf` for one in a group). |
 | `<Org>/.desk/infra/` | The infra Claude's working folder, made when the organization has a servers file (an older `<Org>/Infra-Claude/` moves here). Put a `CLAUDE.md` here for it to read. |
 | `<Org>/.desk/infra/runbooks/` | Runbooks: Markdown with `sh` blocks and `{{parameters}}`. The infra Claude saves new ones here too. |
+| `<Org>/.desk/drawings/` | The organization's [drawings](/drawings/overview/), one `<name>.excalidraw` each, and its library, `library.excalidrawlib`. Beside each drawing desk keeps hidden `.<name>.desk.json` (its Claude's session, its suggestions and the link it was shared as), `.<name>.chat.jsonl` (its chat) and `.<name>.share.html` (the page Share publishes). |
+| `<Org>/.desk/drawings/<card id>/` | A card's own drawings, the same way. |
 | `<Org>/.claude/agents/` | The Claude Code agents cards can run as (or the folder `agents` names in `desk.toml`). |
 
 ## Claude profiles: `~/Secure/Claudes/`
