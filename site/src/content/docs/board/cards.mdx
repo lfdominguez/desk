@@ -24,7 +24,7 @@ From top to bottom:
    - The **key** is the card's number on this board: `DESK-1`, `DESK-2`… It's what you
      search for, copy, and what the session's tools call the card.
    - The **status dot** shows the session's state: purple while working,
-     blue for your turn, orange for blocked, red for failed, green for done. Cards
+     blue for your turn, orange for blocked, red for failed, cyan for ready for review, green for done. Cards
      with no session yet have no dot.
    - The **age** is the time since the card last changed: "now", "5 min. ago",
      "3 hr. ago", "yesterday", then a date ("Oct 20").
@@ -36,7 +36,8 @@ From top to bottom:
    - "Your turn: …", in blue, when Claude is waiting on you: a question, an answer to look over, a permission to grant.
    - "Blocked by agent: …", in orange, when Claude reports it can't go on (for example, "Waiting on the IdP metadata from IT").
    - "Failed: …", in red, when the session ended with an error.
-   - "Done", in green.
+   - "Ready for review", in cyan, when Claude says the work is finished. The card waits in Review for you.
+   - "Done", in green, once you move it to Done.
 4. **Link chips**, one per link: its reference and its live state, colored by tone
    ("PR #88 · open · CI passing" in green). A card shows up to three. After that
    it says "+2 more links", and the session panel lists them all. See [Links](/cards/links/).
@@ -96,7 +97,7 @@ Right-click a card for its menu.
 The keys only work while the menu is open. Esc or a click outside closes it.
 
 Hover **Move to** to open the list of columns. The card's own column says "· here".
-Each column's number moves the card there.
+Each column's number moves the card there: 1 Backlog to 6 Done.
 
 <figure class="cut">
 

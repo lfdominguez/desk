@@ -17,7 +17,7 @@ var desktopNotify = func(title, body string) { go notify.Push(title, body) }
 // needsYou is how a status that wants the user reads in a notification.
 var needsYou = map[string]string{
 	kanban.StatusWaiting: "Your turn", kanban.StatusBlocked: "Blocked",
-	kanban.StatusFailed: "Failed", kanban.StatusDone: "Done",
+	kanban.StatusFailed: "Failed", kanban.StatusReview: "Ready for review",
 }
 
 // notifyChange tells the desktop when card c turns to one that wants the

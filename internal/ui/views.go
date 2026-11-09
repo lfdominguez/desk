@@ -121,12 +121,12 @@ type sideItem struct {
 
 var statusColor = map[string]color.NRGBA{
 	kanban.StatusWorking: kit.CPurple, kanban.StatusWaiting: kit.CAccText, kanban.StatusBlocked: kit.COrange,
-	kanban.StatusFailed: kit.CRed, kanban.StatusDone: kit.CGreen,
+	kanban.StatusFailed: kit.CRed, kanban.StatusReview: kit.Accents[5], kanban.StatusDone: kit.CGreen,
 }
 
 var statusName = map[string]string{
 	kanban.StatusWorking: "Working", kanban.StatusWaiting: "Your turn", kanban.StatusBlocked: "Blocked",
-	kanban.StatusFailed: "Failed", kanban.StatusDone: "Done",
+	kanban.StatusFailed: "Failed", kanban.StatusReview: "Review", kanban.StatusDone: "Done",
 }
 
 // sections is the sidebar: fixed views, then the orgs and labels in use.
@@ -179,7 +179,7 @@ func (u *ui) sections() []struct {
 		labItems = append(labItems, sideItem{"lab:" + l, l, nil, labelColor(l)})
 	}
 	var st []sideItem
-	for _, s := range []string{kanban.StatusWorking, kanban.StatusWaiting, kanban.StatusBlocked, kanban.StatusFailed} {
+	for _, s := range []string{kanban.StatusWorking, kanban.StatusWaiting, kanban.StatusBlocked, kanban.StatusFailed, kanban.StatusReview} {
 		st = append(st, sideItem{"st:" + s, statusName[s], nil, statusColor[s]})
 	}
 	byOrg := map[string][]sideItem{} // every card with a session but the Done ones, by org, board order: its status dot, or the terminal when open
@@ -313,7 +313,7 @@ func (u *ui) sentence() string {
 		}
 	}
 	var parts []string
-	for _, s := range []string{kanban.StatusWorking, kanban.StatusWaiting, kanban.StatusBlocked, kanban.StatusFailed} {
+	for _, s := range []string{kanban.StatusWorking, kanban.StatusWaiting, kanban.StatusBlocked, kanban.StatusFailed, kanban.StatusReview} {
 		if by[s] > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", by[s], strings.ToLower(statusName[s])))
 		}

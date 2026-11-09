@@ -1843,6 +1843,61 @@ func TestTurnEndsWhileBackground(t *testing.T) {
 	}
 }
 
+// TestDoneWhileBackground: DESK-STATUS: done in a turn that ends with a
+// subagent still running keeps the card Working; it's up for Review once a
+// turn ends with nothing running, unless a later line says otherwise. Only
+// the user's move puts it in Done.
+func TestDoneWhileBackground(t *testing.T) {
+	h := newHarness(t)
+	h.create("A card", "Acme")
+	id := h.only().ID
+	feed := func(l string) {
+		for _, e := range claude.Parse([]byte(l)) {
+			h.u.onEvent(id, 0, e)
+		}
+	}
+	turn := func(task, text string) {
+		feed(`{"type":"system","subtype":"init","session_id":"s1"}`)
+		if task != "" {
+			feed(`{"type":"system","subtype":"task_started","task_id":"` + task + `","tool_use_id":"tu` + task + `","description":"Run e2e","task_type":"local_agent","is_backgrounded":true}`)
+		}
+		if text != "" {
+			feed(`{"type":"assistant","message":{"content":[{"type":"text","text":"` + text + `"}]}}`)
+		}
+		feed(`{"type":"result","subtype":"success","is_error":false}`)
+	}
+	end := func(task string) {
+		feed(`{"type":"system","subtype":"task_notification","task_id":"` + task + `","status":"completed","summary":"ok"}`)
+	}
+	check := func(status, col string) {
+		t.Helper()
+		c := h.u.b.Card(id)
+		if got, _ := h.u.b.Find(id); c.Status != status || got != h.u.b.Column(col) {
+			t.Fatalf("status %q note %q, want %q in %s", c.Status, c.Note, status, col)
+		}
+	}
+	turn("a1", `Shipped.\nDESK-STATUS: done`)
+	check(kanban.StatusWorking, "In progress")
+	end("a1")
+	turn("", "The agent passed.")
+	check(kanban.StatusReview, "Review")
+	h.u.moveTo(id, "Done") // the user approves it
+	check(kanban.StatusDone, "Done")
+
+	feed(`{"type":"system","subtype":"init","session_id":"s1"}`) // any turn takes it out of Done
+	check(kanban.StatusWorking, "In progress")
+	h.u.moveTo(id, "Done") // dragged there by mistake mid-turn: the next event takes it back
+	feed(`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t9","name":"Bash","input":{"command":"ls"}}]}}`)
+	check(kanban.StatusWorking, "In progress")
+	feed(`{"type":"result","subtype":"success","is_error":false}`)
+
+	turn("a2", `Shipped.\nDESK-STATUS: done`) // a later line wins over the held done
+	check(kanban.StatusWorking, "In progress")
+	end("a2")
+	turn("", `e2e failed.\nDESK-STATUS: blocked — CI down`)
+	check(kanban.StatusBlocked, "Blocked")
+}
+
 // TestStartsWorking: a created card starts at once (its title and notes
 // go with the first message); one with no conversation has Start working.
 func TestStartsWorking(t *testing.T) {

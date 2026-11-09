@@ -15,12 +15,12 @@ A notification fires when a card's status changes to one of these:
 | Your turn | `DESK-5 · Your turn` |
 | Blocked | `DESK-7 · Blocked` |
 | Failed | `DESK-6 · Failed` |
-| Done | `DESK-8 · Done` |
+| Ready for review | `DESK-8 · Ready for review` |
 
 Its body is the card's title, then the reason Claude gave (or, without one, the start
 of its last message) as plain text.
 
-Those are the cards the sidebar's **Your turn**, **Blocked** and **Failed** views
+Those are the cards the sidebar's **Your turn**, **Blocked**, **Failed** and **Review** views
 gather, so a notification's card is easy to find there:
 
 ![The Your turn view: the two cards waiting on you](../../../assets/shots/board-view.png)

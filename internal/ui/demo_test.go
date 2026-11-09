@@ -47,7 +47,7 @@ func TestDemo(t *testing.T) {
 	demoPace = 0
 	path := kanban.Path()
 	b, err := kanban.Load(path)
-	if err != nil || len(b.Columns) != 5 {
+	if err != nil || len(b.Columns) != 6 {
 		t.Fatal(err)
 	}
 	h.u = newUI(b, path)

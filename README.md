@@ -31,7 +31,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 
 | | |
 |---|---|
-| 🗂️ **Board of sessions** | Backlog, To do, In progress, Blocked, Done. Sessions move their own card: a message sends it to In progress, Claude reporting blocked to Blocked, done to Done. |
+| 🗂️ **Board of sessions** | Backlog, To do, In progress, Blocked, Review, Done. Sessions move their own card: a message sends it to In progress, Claude reporting blocked to Blocked, done to Review. Only you move a card to Done. |
 | 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS and Windows), its skills, its agents. |
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
 | 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira issues on each card, with their state and CI. Tickets follow their card's column. |
@@ -176,7 +176,7 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
 
 ### The board
 
-- **Sidebar views**: all cards; sessions by status (working, your turn, blocked, failed); each
+- **Sidebar views**: all cards; sessions by status (working, your turn, blocked, failed, review); each
   organization and label in use; links (waiting on review, ready to merge, changes requested, open
   tickets); due (overdue, this week); the Done archive. Each shows its count.
 - **Header**: the view in words, e.g. "2 working · 4 blocked · 1 overdue".
@@ -184,8 +184,9 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   reason ("Blocked by agent: waiting for PR #609"); link chips with their live state ("PR #609 ·
   approved — merge", "ABC-1317 · In Review"); the last message; labels, due date, and the
   session's turns, tokens and cost.
-- **Done**: no view shows the Done column; Done cards show in **Done archive**, above the
-  archived ones. The box in the toolbar archives every Done card; archived cards stay searchable
+- **Review and Done**: a card Claude finishes waits in **Review** ("Ready for review") until you
+  move it to Done; nothing else does. No view shows the Done column; Done cards show in
+  **Done archive**, above the archived ones. The box in the toolbar archives every Done card; archived cards stay searchable
   and can be restored from their panel.
 - **My tickets**: under each organization with a Jira, GitHub or GitLab account, **Tickets** lists
   the open issues assigned to you there, by project. Click one to open its card, or to make one
@@ -205,7 +206,7 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   `ask_workspace` reach the card's workspace.
 - **Right-click a card** for its menu: open its session or full window, its terminal, its workspace, edit it,
   copy its key, move it to another column, archive it.
-- **Desktop notifications** when a card turns to your turn, blocked, failed or done, unless you're
+- **Desktop notifications** when a card turns to your turn, blocked, failed or ready for review, unless you're
   looking at it.
 
 ### Prompt optimization
@@ -242,7 +243,7 @@ runs under.
 
 - **Status lines**: Claude sets the card's state by ending a reply with `DESK-STATUS: blocked —
   <reason>` or `DESK-STATUS: done`, and attaches links with `DESK-LINK: <url>` (desk hides those
-  lines).
+  lines). Done puts the card in Review, once nothing (subagent, background shell) is left running.
 - **Questions and permissions**: Claude's interviews (AskUserQuestion) and tool permissions show
   as a box at the end of the conversation; the card goes to "your turn" meanwhile.
 - **Shell commands**: a message starting with `!` runs it yourself with `bash` (PowerShell on
@@ -292,8 +293,8 @@ sessions run under the outer org's Claude account.
 
 **Tickets follow their card**: when a card moves column, its tickets you're assigned move to
 match. A Jira issue takes the transition to the column's status category (Blocked: a status named
-blocked), a GitHub issue closes in Done and reopens out of it. Pull and merge requests are left
-alone. At start and every 3 minutes, tickets that drifted are brought back in line.
+blocked; Review counts as in progress), a GitHub issue closes in Done and reopens out of it. Pull
+and merge requests are left alone. At start and every 3 minutes, tickets that drifted are brought back in line.
 
 desk only asks a provider through an account: a link whose organization has no account (with a
 token) for its host and owner shows **no GitHub account** (or GitLab, Bitbucket) and is never
@@ -346,7 +347,7 @@ projects = ["ABC"]              # bare keys like ABC-12 link here; cards create 
 # sync = false                  # cards' column moves don't transition these issues
 token_env = "JIRA_GLOBEX_TOKEN"
 [jira.status]                   # optional: the status a column moves issues to, by name
-Done = "In Review"              # the project's owner closes them after a last review
+Review = "In Review"            # cards waiting on your review put their issues there
 
 [[bitbucket]]
 workspace = "team"

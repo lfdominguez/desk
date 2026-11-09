@@ -29,7 +29,8 @@ const (
 	StatusWaiting = "waiting" // Claude answered: your turn
 	StatusBlocked = "blocked" // Claude can't go on (Card.Note says why)
 	StatusFailed  = "failed"  // the session errored (Card.Note)
-	StatusDone    = "done"    // Claude says the work is finished
+	StatusReview  = "review"  // Claude says the work is finished: the user reviews it
+	StatusDone    = "done"    // the user moved it to Done: only a person ever does
 )
 
 const DateLayout = "2006-01-02"
@@ -103,21 +104,23 @@ type Board struct {
 // Default is the board a first run starts with.
 func Default() *Board {
 	b := &Board{}
-	for _, t := range []string{"Backlog", "To do", "In progress", "Blocked", "Done"} {
+	for _, t := range []string{"Backlog", "To do", "In progress", "Blocked", "Review", "Done"} {
 		b.Columns = append(b.Columns, Column{Title: t})
 	}
 	return b
 }
 
-// migrate brings older boards up to date: a Blocked column before Done,
-// numbers for cards that have none.
+// migrate brings older boards up to date: Blocked and Review columns before
+// Done, numbers for cards that have none.
 func (b *Board) migrate() {
-	if b.Column("Blocked") < 0 {
-		at := len(b.Columns)
-		if d := b.Column("Done"); d >= 0 {
-			at = d
+	for _, t := range []string{"Blocked", "Review"} {
+		if b.Column(t) < 0 {
+			at := len(b.Columns)
+			if d := b.Column("Done"); d >= 0 {
+				at = d
+			}
+			b.Columns = slices.Insert(b.Columns, at, Column{Title: t})
 		}
-		b.Columns = slices.Insert(b.Columns, at, Column{Title: "Blocked"})
 	}
 	for c := range b.Columns {
 		for i := range b.Columns[c].Cards {
@@ -190,6 +193,9 @@ func (b *Board) MoveBefore(id string, col int, before string) {
 		return
 	}
 	card := b.Columns[c].Cards[i]
+	if col == b.Column("Done") && card.Status == StatusReview { // desk never moves a card to Done: a person approved it
+		card.Status, card.Note = StatusDone, ""
+	}
 	b.Columns[c].Cards = slices.Delete(b.Columns[c].Cards, i, i+1)
 	dst := &b.Columns[col].Cards
 	at := slices.IndexFunc(*dst, func(x Card) bool { return x.ID == before })
