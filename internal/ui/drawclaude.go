@@ -46,7 +46,9 @@ func (u *ui) drawStart(st *drawState) (session, error) {
 	if mcp != "" {
 		o.Args = append(o.Args, "--mcp-config", mcp)
 	}
-	o.Args = append(o.Args, "--allowedTools="+strings.Join(append([]string{"Read", "Glob", "Grep"}, allow...), ","),
+	// Artifact and the claude-artifacts server: Share asks it to publish
+	// the drawing's page (whichever of the two the account has).
+	o.Args = append(o.Args, "--allowedTools="+strings.Join(append([]string{"Read", "Glob", "Grep", "Artifact", "mcp__claude-artifacts"}, allow...), ","),
 		"--disallowedTools=Edit,Write,NotebookEdit,Bash")
 	if st.side.Session == "" {
 		st.side.Session = claude.NewSessionID()
@@ -130,6 +132,9 @@ func (u *ui) drawEvent(path string, p session, e claude.Event) {
 		if e.Parent == "" {
 			u.sayMsg(key, toolMsg(e))
 		}
+	case claude.KindArtifact: // Share's page, published: kept on the drawing
+		st.side.Shared = e.Text
+		u.drawKeepSide(st)
 	case claude.KindAsk: // it only reads and draws
 		p.Respond(e.Ask.ID, false, nil, "The drawing's Claude only reads files and draws.")
 		u.say(key, "tool", "refused "+e.Ask.Line)

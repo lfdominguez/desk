@@ -154,7 +154,7 @@ func (u *ui) openDrawing(org, path string) {
 }
 
 // drawSides are the kinds of desk's files beside a drawing (drawSide).
-var drawSides = []string{"desk.json", "chat.jsonl"}
+var drawSides = []string{"desk.json", "chat.jsonl", "share.html"}
 
 func drawName(path string) string { return strings.TrimSuffix(filepath.Base(path), ".excalidraw") }
 
@@ -278,6 +278,18 @@ func (u *ui) drawingsView(gtx layout.Context) layout.Dimensions {
 						})
 						if ok {
 							act = func() { u.newDrawing(place) }
+						}
+						// Import over the card's foot: an .excalidraw or .excalidrawlib file
+						g := gtx
+						g.Constraints.Min = image.Point{}
+						m := op.Record(gtx.Ops)
+						id, ok := k.KBtn(g, "drImport"+org, kit.Ghost, "Import a file…", "")
+						call := m.Stop()
+						at := op.Offset(image.Pt((d.Size.X-id.Size.X)/2, d.Size.Y-id.Size.Y-gtx.Dp(10))).Push(gtx.Ops)
+						call.Add(gtx.Ops)
+						at.Pop()
+						if ok {
+							act = func() { u.drawImport(place) }
 						}
 						return d
 					}

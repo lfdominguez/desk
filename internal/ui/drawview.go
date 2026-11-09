@@ -27,29 +27,31 @@ import (
 // drawState is an open drawing: its editor, how it is looked at, the
 // pointer's press, the text being typed.
 type drawState struct {
-	org, path string
-	card      string      // the card it belongs to, "" the organization's
-	side      drawSidecar // desk's file beside it: its Claude's session, suggestions
-	marks     map[string]string // elements a Claude drew last: who
-	claude    drawClaude
-	ghosts    []drawGhost // the suggestions over the drawing, for ghostGen
-	ghostGen  int
-	rework    string        // the suggestion being sent back, "" none
-	reworkIn  widget.Editor // its comment
-	libOpen   bool          // the library panel shows
-	frameName widget.Editor // a frame's name, in the style panel
-	nameOf    string        // the frame frameName holds
-	nameFoc   bool
-	size      image.Point // the canvas, px, as last drawn
-	px        float32     // px per dp then
-	ed        *draw.Editor
-	written   []byte // the file as last written
-	failed    int    // the editor's Gen a save failed at
-	title     widget.Editor
-	titleFoc  bool
-	text      widget.Editor // the text element being typed (ed.Editing)
-	typing    string        // the element text holds, "" none
-	textFoc   bool
+	org, path  string
+	card       string            // the card it belongs to, "" the organization's
+	side       drawSidecar       // desk's file beside it: its Claude's session, suggestions
+	marks      map[string]string // elements a Claude drew last: who
+	claude     drawClaude
+	ghosts     []drawGhost // the suggestions over the drawing, for ghostGen
+	ghostGen   int
+	rework     string        // the suggestion being sent back, "" none
+	reworkIn   widget.Editor // its comment
+	libOpen    bool          // the library panel shows
+	pasteText  bool          // a paste found no image: read the text (also its tag)
+	exportOpen bool          // Export's choices show
+	frameName  widget.Editor // a frame's name, in the style panel
+	nameOf     string        // the frame frameName holds
+	nameFoc    bool
+	size       image.Point // the canvas, px, as last drawn
+	px         float32     // px per dp then
+	ed         *draw.Editor
+	written    []byte // the file as last written
+	failed     int    // the editor's Gen a save failed at
+	title      widget.Editor
+	titleFoc   bool
+	text       widget.Editor // the text element being typed (ed.Editing)
+	typing     string        // the element text holds, "" none
+	textFoc    bool
 
 	pan     f32.Point // px: where the scene's origin is in the pane
 	zoom    float32   // 1: a scene unit is a dp
@@ -115,7 +117,7 @@ func (u *ui) drawSig() string {
 	if st == nil {
 		return ""
 	}
-	return fmt.Sprint(st.ed.Gen, st.ed.Tool, st.ed.Editing, st.pan, st.zoom, st.space, len(st.marks), st.claude.hide, st.claude.busy, st.rework, st.libOpen)
+	return fmt.Sprint(st.ed.Gen, st.ed.Tool, st.ed.Editing, st.pan, st.zoom, st.space, len(st.marks), st.claude.hide, st.claude.busy, st.rework, st.libOpen, st.exportOpen, st.side.Shared)
 }
 
 // drawOpen is the drawing in view, nil when none is.
@@ -137,6 +139,8 @@ func (u *ui) drawTyping(gtx layout.Context) bool {
 // of an editor no longer laid out (the text box, the list's view).
 func (u *ui) drawEscape(st *drawState) {
 	switch {
+	case st.exportOpen:
+		st.exportOpen = false
 	case st.ed.Editing != "":
 		st.ed.EndText()
 	case st.ed.Tool != draw.ToolSelect:
@@ -199,6 +203,40 @@ func (u *ui) drawView(gtx layout.Context) layout.Dimensions {
 					st.titleFoc = foc
 					return k.Editor(gtx, &st.title, "Name", 14, kit.Semi(kit.Sans), kit.CText)
 				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if st.side.Shared == "" {
+						return layout.Dimensions{}
+					}
+					d, ok := k.IconBtn(gtx, "drawShared", kit.IcoLink, false)
+					k.Tip(gtx, "drawShared", d, "Open the shared page", true)
+					if ok {
+						act = func() { openURL(st.side.Shared) }
+					}
+					return d
+				}),
+				layout.Rigid(kit.HGap(6)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					label := "Share"
+					if st.side.Shared != "" {
+						label = "Share again"
+					}
+					d, ok := k.Button(gtx, "drawShare", kit.CPanel, kit.CHover, kit.RCtl, layout.Inset{Top: 4, Bottom: 4, Left: 10, Right: 10},
+						k.Lbl(label, 12, kit.CText2, kit.Medium(kit.Sans)))
+					if ok {
+						act = func() { u.drawShare(st) }
+					}
+					return d
+				}),
+				layout.Rigid(kit.HGap(6)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d, ok := k.IconBtn(gtx, "drawExport", kit.IcoDown, st.exportOpen)
+					k.Tip(gtx, "drawExport", d, "Export", true)
+					if ok {
+						act = func() { st.exportOpen, st.libOpen = !st.exportOpen, false }
+					}
+					return d
+				}),
+				layout.Rigid(kit.HGap(6)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					d, ok := k.IconBtn(gtx, "drawChat", kit.IcoChat, !st.claude.hide)
 					k.Tip(gtx, "drawChat", d, map[bool]string{true: "Show the drawing's Claude", false: "Hide the drawing's Claude"}[st.claude.hide], true)
@@ -266,6 +304,7 @@ func (u *ui) drawCanvas(gtx layout.Context, st *drawState, act *func()) layout.D
 		st.placed = true
 	}
 	u.drawKeys(gtx, st, size)
+	u.drawClipEvents(gtx, st)
 	u.drawPointer(gtx, st, px)
 	ed := st.ed
 	if st.shown == nil || st.shownGen != ed.Gen {
@@ -289,6 +328,9 @@ func (u *ui) drawCanvas(gtx layout.Context, st *drawState, act *func()) layout.D
 	u.drawTools(gtx, st, size, act)
 	if st.libOpen {
 		u.drawLibrary(gtx, st, size, act)
+	}
+	if st.exportOpen {
+		u.drawExportMenu(gtx, st, size, act)
 	}
 	u.drawSuggestCards(gtx, st, size, act)
 	return layout.Dimensions{Size: size}
@@ -382,7 +424,8 @@ func (u *ui) drawPointer(gtx layout.Context, st *drawState, px float32) {
 }
 
 // drawKeys are the editor's keys, Excalidraw's: a tool's letter or digit,
-// Delete, Ctrl+Z/Ctrl+Shift+Z (Ctrl+Y), Ctrl+D, Ctrl+A, arrows nudge,
+// Delete, Ctrl+Z/Ctrl+Shift+Z (Ctrl+Y), Ctrl+D, Ctrl+A, Ctrl+C/X/V
+// (drawclip.go), arrows nudge,
 // Ctrl+] and Ctrl+[ (with Shift: to the front, the back), Space held
 // pans, Shift+1 fits, Alt+Shift+D the dark canvas. Off while one of
 // desk's editors or dialogs has the keyboard.
@@ -392,7 +435,7 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 	}
 	mods := key.ModShortcut | key.ModShift | key.ModAlt
 	var fs []event.Filter
-	for _, n := range []key.Name{"V", "H", "R", "D", "O", "A", "L", "P", "T", "E", "Y", "Z", "F", "G", "[", "]", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	for _, n := range []key.Name{"V", "H", "R", "D", "O", "A", "L", "P", "T", "E", "Y", "Z", "F", "G", "C", "X", "[", "]", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 		key.NameDeleteBackward, key.NameDeleteForward, key.NameUpArrow, key.NameDownArrow, key.NameLeftArrow, key.NameRightArrow, key.NameSpace, key.NameReturn} {
 		fs = append(fs, key.Filter{Name: n, Optional: mods})
 	}
@@ -435,6 +478,12 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 			ed.Ungroup()
 		case ctrl && e.Name == "G":
 			ed.Group()
+		case ctrl && e.Name == "C":
+			drawCopy(gtx, st)
+		case ctrl && e.Name == "X":
+			if drawCopy(gtx, st) {
+				ed.Delete()
+			}
 		case ctrl && e.Name == "V":
 			u.drawPaste(st.path)
 		case ctrl && e.Name == "]":

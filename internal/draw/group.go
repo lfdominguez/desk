@@ -346,6 +346,20 @@ func LoadLibrary(path string) (*Library, error) {
 	return l, nil
 }
 
+// ParseLibrary reads an .excalidrawlib file's bytes; an error when b is
+// something else. ponytail: version 2 only (libraryItems); excalidraw.com's
+// old version 1 (library: element lists) reads as empty.
+func ParseLibrary(b []byte) (*Library, error) {
+	var l Library
+	if err := json.Unmarshal(b, &l); err != nil {
+		return nil, err
+	}
+	if l.Type != "excalidrawlib" {
+		return nil, fmt.Errorf("not an excalidraw library (type %q)", l.Type)
+	}
+	return &l, nil
+}
+
 // Save writes the library at path, atomically.
 func (l *Library) Save(path string) error {
 	b, _ := marshal(l) // plain data: it marshals

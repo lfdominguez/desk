@@ -18,14 +18,11 @@ import (
 )
 
 // Images and the library in a drawing. An image comes from a file (the
-// toolbar's Image, 9: the system's file chooser) or the clipboard (Ctrl+V)
+// toolbar's Image, 9: the system's file chooser, pickFile) or the
+// clipboard (Ctrl+V, drawclip.go)
 // and goes in the middle of the view. The library is the organization's
 // .excalidrawlib beside its drawings (excalidraw.com opens it too): the
 // selection added as an item, an item put in the middle of the view.
-
-// pickImage asks the user for a picture file; nil, nil: they cancelled.
-// The window sets it (a file chooser needs it); tests replace it.
-var pickImage = func() (io.ReadCloser, error) { return nil, fmt.Errorf("no file chooser here") }
 
 // drawMaxImage is how big an image goes in, in scene units a side at most.
 const drawMaxImage = 600
@@ -45,7 +42,7 @@ func (u *ui) drawAddImage(st *drawState, b []byte) {
 // to the drawing at path.
 func (u *ui) drawPickImage(path string) {
 	go func() {
-		r, err := pickImage()
+		r, err := pickFile(".png", ".jpg", ".jpeg", ".gif", ".webp")
 		var b []byte
 		if err == nil && r != nil {
 			b, err = io.ReadAll(io.LimitReader(r, 50<<20))
@@ -57,18 +54,6 @@ func (u *ui) drawPickImage(path string) {
 			case err != nil:
 				u.showToast("Couldn't open the image: "+err.Error(), true)
 			case st != nil && b != nil:
-				u.drawAddImage(st, b)
-			}
-		})
-	}()
-}
-
-// drawPaste is Ctrl+V on the canvas: the clipboard's image, if it holds one.
-func (u *ui) drawPaste(path string) {
-	go func() {
-		b, _, err := clipImage()
-		u.later(func() {
-			if st := u.draws[path]; st != nil && err == nil && b != nil {
 				u.drawAddImage(st, b)
 			}
 		})

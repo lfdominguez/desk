@@ -245,12 +245,19 @@ func Run(b *kanban.Board, path string) error {
 	u.w.Option(app.Title(title), app.Size(unit.Dp(1600), unit.Dp(950)), app.MinSize(unit.Dp(900), unit.Dp(500)))
 	u.startInfra()
 	files := explorer.NewExplorer(u.w)
-	pickImage = func() (io.ReadCloser, error) {
-		r, err := files.ChooseFile(".png", ".jpg", ".jpeg", ".gif", ".webp")
+	pickFile = func(exts ...string) (io.ReadCloser, error) {
+		r, err := files.ChooseFile(exts...)
 		if errors.Is(err, explorer.ErrUserDecline) {
 			return nil, nil
 		}
 		return r, err
+	}
+	saveFile = func(name string) (io.WriteCloser, error) {
+		w, err := files.CreateFile(name)
+		if errors.Is(err, explorer.ErrUserDecline) {
+			return nil, nil
+		}
+		return w, err
 	}
 	defer u.windowed()()
 	defer func() {

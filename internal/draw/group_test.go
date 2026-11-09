@@ -273,7 +273,7 @@ func TestAddImage(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	ed, a, b, _ := shapes()
-	ed.Apply(Patch{Add: rawAll(`{"id":"ar","type":"arrow","from":"`+a.ID+`","to":"`+b.ID+`"}`), Update: rawAll(`{"id":"`+a.ID+`","label":"L"}`)})
+	ed.Apply(Patch{Add: rawAll(`{"id":"ar","type":"arrow","from":"` + a.ID + `","to":"` + b.ID + `"}`), Update: rawAll(`{"id":"` + a.ID + `","label":"L"}`)})
 	ed.Select(a.ID, b.ID, "ar")
 	ed.Group()
 	cs := ed.Copies()

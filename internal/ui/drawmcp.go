@@ -46,6 +46,7 @@ type drawSuggestion struct {
 type drawSidecar struct {
 	Session     string           `json:"session,omitempty"`
 	Suggestions []drawSuggestion `json:"suggestions,omitempty"`
+	Shared      string           `json:"shared,omitempty"` // the claude.ai artifact it was last shared as
 }
 
 // drawSide is the path of a drawing's file of kind beside it, hidden:

@@ -31,9 +31,9 @@ func (h *harness) pumped(done func() bool) {
 
 func TestDrawImagePicked(t *testing.T) {
 	h := newHarness(t)
-	defer func(f func() (io.ReadCloser, error)) { pickImage = f }(pickImage)
+	defer func(f func(...string) (io.ReadCloser, error)) { pickFile = f }(pickFile)
 	st, _ := h.drawing("D")
-	pickImage = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(pngBytes(1200, 600))), nil }
+	pickFile = func(...string) (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(pngBytes(1200, 600))), nil }
 	h.clickButton("drawTool" + drawImageTool)
 	h.pumped(func() bool { return len(st.ed.Scene.Elements) == 1 })
 	e := st.ed.Scene.Elements[0]
@@ -41,23 +41,23 @@ func TestDrawImagePicked(t *testing.T) {
 	if e.Type != "image" || e.Width != drawMaxImage || e.Height != 300 || e.X+e.Width/2 != c.X || e.Y+e.Height/2 != c.Y {
 		t.Errorf("in the middle of the view, at most %d: %+v (center %v)", drawMaxImage, e, c)
 	}
-	pickImage = func() (io.ReadCloser, error) { return nil, nil } // cancelled
+	pickFile = func(...string) (io.ReadCloser, error) { return nil, nil } // cancelled
 	h.send(press("9", 0))
 	h.frame()
-	pickImage = func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader("text")), nil }
+	pickFile = func(...string) (io.ReadCloser, error) { return io.NopCloser(strings.NewReader("text")), nil }
 	h.send(press("9", 0))
 	h.pumped(func() bool { return h.u.toast != "" })
 	if !strings.HasPrefix(h.u.toast, "Couldn't add the image: not a picture") || len(st.ed.Scene.Elements) != 1 {
 		t.Errorf("not a picture: %q", h.u.toast)
 	}
 	h.u.toast = ""
-	pickImage = func() (io.ReadCloser, error) { return nil, errors.New("no portal") }
+	pickFile = func(...string) (io.ReadCloser, error) { return nil, errors.New("no portal") }
 	h.u.drawPickImage(st.path)
 	h.pumped(func() bool { return h.u.toast != "" })
 	if h.u.toast != "Couldn't open the image: no portal" {
 		t.Errorf("%q", h.u.toast)
 	}
-	pickImage = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(pngBytes(2, 2))), nil }
+	pickFile = func(...string) (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(pngBytes(2, 2))), nil }
 	done := false
 	h.u.drawPickImage("/gone.excalidraw")
 	h.u.later(func() { done = true })

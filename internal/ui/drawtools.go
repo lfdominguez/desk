@@ -170,7 +170,7 @@ func (u *ui) drawTools(gtx layout.Context, st *drawState, size image.Point, act 
 				d, ok := k.IconBtn(gtx, "drawLib", kit.IcoLibrary, st.libOpen)
 				k.Tip(gtx, "drawLib", d, "Library", true)
 				if ok {
-					*act = func() { st.libOpen = !st.libOpen }
+					*act = func() { st.libOpen, st.exportOpen = !st.libOpen, false }
 				}
 				return d
 			}),

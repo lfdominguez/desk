@@ -186,7 +186,8 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 				}))
 			}
 			top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Claude · "+u.accountName(c.Org), kit.CText2, kit.CPanelCard))) // last: the one to cut
-			pills := top // what's left after the buttons, clipped: a long account name never pushes them off
+			// pills: what's left after the buttons, clipped: a long account name never pushes them off
+			pills := top
 			top = []layout.FlexChild{layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
 				w := gtx.Constraints.Max.X

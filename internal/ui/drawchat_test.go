@@ -260,6 +260,7 @@ func TestDrawSidecarsFollow(t *testing.T) {
 	h.clickButton("drawSend")
 	old := st.path
 	f := h.drawClaudes()[0]
+	os.WriteFile(drawSide(old, "share.html"), []byte("<p>"), 0o644) // as Share leaves it
 	h.u.renameDrawing(st, "E")
 	for _, kind := range drawSides {
 		if _, err := os.Stat(drawSide(st.path, kind)); err != nil {
