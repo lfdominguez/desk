@@ -6,7 +6,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/glamour/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.6
-	gioui.org v0.10.3
+	gioui.org v0.10.4-0.20261005201158-fd8b878890c8
 	gioui.org/x v0.10.3
 	github.com/AlexanderGrooff/mermaid-ascii v0.0.0-20260908213847-5f00e3d9ac9f
 	github.com/BurntSushi/toml v1.6.0

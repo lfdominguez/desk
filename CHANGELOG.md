@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Dead keys work in terminals on Linux: on a layout with them (US International, for one), a
+  quote, tilde or accent typed in a card's terminal or a server pane came out only when the next
+  key went down before it came up, and was lost otherwise.
+
 ## [2026.11.09] - 2026-11-09
 
 ### Added
