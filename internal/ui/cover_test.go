@@ -1361,11 +1361,15 @@ func TestCoverArchiveView(t *testing.T) {
 	h.u.search.SetText("login")
 	h.u.archList.Position.Count = -1
 	h.draw(sz, view)
-	if h.u.archList.Position.Count != 1 {
+	if h.u.archList.Position.Count != 2 { // its section and itself
 		t.Fatalf("searching: %d", h.u.archList.Position.Count)
 	}
 	h.u.search.SetText("nothing like it")
+	h.u.archList.Position.Count = -1
 	h.draw(sz, view)
+	if h.u.archList.Position.Count != -1 {
+		t.Fatal("a list drawn with no matches")
+	}
 	_ = done
 	for i := range h.u.b.Columns {
 		if h.u.b.Columns[i].Title == "Done" {

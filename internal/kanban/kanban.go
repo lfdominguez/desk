@@ -65,7 +65,19 @@ type Card struct {
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`
-	From      string    `json:"from,omitempty"` // archived: the column it left
+	From      string    `json:"from,omitempty"`    // archived: the column it left
+	Finished  time.Time `json:"finished,omitzero"` // when it went to Done
+}
+
+// FinishedAt is when card c was finished: its move to Done, else (a card
+// from before desk kept that) its archiving, else its last change.
+func (c Card) FinishedAt() time.Time {
+	for _, t := range []time.Time{c.Finished, c.Archived, c.Updated} {
+		if !t.IsZero() {
+			return t
+		}
+	}
+	return c.Created
 }
 
 // Session is the card's Claude conversation.
@@ -193,8 +205,15 @@ func (b *Board) MoveBefore(id string, col int, before string) {
 		return
 	}
 	card := b.Columns[c].Cards[i]
-	if col == b.Column("Done") && card.Status == StatusReview { // desk never moves a card to Done: a person approved it
+	done := b.Column("Done")
+	if col == done && card.Status == StatusReview { // desk never moves a card to Done: a person approved it
 		card.Status, card.Note = StatusDone, ""
+	}
+	switch {
+	case col == done && c != done:
+		card.Finished = time.Now()
+	case col != done:
+		card.Finished = time.Time{}
 	}
 	b.Columns[c].Cards = slices.Delete(b.Columns[c].Cards, i, i+1)
 	dst := &b.Columns[col].Cards
@@ -203,6 +222,37 @@ func (b *Board) MoveBefore(id string, col int, before string) {
 		at = len(*dst)
 	}
 	*dst = slices.Insert(*dst, at, card)
+}
+
+// Spot is where a card sits and what it was: column Col at index At, or
+// (Col -1) index At of the archive. Put takes a card back there, which is
+// how a change to many cards undoes in one step.
+type Spot struct {
+	Card    Card
+	Col, At int
+}
+
+// Spot is where card id sits now.
+func (b *Board) Spot(id string) (Spot, bool) {
+	if c, i := b.Find(id); c >= 0 {
+		return Spot{b.Columns[c].Cards[i], c, i}, true
+	}
+	if i := slices.IndexFunc(b.Archive, func(c Card) bool { return c.ID == id }); i >= 0 {
+		return Spot{b.Archive[i], -1, i}, true
+	}
+	return Spot{}, false
+}
+
+// Put puts s's card back where s was, as it was, wherever it is now. Spots
+// taken together go back in the order they were taken, lowest index
+// first, so each lands at its old index.
+func (b *Board) Put(s Spot) {
+	b.Delete(s.Card.ID)
+	dst := &b.Archive
+	if s.Col >= 0 {
+		dst = &b.Columns[s.Col].Cards
+	}
+	*dst = slices.Insert(*dst, min(s.At, len(*dst)), s.Card)
 }
 
 func (b *Board) Delete(id string) {

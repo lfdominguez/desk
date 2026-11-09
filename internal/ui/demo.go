@@ -63,6 +63,12 @@ func Demo() (string, error) {
 			kanban.AppendChat(kanban.ChatPath(path, c.ID), m)
 		}
 	}
+	for _, s := range demoArchived() {
+		c := b.Add(b.Column("Done"), s.card)
+		b.ArchiveCard(c.ID)
+		at := time.Now().Add(-s.ago)
+		b.Archive[0].Finished, b.Archive[0].Archived = at, at.Add(time.Hour)
+	}
 	if err := b.Save(path); err != nil {
 		return "", err
 	}
@@ -160,9 +166,7 @@ func demoBoard() []demoCard {
 	now := time.Now()
 	day := func(n int) string { return now.AddDate(0, 0, n).Format(kanban.DateLayout) }
 	ago := func(m int) time.Time { return now.Add(-time.Duration(m) * time.Minute) }
-	pr := func(repo string, n int, state, tone string) kanban.Link {
-		return kanban.Link{URL: fmt.Sprintf("https://github.com/%s/pull/%d", repo, n), Kind: links.KindGitHubPR, Ref: fmt.Sprintf("PR #%d", n), State: state, Tone: tone, Checked: now}
-	}
+	pr := demoPR
 	jira := func(key, state, tone string) kanban.Link {
 		return kanban.Link{URL: "https://acme.atlassian.net/browse/" + key, Kind: links.KindJira, Ref: key, State: state, Tone: tone, Checked: now}
 	}
@@ -175,7 +179,7 @@ func demoBoard() []demoCard {
 		{col: "In progress", card: kanban.Card{Title: "Migrate the billing exports to S3", Org: "Globex", Dir: "billing", Labels: []string{"billing"}, Priority: 2,
 			Status: kanban.StatusWaiting, Note: "Which bucket region should the exports use?", Last: "The exporter now streams to S3. Which bucket region should the exports use: eu-west-1 like the rest of billing, or us-east-1?",
 			Session: kanban.Session{ID: "demo-billing", Turns: 6, Tokens: 182000, Cost: 1.84, Context: 71000, Window: 200000}, Updated: ago(4),
-			Links: []kanban.Link{pr("globex-org/billing", 88, "open · CI passing", links.ToneGood)}},
+			Links: []kanban.Link{demoPR("globex-org/billing", 88, "open · CI passing", links.ToneGood)}},
 			chat: []kanban.ChatMsg{
 				{Who: "you", Text: "Move the nightly billing exports from the local disk to S3.", At: ago(31)},
 				{Who: "tool", Text: "Read  billing/export/writer.go", At: ago(30)},
@@ -190,6 +194,33 @@ func demoBoard() []demoCard {
 		{col: "Done", card: kanban.Card{Title: "Upgrade Go to 1.26", Org: "Acme", Dir: "api", Labels: []string{"deps"},
 			Status: kanban.StatusDone, Session: kanban.Session{ID: "demo-go", Turns: 5, Cost: 1.12},
 			Links: []kanban.Link{pr("acme-corp/api", 597, "merged", links.ToneDone)}}},
+	}
+}
+
+// demoPR is a made-up GitHub pull request link, just checked.
+func demoPR(repo string, n int, state, tone string) kanban.Link {
+	return kanban.Link{URL: fmt.Sprintf("https://github.com/%s/pull/%d", repo, n), Kind: links.KindGitHubPR, Ref: fmt.Sprintf("PR #%d", n), State: state, Tone: tone, Checked: time.Now()}
+}
+
+// demoArchived is the demo's archived cards and how long ago each was
+// finished, so the Done archive has sections to show.
+func demoArchived() []struct {
+	card kanban.Card
+	ago  time.Duration
+} {
+	day := 24 * time.Hour
+	return []struct {
+		card kanban.Card
+		ago  time.Duration
+	}{
+		{kanban.Card{Title: "Dashboard for the audit log", Org: "Initech", Dir: "portal", Labels: []string{"ui"}, Status: kanban.StatusDone,
+			Session: kanban.Session{Turns: 9, Cost: 2.41}, Links: []kanban.Link{demoPR("initech/portal", 88, "merged", links.ToneDone)}}, 41 * day},
+		{kanban.Card{Title: "Move the billing cron to the queue", Org: "Globex", Dir: "billing", Labels: []string{"billing", "infra"}, Status: kanban.StatusDone,
+			Session: kanban.Session{Turns: 12, Cost: 3.05}, Links: []kanban.Link{demoPR("globex-org/billing", 212, "merged", links.ToneDone)}}, 19 * day},
+		{kanban.Card{Title: "Fix the flaky checkout test", Org: "Globex", Dir: "shop", Labels: []string{"tests"}, Status: kanban.StatusDone,
+			Session: kanban.Session{Turns: 4, Cost: 0.58}, Links: []kanban.Link{demoPR("globex-org/shop", 431, "merged", links.ToneDone)}}, 3 * day},
+		{kanban.Card{Title: "Rotate the API keys", Org: "Acme", Dir: "api", Labels: []string{"security"}, Status: kanban.StatusDone,
+			Session: kanban.Session{Turns: 3, Cost: 0.64}}, day + 2*time.Hour},
 	}
 }
 

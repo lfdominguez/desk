@@ -60,6 +60,7 @@ type ui struct {
 	chatList   layout.List
 	sideList   layout.List
 	archList   layout.List
+	arch       archState                     // the archive's grouping and filter chips
 	chatFocus  bool                          // focus chatIn on the next frame
 	shellOut   map[string]string             // by card: its "!" commands and what they printed, for Claude's next message
 	peerOut    map[string]string             // by card: the infra Claude's events it couldn't take yet (cardTell)
@@ -326,7 +327,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom(), u.drawGen, u.drawSig())
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver)
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click

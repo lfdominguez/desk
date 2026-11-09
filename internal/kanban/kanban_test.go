@@ -58,6 +58,85 @@ func TestMoveReviewToDone(t *testing.T) {
 	}
 }
 
+// TestFinished: moving a card into Done stamps when; moving it within Done
+// keeps that, and out of Done clears it.
+func TestFinished(t *testing.T) {
+	b := Default()
+	done := b.Column("Done")
+	a := b.Add(0, Card{Title: "a"})
+	x := b.Add(done, Card{Title: "x"})
+	b.MoveBefore(a.ID, done, "")
+	at := b.Card(a.ID).Finished
+	if at.IsZero() {
+		t.Fatal("no finished time in Done")
+	}
+	b.MoveBefore(a.ID, done, x.ID) // reordered inside Done
+	if got := b.Card(a.ID).Finished; !got.Equal(at) {
+		t.Fatalf("reorder in Done changed finished: %v → %v", at, got)
+	}
+	b.MoveBefore(a.ID, 1, "")
+	if got := b.Card(a.ID).Finished; !got.IsZero() {
+		t.Fatalf("left Done, still finished %v", got)
+	}
+}
+
+// TestFinishedAt: the finished time, else the archived one, else the last
+// change, else the creation.
+func TestFinishedAt(t *testing.T) {
+	t1, t2, t3, t4 := time.Unix(100, 0), time.Unix(200, 0), time.Unix(300, 0), time.Unix(400, 0)
+	for _, tc := range []struct {
+		c    Card
+		want time.Time
+	}{
+		{Card{Created: t1, Updated: t2, Archived: t3, Finished: t4}, t4},
+		{Card{Created: t1, Updated: t2, Archived: t3}, t3},
+		{Card{Created: t1, Updated: t2}, t2},
+		{Card{Created: t1}, t1},
+	} {
+		if got := tc.c.FinishedAt(); !got.Equal(tc.want) {
+			t.Errorf("%+v: %v, want %v", tc.c, got, tc.want)
+		}
+	}
+}
+
+// TestSpotPut: spots taken before a change to several cards put each back
+// where it was, as it was: on the board or in the archive, at its index.
+func TestSpotPut(t *testing.T) {
+	b := Default()
+	done := b.Column("Done")
+	a := b.Add(done, Card{Title: "a"})
+	m := b.Add(done, Card{Title: "m"})
+	z := b.Add(done, Card{Title: "z"})
+	b.ArchiveCard(m.ID)
+	old := b.Archive[0]
+	var spots []Spot
+	for _, id := range []string{a.ID, z.ID, m.ID} {
+		s, ok := b.Spot(id)
+		if !ok {
+			t.Fatalf("no spot for %s", id)
+		}
+		spots = append(spots, s)
+	}
+	if spots[2].Col != -1 || spots[2].At != 0 || spots[1].Col != done || spots[1].At != 1 {
+		t.Fatalf("spots: %+v", spots)
+	}
+	b.ArchiveCard(a.ID)
+	b.Delete(z.ID)
+	b.Restore(m.ID)
+	for _, s := range spots {
+		b.Put(s)
+	}
+	if got := ids(b.Columns[done].Cards); !slices.Equal(got, []string{"a", "z"}) {
+		t.Fatalf("Done after undo: %v", got)
+	}
+	if len(b.Archive) != 1 || b.Archive[0].ID != m.ID || !b.Archive[0].Archived.Equal(old.Archived) || b.Archive[0].From != old.From {
+		t.Fatalf("archive after undo: %+v", b.Archive)
+	}
+	if _, ok := b.Spot("nope"); ok {
+		t.Fatal("spot for an unknown card")
+	}
+}
+
 // TestMigrate: a board from before Blocked, Review and numbers gets them.
 func TestMigrate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "board.json")
