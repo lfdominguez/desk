@@ -40,7 +40,31 @@ type archState struct {
 	byOrg bool
 	off   map[string]bool // "done", "archived" turned off
 	on    map[string]bool // "org:…", "label:…" turned on
+	sel   map[string]bool // the cards checked, by id
 	ver   int             // bumped by every change, for sig
+}
+
+// check checks or unchecks the cards es.
+func (a *archState) check(es []archEntry, on bool) {
+	if a.sel == nil {
+		a.sel = map[string]bool{}
+	}
+	for _, e := range es {
+		a.sel[e.c.ID] = on
+	}
+	a.ver++
+}
+
+// checked is the cards of es that are checked: what the bulk bar acts on,
+// so a checked card the filters hide is left alone.
+func (a *archState) checked(es []archEntry) []archEntry {
+	var out []archEntry
+	for _, e := range es {
+		if a.sel[e.c.ID] {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 func (a *archState) toggle(chip string) {
@@ -224,12 +248,25 @@ func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 			items = append(items, item{e: &gs[i].es[j]})
 		}
 	}
+	chk := a.checked(es)
+	var act func() // the bulk bar's, run once the list is drawn from the board as it was
 	w := min(gtx.Constraints.Max.X-gtx.Dp(48), gtx.Dp(960))
+	defer func() {
+		if act != nil {
+			act()
+		}
+	}()
 	return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Constraints{Min: image.Pt(w, gtx.Constraints.Max.Y), Max: image.Pt(w, gtx.Constraints.Max.Y)}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Top: 16, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.archBar(gtx, all) })
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if len(chk) == 0 {
+					return layout.Dimensions{}
+				}
+				return layout.Inset{Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.archBulkBar(gtx, chk, &act) })
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				if len(items) == 0 {
@@ -247,12 +284,88 @@ func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 	})
 }
 
+// archBulkBar is "N selected" and what can be done to them: Archive the
+// Done ones, Restore the archived ones, Delete, Clear. Its pick goes in act.
+func (u *ui) archBulkBar(gtx layout.Context, chk []archEntry, act *func()) layout.Dimensions {
+	k := u.k
+	done := slices.ContainsFunc(chk, func(e archEntry) bool { return e.done })
+	archived := slices.ContainsFunc(chk, func(e archEntry) bool { return !e.done })
+	btn := func(id string, kind kit.Kind, label string, f func()) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			d, ok := k.KBtn(gtx, id, kind, label, "")
+			if ok {
+				*act = f
+			}
+			return layout.Inset{Left: 6}.Layout(gtx, func(layout.Context) layout.Dimensions { return d })
+		})
+	}
+	return kit.Boxed(kit.CPanelCard, kit.CLine, kit.RCtl, layout.Inset{Top: 6, Bottom: 6, Left: 12, Right: 6}, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		ch := []layout.FlexChild{
+			layout.Rigid(k.Lbl(fmt.Sprintf("%d selected", len(chk)), 13, kit.CText, kit.Semi(kit.Sans))),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)} }),
+		}
+		if done {
+			ch = append(ch, btn("archBulkArchive", kit.Secondary, "Archive", func() { u.archBulk("archive", chk) }))
+		}
+		if archived {
+			ch = append(ch, btn("archBulkRestore", kit.Secondary, "Restore", func() { u.archBulk("restore", chk) }))
+		}
+		ch = append(ch,
+			btn("archBulkDelete", kit.Danger, "Delete", func() { u.archBulk("delete", chk) }),
+			btn("archBulkClear", kit.Ghost, "Clear", func() { u.arch.sel = nil; u.arch.ver++ }))
+		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, ch...)
+	})(gtx)
+}
+
+// archBulk archives the Done cards of es, restores the archived ones or
+// deletes them all (their chat files stay), as one change the toast undoes:
+// each card goes back where it was, as it was.
+func (u *ui) archBulk(op string, es []archEntry) {
+	var spots []kanban.Spot
+	for _, e := range es {
+		if s, ok := u.b.Spot(e.c.ID); ok && (op == "delete" || (op == "archive") == e.done) {
+			spots = append(spots, s)
+		}
+	}
+	// es comes in board order (archMatches), so each column's and the
+	// archive's spots are lowest index first, as Put needs them back
+	for _, s := range spots {
+		id := s.Card.ID
+		u.endSession(id)
+		switch op {
+		case "archive":
+			u.b.ArchiveCard(id)
+		case "restore":
+			u.b.Restore(id)
+		default:
+			u.b.Delete(id)
+		}
+	}
+	u.arch.sel = nil
+	u.arch.ver++
+	u.save()
+	verb := map[string]string{"archive": "Archived", "restore": "Restored", "delete": "Deleted"}[op]
+	n := fmt.Sprintf("%d cards", len(spots))
+	if len(spots) == 1 {
+		n = spots[0].Card.Key()
+	}
+	u.showUndo(verb+" "+n, func() {
+		for _, s := range spots {
+			u.b.Put(s)
+		}
+		u.save()
+	})
+}
+
 // archBar is the row over the archive: Group by, then the filter chips.
 func (u *ui) archBar(gtx layout.Context, all []archEntry) layout.Dimensions {
 	k, a := u.k, &u.arch
 	chips, n := archChips(all)
 	ws := []layout.Widget{
-		k.Lbl("Group by", 12, kit.CText3, kit.Sans),
+		func(gtx layout.Context) layout.Dimensions { // down to the chips' text
+			return layout.Inset{Top: 7}.Layout(gtx, k.Lbl("Group by", 12, kit.CText3, kit.Sans))
+		},
 		func(gtx layout.Context) layout.Dimensions {
 			cur := 0
 			if a.byOrg {
@@ -333,16 +446,31 @@ func archShown(c kanban.Card) (labels []string, more int, ls []kanban.Link, cost
 	return labels, len(c.Labels) - len(labels), ls, cost
 }
 
-// archHead is a section's name and count, with a rule under it.
-func (u *ui) archHead(gtx layout.Context, g *archGroup, first bool) layout.Dimensions {
-	k := u.k
-	in := layout.Inset{Top: 18, Bottom: 6, Left: 4}
-	if first {
-		in.Top = 4
+// archBox is a checkbox button: a click calls f.
+func (u *ui) archBox(gtx layout.Context, id string, on bool, f func()) layout.Dimensions {
+	d, ok := u.k.Button(gtx, id, color.NRGBA{}, kit.CHover, kit.RCtl, layout.UniformInset(7), mark(on, true))
+	if ok {
+		f()
 	}
+	return d
+}
+
+// archHead is a section's checkbox (all its cards), name and count, with a
+// rule under it.
+func (u *ui) archHead(gtx layout.Context, g *archGroup, first bool) layout.Dimensions {
+	k, a := u.k, &u.arch
+	in := layout.Inset{Top: 14, Bottom: 6}
+	if first {
+		in.Top = 0
+	}
+	all := len(a.checked(g.es)) == len(g.es)
 	return in.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		d := layout.Flex{Alignment: layout.Baseline}.Layout(gtx,
+		d := layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.archBox(gtx, "archChkGroup"+g.name, all, func() { a.check(g.es, !all) })
+			}),
+			layout.Rigid(kit.HGap(4)),
 			layout.Rigid(k.Lbl(g.name, 13, kit.CText, kit.Semi(kit.Sans))),
 			layout.Rigid(kit.HGap(8)),
 			layout.Rigid(k.Lbl(fmt.Sprint(len(g.es)), 12, kit.CText3, kit.Mono)))
@@ -352,13 +480,28 @@ func (u *ui) archHead(gtx layout.Context, g *archGroup, first bool) layout.Dimen
 	})
 }
 
-// archRow is one card in a line: Done or Archived, key, title, organization,
-// labels, links, cost and when it finished.
+// archRow is one card in a line: its checkbox, Done or Archived, key,
+// title, organization, labels, links, cost and when it finished.
 func (u *ui) archRow(gtx layout.Context, e archEntry) layout.Dimensions {
+	c, a := e.c, &u.arch
+	on := a.sel[c.ID]
+	return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { // beside the row's button, not in it, so a click is one or the other
+			return u.archBox(gtx, "archChk"+c.ID, on, func() { a.check([]archEntry{e}, !on) })
+		}),
+		layout.Rigid(kit.HGap(4)),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.archCard(gtx, e, on) }))
+}
+
+// archCard is a row past its checkbox, tinted while checked.
+func (u *ui) archCard(gtx layout.Context, e archEntry, on bool) layout.Dimensions {
 	k, c := u.k, e.c
 	id := "arch" + c.ID
 	bg := color.NRGBA{}
-	if c.ID == u.panel {
+	switch {
+	case on:
+		bg = kit.Mix(kit.CAcc, kit.CPane, .88)
+	case c.ID == u.panel:
 		bg = kit.CPanelCard
 	}
 	d, ok := k.Button(gtx, id, bg, kit.CHover, kit.RCtl, layout.Inset{Top: 7, Bottom: 7, Left: 8, Right: 10}, func(gtx layout.Context) layout.Dimensions {

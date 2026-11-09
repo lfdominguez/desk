@@ -51,14 +51,25 @@ func (u *ui) archiveCard(id string) {
 	if c == nil {
 		return
 	}
-	key, stopped := c.Key(), u.procs[id] != nil
-	if p := u.procs[id]; p != nil {
+	key, stopped := c.Key(), u.endSession(id)
+	u.b.ArchiveCard(id)
+	u.save()
+	msg := "Archived " + key
+	if stopped {
+		msg += "; its session stopped"
+	}
+	u.showUndo(msg, func() { u.b.Restore(id); u.save(); u.showToast("Restored "+key, false) })
+}
+
+// endSession stops card id's Claudes and leaves its views, before it goes
+// off the board; it says whether its session was running.
+func (u *ui) endSession(id string) bool {
+	p := u.procs[id]
+	if p != nil {
 		p.Close()
 		delete(u.procs, id)
 	}
 	delete(u.asks, id)
-	u.b.ArchiveCard(id)
-	u.save()
 	if u.panel == id {
 		u.panel = ""
 	}
@@ -69,11 +80,7 @@ func (u *ui) archiveCard(id string) {
 		st.proc.Close()
 		st.proc, st.from = nil, nil
 	}
-	msg := "Archived " + key
-	if stopped {
-		msg += "; its session stopped"
-	}
-	u.showUndo(msg, func() { u.b.Restore(id); u.save(); u.showToast("Restored "+key, false) })
+	return p != nil
 }
 
 // menuFilters are the keys of the open menu's items.

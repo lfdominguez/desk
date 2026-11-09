@@ -168,6 +168,118 @@ func TestArchMatches(t *testing.T) {
 	}
 }
 
+// TestArchCheck: checking and unchecking cards, and which of a list are
+// checked.
+func TestArchCheck(t *testing.T) {
+	e := func(id string) archEntry { return archEntry{c: kanban.Card{ID: id}} }
+	var a archState
+	a.check([]archEntry{e("1"), e("2"), e("3")}, true)
+	a.check([]archEntry{e("2")}, false)
+	got := a.checked([]archEntry{e("3"), e("2"), e("1"), e("4")})
+	if len(got) != 2 || got[0].c.ID != "3" || got[1].c.ID != "1" || a.ver != 2 {
+		t.Fatalf("%+v ver %d", got, a.ver)
+	}
+}
+
+// TestArchiveBulk: rows and sections check, the bulk bar archives the
+// Done ones, restores the archived ones and deletes, each one undo that puts
+// every card back where it was.
+func TestArchiveBulk(t *testing.T) {
+	h := newHarness(t)
+	done := h.u.b.Column("Done")
+	d1 := h.u.b.Add(done, kanban.Card{Title: "One", Finished: time.Now()})
+	d2 := h.u.b.Add(done, kanban.Card{Title: "Two", Finished: time.Now().Add(-time.Second)}) // listed after Three
+	d3 := h.u.b.Add(done, kanban.Card{Title: "Three", Finished: time.Now()})
+	d4 := h.u.b.Add(done, kanban.Card{Title: "Four", Finished: time.Now()})
+	old := h.u.b.Add(0, kanban.Card{Title: "Old"})
+	h.u.b.ArchiveCard(old.ID)
+	h.u.view = viewArchive
+	sz := image.Pt(1200, 700)
+	all := image.Rectangle{Max: sz}
+	view := func(gtx layout.Context) layout.Dimensions { return h.u.archive(gtx) }
+	click := func(id string) { t.Helper(); h.clickIn(sz, all, view, id) }
+	ids := func(cs []kanban.Card) (out []string) {
+		for _, c := range cs {
+			out = append(out, c.ID)
+		}
+		return out
+	}
+	board := func() string { return fmt.Sprint(ids(h.u.b.Columns[done].Cards), ids(h.u.b.Archive), ids(h.u.b.Columns[0].Cards)) }
+	before := board()
+
+	click("archChk" + d2.ID) // the middle ones: undone in the wrong order, they'd come back swapped
+	click("archChk" + d3.ID)
+	if h.hasButton("archBulkRestore") || !h.hasButton("archBulkArchive") {
+		t.Fatal("Done cards checked: Archive, no Restore")
+	}
+	click("archBulkArchive")
+	if c := h.u.b.Columns[done].Cards; len(c) != 2 || c[0].ID != d1.ID || c[1].ID != d4.ID || len(h.u.b.Archive) != 3 || h.u.arch.sel != nil {
+		t.Fatalf("archived: %s", board())
+	}
+	if h.u.toast != "Archived 2 cards" {
+		t.Fatalf("toast %q", h.u.toast)
+	}
+	h.u.runUndo()
+	if board() != before {
+		t.Fatalf("undone: %s, want %s", board(), before)
+	}
+
+	h.draw(sz, view)
+	click("archChkGroupToday") // every card finished today, the archived one by its creation
+	if len(h.u.arch.sel) != 5 {
+		t.Fatalf("section checked %v", h.u.arch.sel)
+	}
+	click("archBulkRestore")
+	if len(h.u.b.Archive) != 0 || len(h.u.b.Columns[done].Cards) != 4 || h.u.toast != "Restored "+old.Key() {
+		t.Fatalf("restored: %s, toast %q", board(), h.u.toast)
+	}
+	h.u.runUndo()
+	if board() != before {
+		t.Fatalf("restore undone: %s", board())
+	}
+
+	h.draw(sz, view)
+	click("archChkGroupToday")
+	click("archChkGroupToday") // all checked: unchecks them
+	if len(h.u.arch.checked(h.u.archMatches())) != 0 {
+		t.Fatal("section unchecked")
+	}
+	click("archChk" + d2.ID)
+	click("archChk" + old.ID)
+	click("archBulkDelete")
+	if len(h.u.b.Archive) != 0 || len(h.u.b.Columns[done].Cards) != 3 || h.u.toast != "Deleted 2 cards" {
+		t.Fatalf("deleted: %s", board())
+	}
+	h.u.runUndo()
+	if board() != before {
+		t.Fatalf("delete undone: %s", board())
+	}
+
+	h.draw(sz, view)
+	click("archChk" + d2.ID)
+	click("archBulkClear")
+	if len(h.u.arch.checked(h.u.archMatches())) != 0 {
+		t.Fatal("cleared")
+	}
+}
+
+// TestEndSession: a card going off the board leaves its panel and its
+// session or workspace view, and no other card's.
+func TestEndSession(t *testing.T) {
+	h := newHarness(t)
+	for _, v := range []string{"sess:", "ws:"} {
+		h.u.panel, h.u.view = "a", v+"a"
+		if h.u.endSession("a") || h.u.panel != "" || h.u.view != "" {
+			t.Fatalf("%s: panel %q view %q", v, h.u.panel, h.u.view)
+		}
+		h.u.panel, h.u.view = "b", v+"b"
+		h.u.endSession("a")
+		if h.u.panel != "b" || h.u.view != v+"b" {
+			t.Fatalf("%s other card: panel %q view %q", v, h.u.panel, h.u.view)
+		}
+	}
+}
+
 // TestArchiveBar:the chips and Group by change what the archive lists;
 // a list the filters empty says so.
 func TestArchiveBar(t *testing.T) {

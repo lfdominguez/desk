@@ -104,6 +104,12 @@ func init() {
 				cut{"all", around(s.at("tbArchive"), 6), true},
 				cut{"list", dp(546, 64, 1286, 392), false},
 			)
+			s.click("archChkGroupYesterday")
+			s.click("archChk" + id)
+			s.move(boardAway)
+			s.settle()
+			s.shot("board-archive-bulk", cut{"bar", around(s.at("archBulkDelete"), 6), true})
+			s.click("archBulkClear")
 			s.click("arch" + id)
 			s.move(boardAway)
 			s.settle()
