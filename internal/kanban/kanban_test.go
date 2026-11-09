@@ -37,6 +37,27 @@ func TestMoveBefore(t *testing.T) {
 	}
 }
 
+// TestMoveReviewToDone: a person moving a card in review to Done marks it
+// done; another column, or a card not in review, keeps its status.
+func TestMoveReviewToDone(t *testing.T) {
+	b := Default()
+	done := b.Column("Done")
+	r := b.Add(0, Card{Title: "r", Status: StatusReview, Note: "Ready for review"})
+	w := b.Add(0, Card{Title: "w", Status: StatusWorking})
+	b.MoveBefore(r.ID, 1, "")
+	if c := b.Card(r.ID); c.Status != StatusReview {
+		t.Fatalf("moved to column 1: %q", c.Status)
+	}
+	b.MoveBefore(r.ID, done, "")
+	b.MoveBefore(w.ID, done, "")
+	if c := b.Card(r.ID); c.Status != StatusDone || c.Note != "" {
+		t.Fatalf("review card in Done: %q %q", c.Status, c.Note)
+	}
+	if c := b.Card(w.ID); c.Status != StatusWorking {
+		t.Fatalf("working card in Done: %q", c.Status)
+	}
+}
+
 // TestMigrate: a board from before Blocked, Review and numbers gets them.
 func TestMigrate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "board.json")
