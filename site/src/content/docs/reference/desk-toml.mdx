@@ -89,7 +89,7 @@ Jira issues, and bare keys like `ABC-12`.
 | `issue_type` | string | `Task`, else the first non-subtask type | What new tickets are created as. A name the project doesn't have is an error. |
 | `sync` | bool | `true` | `false`: moving a card doesn't transition its issues. |
 | `ignore` | list of strings | | Statuses desk leaves alone when a card moves (any case). |
-| `[jira.status]` | table | | The status a column moves issues to, by name: `Done = "In Review"`. Columns are `Backlog`, `To do`, `In progress`, `Blocked`, `Done`. Without it, desk picks by the status's category (Blocked: a status named blocked). |
+| `[jira.status]` | table | | The status a column moves issues to, by name: `Review = "In Review"`. Columns are `Backlog`, `To do`, `In progress`, `Blocked`, `Review`, `Done`. Without it, desk picks by the status's category (Blocked: a status named blocked; Review: in progress). |
 | token keys | | | See [Tokens](#tokens). |
 
 `[jira.status]` goes right after the `[[jira]]` it belongs to.
@@ -207,7 +207,7 @@ projects = ["ABC"]                # bare keys like ABC-12 link here; tickets are
 # ignore = ["Won't Do"]           # statuses desk leaves alone
 token_env = "JIRA_GLOBEX_TOKEN"
 [jira.status]                     # the status a column moves issues to, by name
-Done = "In Review"
+Review = "In Review"
 
 [[bitbucket]]
 workspace = "globex"

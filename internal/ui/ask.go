@@ -160,6 +160,7 @@ func (u *ui) answerAsk(id string, allow bool) {
 	delete(u.asks, id)
 	u.say(id, "you", said)
 	c.Status, c.Note, c.Updated = kanban.StatusWorking, "", time.Now()
+	u.moveTo(id, "In progress")
 	u.save()
 }
 

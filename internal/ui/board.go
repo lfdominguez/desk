@@ -38,7 +38,7 @@ func (u *ui) colAccent(i int) color.NRGBA {
 	return kit.Accents[i%len(kit.Accents)]
 }
 
-var columnColors = map[string]color.NRGBA{"backlog": kit.Accents[0], "to do": kit.CAcc, "in progress": kit.Accents[7], "blocked": kit.CRed, "done": kit.CGreen}
+var columnColors = map[string]color.NRGBA{"backlog": kit.Accents[0], "to do": kit.CAcc, "in progress": kit.Accents[7], "blocked": kit.CRed, "review": kit.Accents[5], "done": kit.CGreen}
 
 // hidden is whether the board leaves column col out: no view has the Done
 // column, its cards show in the Done archive.

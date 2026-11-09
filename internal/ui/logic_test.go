@@ -968,7 +968,7 @@ func TestOnEventEnds(t *testing.T) {
 	}
 	on(0, claude.Event{Kind: claude.KindText, Text: "All good.\nDESK-STATUS: done — shipped"})
 	on(0, claude.Event{Kind: claude.KindResult})
-	if card().Status != kanban.StatusDone || card().Note != "shipped" || col() != "Done" || card().Last != "All good." {
+	if card().Status != kanban.StatusReview || card().Note != "shipped" || col() != "Review" || card().Last != "All good." { // only a person moves it to Done
 		t.Fatalf("done %+v in %s", card(), col())
 	}
 	on(0, claude.Event{Kind: claude.KindResult})

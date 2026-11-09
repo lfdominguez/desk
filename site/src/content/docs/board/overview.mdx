@@ -11,14 +11,15 @@ fill the rest.
 
 ## Columns
 
-A board has five columns: **Backlog**, **To do**, **In progress**, **Blocked** and **Done**.
-Each has its own color: To do is blue, In progress yellow, Blocked red, Done green.
+A board has six columns: **Backlog**, **To do**, **In progress**, **Blocked**, **Review** and **Done**.
+Each has its own color: To do is blue, In progress yellow, Blocked red, Review cyan, Done green.
 
 The board never shows the **Done** column. Done cards wait in the
 [Done archive](/board/archive/) instead, so the board holds only work that's still open.
 
 Sessions move their own cards. Sending a message moves the card to In progress.
-When Claude reports it's blocked, the card moves to Blocked. When Claude reports it's done, the card moves to Done.
+When Claude reports it's blocked, the card moves to Blocked. When Claude reports it's done, the card moves to
+Review, once none of its subagents or background shells is still running. Nothing moves a card to Done but you.
 
 <figure class="cut">
 

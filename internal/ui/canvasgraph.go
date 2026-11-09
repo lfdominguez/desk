@@ -249,9 +249,12 @@ func (u *ui) cardGraph(c *kanban.Card, now time.Time) cvGraph {
 		column = u.b.Columns[ci].Title
 	}
 	done.rows = append(done.rows, cvRow{name: "column", value: column})
-	if column == "Done" {
+	switch column {
+	case "Done":
 		done.tone = kit.CGreen
-	} else {
+	case "Review":
+		done.tone = kit.Accents[5]
+	default:
 		done.dim = true
 	}
 	g.nodes = slices.Insert(g.nodes, 1, sess) // after the card; built last, as its outputs depend on the rest

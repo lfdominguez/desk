@@ -49,7 +49,7 @@ func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 		}
 	}
 	if len(es) == 0 {
-		return layout.Center.Layout(gtx, k.Lbl("No done cards. Cards Claude finishes, or you move to Done, show here.", 13, kit.CText3, kit.Sans))
+		return layout.Center.Layout(gtx, k.Lbl("No done cards. Cards you move to Done show here.", 13, kit.CText3, kit.Sans))
 	}
 	w := min(gtx.Constraints.Max.X-gtx.Dp(48), gtx.Dp(720))
 	return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
