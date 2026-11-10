@@ -141,15 +141,33 @@ func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 func (u *ui) wsAddTab(st *wsState, path, text string, mtime time.Time, mode os.FileMode) *wsTab {
 	t := &wsTab{path: path, diff: providers.NewVCSDiffProvider(), mtime: mtime, mode: mode, tokGen: -1}
 	t.ed = kit.CodeEditor(wsScheme(), t.diff)
+	t.ed.WithOptions(gvcode.WrapLine(u.wsEd.Wrap))
 	t.ed.SetText(text)
 	t.ed.RegisterCommand(t, key.Filter{Name: "S", Required: key.ModShortcut}, func(layout.Context, key.Event) gvcode.EditorEvent {
 		u.wsSave(t)
+		return nil
+	})
+	t.ed.RegisterCommand(t, key.Filter{Name: "Z", Required: key.ModAlt}, func(layout.Context, key.Event) gvcode.EditorEvent {
+		u.wsToggleWrap()
 		return nil
 	})
 	st.tabs = append(st.tabs, t)
 	st.cur = len(st.tabs) - 1
 	u.wsRedraw()
 	return t
+}
+
+// wsToggleWrap turns word wrap on or off in every workspace's tabs, and keeps
+// it. gvcode keeps one number per line on its first row, and the caret's line
+// counts lines, not rows, so nothing else changes with it.
+func (u *ui) wsToggleWrap() {
+	u.wsEd.Wrap = !u.wsEd.Wrap
+	for _, st := range u.ws {
+		for _, t := range st.tabs {
+			t.ed.WithOptions(gvcode.WrapLine(u.wsEd.Wrap))
+		}
+	}
+	u.wsSaveEditor()
 }
 
 // readText reads a file the editor can show: text, not too big.

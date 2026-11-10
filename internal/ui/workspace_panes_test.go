@@ -2,10 +2,12 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"gioui.org/f32"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 
 	"github.com/lfdominguez/desk/internal/orgs"
@@ -76,6 +78,36 @@ func TestWorkspacePanesSaved(t *testing.T) {
 	h.u.wsSaveEditor()
 	if !h.u.toastBad || !strings.Contains(h.u.toast, "layout wasn't saved") {
 		t.Fatalf("toast %q", h.u.toast)
+	}
+}
+
+// TestWorkspaceWrap: Alt+Z in the editor wraps every tab (new ones too) and
+// keeps it; the foot's Wrap turns it off again.
+func TestWorkspaceWrap(t *testing.T) {
+	h := newHarness(t)
+	c, dir := wsCard(h)
+	os.WriteFile(filepath.Join(dir, "b.go"), []byte("package b\n"), 0o644)
+	h.u.openWS(c.ID)
+	st := h.u.wsOf(c.ID)
+	a := h.u.wsOpen(st, filepath.Join(dir, "main.go"))
+	h.frame()
+	if a.ed.TextView().WrapLine {
+		t.Fatal("wraps before asked")
+	}
+	h.send(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: editorAt},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: editorAt})
+	text := a.ed.Text()
+	h.send(press("Z", key.ModAlt))
+	if !h.u.wsEd.Wrap || !a.ed.TextView().WrapLine || !orgs.EditorSettings().Wrap || a.ed.Text() != text {
+		t.Fatalf("Alt+Z: wrap %v, tab %v, saved %v, text changed %v", h.u.wsEd.Wrap, a.ed.TextView().WrapLine, orgs.EditorSettings().Wrap, a.ed.Text() != text)
+	}
+	b := h.u.wsOpen(st, filepath.Join(dir, "b.go"))
+	if !b.ed.TextView().WrapLine {
+		t.Fatal("a tab opened after doesn't wrap")
+	}
+	h.clickButton("wsWrap")
+	if h.u.wsEd.Wrap || a.ed.TextView().WrapLine || b.ed.TextView().WrapLine || orgs.EditorSettings().Wrap {
+		t.Fatal("the foot's Wrap didn't turn it off everywhere")
 	}
 }
 

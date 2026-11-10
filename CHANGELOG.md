@@ -10,6 +10,7 @@ day). A release's section here is its notes on GitHub. The format follows
 
 - The workspace's tree and chat are as wide as you drag the lines beside them, kept for every card;
   in a narrow window they give way to the editor.
+- Word wrap in the workspace editor: Alt+Z or the foot's **Wrap**, for every tab, kept.
 
 ### Fixed
 

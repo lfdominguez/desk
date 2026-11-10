@@ -336,8 +336,21 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 		line, col := t.ed.CaretPos()
 		return layout.Inset{Top: 4, Bottom: 4, Left: 12, Right: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
-			return layout.Flex{}.Layout(gtx,
+			wrap := kit.CText3
+			if u.wsEd.Wrap {
+				wrap = kit.CAccText
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 				layout.Flexed(1, k.LblFill(strings.Replace(t.path, u.home, "~", 1), 11, kit.CText3, kit.Mono)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d, ok := k.Button(gtx, "wsWrap", color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Left: 6, Right: 6}, k.Lbl("Wrap", 11, wrap, kit.Medium(kit.Sans)))
+					k.Tip(gtx, "wsWrap", d, "Wrap long lines, in every tab (Alt+Z)", true)
+					if ok {
+						*act = u.wsToggleWrap
+					}
+					return d
+				}),
+				layout.Rigid(kit.HGap(10)),
 				layout.Rigid(k.Lbl(fmt.Sprintf("Ln %d, Col %d   %s saves", line+1, col+1, kit.ModText("S")), 11, kit.CText3, kit.Sans)))
 		})
 	}))

@@ -58,9 +58,15 @@ The projects are saved on the card (`projects` in the board file).
 ## The editor
 
 Files open in tabs over the editor: line numbers, the code's highlighting (the same colors as the
-chat's code), no wrapping, undo and redo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>,
+chat's code), undo and redo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>,
 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd>
-to indent selected lines. The foot shows the file's path and the caret's line and column.
+to indent selected lines. The foot shows the file's path, **Wrap** and the caret's line and column.
+
+Long lines run off to the right until you turn on wrapping: <kbd>Alt</kbd>+<kbd>Z</kbd> in the
+editor, or **Wrap** in the foot (lit while it's on). It counts for every tab and every card's
+workspace, and desk keeps it (`wrap` under `[editor]` in
+[settings.toml](/reference/desk-toml/#settingstoml)). A wrapped line keeps one line number, on its
+first row, and the foot's line counts lines, not rows.
 
 - <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions. A tab with
   changes not saved shows **●** after its name; its **×** asks once before dropping them.
