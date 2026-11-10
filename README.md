@@ -420,7 +420,7 @@ desk connects with its own SSH client (Go, no `ssh` program), reading that file 
 `ssh -F <that file> <alias>` would, so the same command works from any terminal. Panes, the files
 split (SFTP, or `sh`/`tar` on servers without it), the `changes` tool and port forwards share one
 connection per server; questions (passwords, passphrases, yes/no) go to desk's ask box, a
-`#@ password` from the vault first. A pane that opens a new connection shows each of its steps
+`#@ password` from the vault first (read only once the server asks for a password). A pane that opens a new connection shows each of its steps
 with its time (name lookup, connect, vault, key exchange, host key, each auth method, the shell),
 so a slow connect says where the time went. Not supported: GSSAPI/Kerberos, host-based auth, PKCS#11 smart
 cards, FIDO keys outside an agent, X11 forwarding, compression; the pane says so. desk's own data

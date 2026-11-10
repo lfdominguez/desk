@@ -52,6 +52,18 @@ func TestSSHPaneSteps(t *testing.T) {
 	}
 }
 
+// TestSSHPaneKeySkipsVault: a server whose key logs in never has its
+// #@ password looked up.
+func TestSSHPaneKeySkipsVault(t *testing.T) {
+	skipOnWindows(t, serverPty)
+	w := newSSHW(t, sshtest.Opts{}, "    #@ password-raw s3cret\n")
+	term := w.pane(t, paneState{})
+	waitS(t, "the prompt", term.AtPrompt)
+	if names := stepNames(term.Steps()); slices.Contains(names, "Looking up the password") || !slices.Contains(names, "Authenticating: public key") {
+		t.Fatalf("steps %q", names)
+	}
+}
+
 // TestSSHPaneStepFailed: the step that failed keeps the error; the pane is
 // failed, not connecting.
 func TestSSHPaneStepFailed(t *testing.T) {

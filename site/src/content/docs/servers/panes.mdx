@@ -138,8 +138,9 @@ While a pane's connection isn't up, a box over it says what's going on and what 
 When a pane opens a new connection to a server, the box shows each step as it happens, with its
 time (milliseconds under a second, then seconds): reading the config, looking up the host name,
 connecting to its address (or the jump host's steps, prefixed "via <host>:", or the
-ProxyCommand), looking up the password in the vault, exchanging keys, checking the host key,
-each authentication method tried, starting the forwards and opening the shell. A wait on you (a
+ProxyCommand), exchanging keys, checking the host key, each authentication method tried (with
+the vault's password looked up only when the server asks for a password), starting the forwards
+and opening the shell. A wait on you (a
 passphrase, a password, a "yes/no") is its own step, in grey, so it doesn't read as network time.
 After 10 seconds the box adds that a VPN may be down; **Close** (<kbd>C</kbd> or <kbd>Esc</kbd>)
 closes the pane.
@@ -202,7 +203,8 @@ A link that drops after it was up (a laptop asleep, a VPN down) comes back on it
 ### Passwords for ssh
 
 On the first password the server asks for, desk answers from the vault when the server has a
-[`#@ password`](/servers/servers-file/#vault-password-and-password-raw). Otherwise, or for
+[`#@ password`](/servers/servers-file/#vault-password-and-password-raw); the vault isn't read
+before then, so a server your key logs into never waits on it. Otherwise, or for
 anything else the connection asks (a key's passphrase, a keyboard-interactive question, a new
 host's "yes/no"), a box asks you: "ssh web-01 asks", with "Sent to this ssh session only, not
 stored." Your answer goes to that connection only, and Claude never sees it. A vault password the

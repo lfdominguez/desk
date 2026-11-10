@@ -129,6 +129,40 @@ func TestPasswordHookThenPrompt(t *testing.T) {
 	}
 }
 
+// TestPasswordHookNotLookedUpForKey: a key that logs in never calls the
+// Password hook (a vault lookup).
+func TestPasswordHookNotLookedUpForKey(t *testing.T) {
+	w := newWorld(t)
+	k := writeKey(t, w.path("id"), "")
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}, Password: "vault"})
+	o := w.opts(base(""), s)
+	looked := 0
+	o.Password = func() (string, bool) { looked++; return "vault", true }
+	mustDial(t, o)
+	if looked != 0 {
+		t.Fatalf("looked up %d times", looked)
+	}
+}
+
+// TestPasswordHookEmptyAsksNoMore: a hook with nothing leaves the user
+// NumberOfPasswordPrompts questions, not one more, for either method.
+func TestPasswordHookEmptyAsksNoMore(t *testing.T) {
+	for _, c := range []struct {
+		method string
+		srv    sshtest.Opts
+	}{{"password", sshtest.Opts{Password: "right"}}, {"keyboard-interactive", sshtest.Opts{Kbd: []string{"right"}}}} {
+		w := newWorld(t)
+		s := newServer(t, c.srv)
+		w.ans = []string{"a", "b", "right"}
+		o := w.opts(base("  NumberOfPasswordPrompts 2\n  PreferredAuthentications "+c.method+"\n"), s)
+		o.Password = func() (string, bool) { return "", false }
+		_, err := dialT(t, o)
+		if err == nil || len(w.asks) != 2 || !strings.Contains(err.Error(), "unable to authenticate") {
+			t.Errorf("%s: asked %d, err %v", c.method, len(w.asks), err)
+		}
+	}
+}
+
 func TestPasswordOff(t *testing.T) {
 	w := newWorld(t)
 	s := newServer(t, sshtest.Opts{Password: "x"})

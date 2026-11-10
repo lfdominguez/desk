@@ -37,7 +37,8 @@ type Options struct {
 	// answer rather than on the network. nil hears nothing.
 	Step func(name string, user bool)
 
-	stepped bool // Step, Prompt and Password already report steps (a jump host's dial)
+	stepped    bool // Step, Prompt and Password already report steps (a jump host's dial)
+	noPassword bool // Password was nil: no spare try for it
 }
 
 // ErrLost is a connection whose server stopped answering keepalives
@@ -95,6 +96,7 @@ func (o Options) withDefaults(cfg *sshconfig.Config) Options {
 		o.Prompt = func(string, bool) (string, error) { return "", errNoPrompt }
 	}
 	if o.Password == nil {
+		o.noPassword = true
 		o.Password = func() (string, bool) { return "", false }
 	}
 	return o
@@ -165,7 +167,7 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	if err != nil {
 		return fail(err)
 	}
-	o.Step("Preparing authentication", false) // the agent, and Password's first look
+	o.Step("Preparing authentication", false) // the agent
 	au := newAuth(cfg, o, hc)
 	defer au.close()
 	conf.Auth = au.methods()

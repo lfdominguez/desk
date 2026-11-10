@@ -53,8 +53,7 @@ func TestStepsPasswordFromHook(t *testing.T) {
 	s.on(&o)
 	mustDial(t, o)
 	s.want(t, "Reading the config", "Connecting to 127.0.0.1:"+strconv.Itoa(srv.Port),
-		"Preparing authentication", "Looking up the password", "Preparing authentication",
-		"Exchanging keys", "Checking the host key", "Authenticating",
+		"Preparing authentication", "Exchanging keys", "Checking the host key", "Authenticating",
 		"Authenticating: password", "Looking up the password", "Authenticating: password",
 		"Starting forwards")
 }

@@ -15,6 +15,12 @@ day). A release's section here is its notes on GitHub. The format follows
   its error; once connected, the pane's header says "connected in …" and lists the steps on hover.
   A pane that reuses an open connection shows none.
 
+### Changed
+
+- A server with a `#@ password` no longer has it read from the vault on every connection: desk
+  looks it up only when the server asks for a password, so a server your key logs into connects
+  without waiting on the vault (or on unlocking it).
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed
