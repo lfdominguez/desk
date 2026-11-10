@@ -67,6 +67,9 @@ func (u *ui) terminal(id string) {
 	}
 	var cmd *exec.Cmd
 	extra, err := u.agentArgs(c)
+	if c.Remote {
+		extra = append(extra, "--remote-control", c.Key()+" "+c.Title)
+	}
 	system := claude.System(c.Key(), c.Title, c.Org) + cardLang(c)
 	if u.cardSock != "" {
 		system += claude.CardTools
@@ -127,6 +130,32 @@ func (u *ui) closeTerm(id string) {
 	u.dropTerm(id, "Terminal closed")
 }
 
+// remoteControl turns card id's Remote Control on or off. Only an
+// interactive Claude serves it (a -p stream-json one ignores the flag), so
+// it runs in the card's terminal: turned on, the terminal (re)starts with it
+// and shows the link and QR code; turned off, an open one restarts without.
+func (u *ui) remoteControl(id string) {
+	c := u.b.Card(id)
+	if c == nil || !c.Archived.IsZero() {
+		return
+	}
+	c.Remote = !c.Remote
+	u.save()
+	tt := u.terms[id]
+	if tt != nil {
+		tt.t.Close()
+		delete(u.terms, id)
+	}
+	if c.Remote || tt != nil {
+		u.terminal(id)
+	}
+	if c.Remote {
+		u.showToast("Remote Control on: open the link or scan the QR code in its terminal", false)
+	} else {
+		u.showToast("Remote Control off", false)
+	}
+}
+
 func (u *ui) dropTerm(id, note string) {
 	delete(u.terms, id)
 	if u.view == "term:"+id {
@@ -185,6 +214,17 @@ func (u *ui) termView(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(kit.HGap(10)),
 					layout.Rigid(k.Pill("Claude · "+u.accountName(c.Org), kit.CText2, kit.CPanelCard)),
 					layout.Rigid(kit.HGap(10)),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						label, fg, bg := "Remote", kit.CText, kit.CPanelCard
+						if c.Remote {
+							label, fg, bg = "Remote · on", kit.CGreen, kit.Mix(kit.CGreen, kit.CPane, .85)
+						}
+						if k.Btn(gtx, "termRemote", label, fg, bg) {
+							act = func() { u.remoteControl(id) }
+						}
+						return layout.Dimensions{Size: image.Pt(gtx.Dp(96), gtx.Dp(26))}
+					}),
+					layout.Rigid(kit.HGap(6)),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						if k.Btn(gtx, "termChat", "Chat", kit.CText, kit.CPanelCard) {
 							act = func() { u.openSession(id) } // the terminal keeps running

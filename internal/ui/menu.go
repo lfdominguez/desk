@@ -124,10 +124,15 @@ func (u *ui) drawCardMenu(gtx layout.Context) {
 	if u.procs[id] != nil {
 		archive = "Archive and stop the session"
 	}
+	remote := "Turn on Remote Control"
+	if c.Remote {
+		remote = "Turn off Remote Control"
+	}
 	items := []menuItem{
 		{id: "Open session", label: "Open session", key: key.NameReturn, cap: "↵", ico: kit.IcoChat, f: func() { u.openPanel(id) }},
 		{id: "Open full window", label: "Open full window", ico: kit.IcoSide, f: func() { u.openSession(id) }},
 		{id: "Claude Code terminal", label: "Claude Code terminal", key: "T", cap: "T", ico: kit.IcoTerminal, f: func() { u.terminal(id) }},
+		{id: "Remote Control", label: remote, key: "R", cap: "R", ico: kit.IcoSend, f: func() { u.remoteControl(id) }},
 		{id: "Workspace", label: "Workspace", key: "W", cap: "W", ico: kit.IcoCode, f: func() { u.openWS(id) }},
 		{id: "Edit card", label: "Edit card", key: "E", cap: "E", ico: kit.IcoEdit, f: func() { u.open(id) }},
 		{id: "Copy key " + c.Key(), label: "Copy key " + c.Key(), key: "C", cap: kit.ModText("C"), ico: kit.IcoLink, f: func() { u.copyKey = c.Key() }},

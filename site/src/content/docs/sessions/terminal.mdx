@@ -15,7 +15,7 @@ window. It's the same session as the conversation: it resumes where the conversa
 
 <figure class="cut">
 
-![A card's right-click menu: Open session, Open full window, Claude Code terminal (T), Edit card, Copy key DESK-5, Move to, Archive](../../../assets/shots/sess-menu-menu.png)
+![A card's right-click menu: Open session, Open full window, Claude Code terminal (T), Turn on Remote Control (R), Workspace (W), Edit card, Copy key DESK-5, Move to, Archive](../../../assets/shots/sess-menu-menu.png)
 
 <figcaption>The card's menu, with <strong>Claude Code terminal</strong> and its key.</figcaption>
 </figure>
@@ -28,7 +28,7 @@ window. It's the same session as the conversation: it resumes where the conversa
 </figure>
 
 The terminal opens over the board. Its header shows the card's key and title, its folder, the
-account it runs under, and two buttons: **Chat** and **Close**.
+account it runs under, and three buttons: **Remote**, **Chat** and **Close**.
 
 ## What happens
 
@@ -39,6 +39,27 @@ account it runs under, and two buttons: **Chat** and **Close**.
   [Agent Sessions](/sessions/full-window/#agent-sessions), its row has a green terminal icon.
 - While the terminal is open, the panel's message box won't send: desk says the card "is open in
   its terminal: write there, or close it first", and shows you the terminal.
+
+## Remote Control
+
+To go on with the card's session from claude.ai/code or the Claude app on your phone, turn on
+Claude Code's [Remote Control](https://code.claude.com/docs/en/remote-control) for the card:
+
+- click **Remote** in the terminal's header, or
+- right-click the card and pick **Turn on Remote Control** (<kbd>R</kbd>).
+
+desk then (re)starts the card's terminal with `--remote-control`, named after the card's key and
+title. Claude Code shows the session's link and a QR code in the terminal; the header's button
+turns green, **Remote · on**. What you or Claude write on either side shows on the other.
+
+- It stays on for the card: every time its terminal opens, it connects again.
+- **Remote · on** (or **Turn off Remote Control** in the menu) turns it off and restarts an open
+  terminal without it.
+- Restarting the terminal cuts a turn Claude is in the middle of; the session resumes where it was.
+- Only the terminal serves it: Claude Code offers Remote Control in its TUI, not to the process
+  behind the conversation.
+- It needs the organization's Claude account to be signed in to claude.ai (Pro, Max, Team or
+  Enterprise), not an API key.
 
 ## Keys
 

@@ -209,8 +209,8 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
   `ask_workspace` reach the card's workspace.
-- **Right-click a card** for its menu: open its session or full window, its terminal, its workspace, edit it,
-  copy its key, move it to another column, archive it.
+- **Right-click a card** for its menu: open its session or full window, its terminal, its workspace, turn its
+  Remote Control on or off, edit it, copy its key, move it to another column, archive it.
 - **Desktop notifications** when a card turns to your turn, blocked, failed or ready for review, unless you're
   looking at it.
 
@@ -270,6 +270,9 @@ runs under.
   **Explain** has Haiku take it apart flag by flag.
 - **Terminals**: **T** opens the card's session in the full Claude Code TUI inside desk (desk
   lets go of the chat's process first). It keeps running while you look at the board.
+  **Remote** in its header (or **R** in the card menu) restarts it with Claude Code's Remote
+  Control, to go on from claude.ai/code or the Claude app: the link and QR code show in the
+  terminal. The chat's own process can't serve it (Claude Code offers it only in the TUI).
 - **The workspace**: the header's **`</>`** (or the card menu's **W**) opens the card's projects
   (its folder, plus the ones its Claude adds with `add_project`, with an Undo toast) in a tree,
   files in tabs of a code editor (highlighting, line numbers, undo, **Ctrl+S** saves, reloads

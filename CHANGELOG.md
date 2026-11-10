@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Remote Control for a card's session**: **Remote** in its terminal's header, or **R** in the
+  card menu, restarts the card's Claude Code terminal with Remote Control, to go on from
+  claude.ai/code or the Claude app (its link and QR code show in the terminal). It stays on for the
+  card until turned off.
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed

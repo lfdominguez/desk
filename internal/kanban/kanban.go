@@ -59,6 +59,7 @@ type Card struct {
 	Artifacts []string  `json:"artifacts,omitempty"`  // claude.ai artifacts the session published
 	Pushed    string    `json:"pushed,omitempty"`     // the column its tickets were last moved to match
 	Ticket    bool      `json:"ticket,omitempty"`     // its Claude creates its ticket before any work`
+	Remote    bool      `json:"remote,omitempty"`     // its terminal's Claude runs with Remote Control
 	Alert     string    `json:"alert,omitempty"`      // the monitoring alert it investigates: "org|host|service"
 	Projects  []string  `json:"projects,omitempty"`   // its workspace's folders beyond its own (absolute)
 	WSSession string    `json:"ws_session,omitempty"` // its workspace Claude's session (claude --resume)

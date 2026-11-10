@@ -316,7 +316,7 @@ func TestMenuPlacement(t *testing.T) {
 	if last := m.items[len(m.items)-1]; last.label != "Archive and stop the session" {
 		t.Fatalf("archive row %q", last.label)
 	}
-	if here := m.items[6]; !strings.HasSuffix(here.label, " · here") || here.fg != kit.CText3 {
+	if here := m.items[7]; !strings.HasSuffix(here.label, " · here") || here.fg != kit.CText3 {
 		t.Fatalf("own column %+v", here)
 	}
 	r := m.r
