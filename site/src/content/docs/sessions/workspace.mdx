@@ -58,6 +58,9 @@ to indent selected lines. The foot shows the file's path and the caret's line an
 
 - <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions. A tab with
   changes not saved shows **●** after its name; its **×** asks once before dropping them.
+- Quitting desk with changes not saved keeps them (in `unsaved.json` beside the board, readable
+  only by you): when you open that card's workspace again, its tabs come back with your text and
+  the **●**. If a file changed on disk meanwhile, the bar below asks which to keep.
 - When the file changes on disk (the card's Claude edited it, say) and you have no changes in it,
   the tab reloads by itself. desk looks when the card's Claude finishes an edit to that file, when
   you open the workspace and when you switch to the tab.

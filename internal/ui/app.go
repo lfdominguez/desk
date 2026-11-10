@@ -175,6 +175,7 @@ type ui struct {
 	ws      map[string]*wsState // cards' workspaces (workspace.go), by card
 	wsGen   int                 // bumps on any workspace change, for sig
 	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
+	unsaved []wsUnsaved         // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
 
 	draws    map[string]*drawState // open drawings (drawview.go), by file
 	libs     map[string]*drawLib   // organizations' libraries (drawlib.go), read once
@@ -190,6 +191,7 @@ func newUI(b *kanban.Board, path string) *ui {
 		chats: map[string][]kanban.ChatMsg{}, procs: map[string]session{}, pending: map[string]claude.Directives{}, locked: map[string]*vault.LockedError{}, events: make(chan func(), 256),
 		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}, draws: map[string]*drawState{}, libs: map[string]*drawLib{}, drawList: map[string][]drawItem{}, thumbs: map[string]drawThumb{}}
 	u.orgList = orgs.List(u.root)
+	u.unsaved = loadUnsaved(path)
 	u.search.SingleLine, u.search.Submit = true, true
 	u.pickQ.SingleLine, u.pickQ.Submit, u.pickList.Axis = true, true, layout.Vertical
 	u.chatIn.Submit = true
@@ -262,7 +264,7 @@ func Run(b *kanban.Board, path string) error {
 	}
 	defer u.windowed()()
 	defer func() {
-		u.flushPending()
+		u.quitting()
 		if u.infra != nil {
 			u.infra.Close() // saves its session: tabs, panes, chats
 		}
@@ -446,7 +448,7 @@ func (u *ui) quitOn(c <-chan os.Signal, exit func(int)) {
 	<-c
 	done := make(chan bool)
 	u.later(func() {
-		u.flushPending()
+		u.quitting()
 		close(done)
 	})
 	select {

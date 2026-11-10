@@ -47,7 +47,8 @@ type wsEntry struct {
 // wsKey is where the workspace Claude's conversation is kept among the chats.
 func wsKey(id string) string { return "ws-" + id }
 
-// wsOf is card id's workspace, made on first use with its own folder open.
+// wsOf is card id's workspace, made on first use with its own folder open
+// and the tabs with changes not saved that the last quit kept.
 func (u *ui) wsOf(id string) *wsState {
 	if st := u.ws[id]; st != nil {
 		return st
@@ -59,6 +60,7 @@ func (u *ui) wsOf(id string) *wsState {
 		u.wsToggle(st, u.projects(c)[0])
 	}
 	u.ws[id] = st
+	u.wsRestore(id, st)
 	return st
 }
 

@@ -8,6 +8,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Fixed
 
+- Quitting desk no longer loses the workspace editor's changes not saved: they come back, still
+  unsaved, when you open that card's workspace again.
 - Typing in the workspace editor no longer stalls on big files: the highlighting runs in the
   background (a 100 KB file stalled each key for about 0.2 s, a 4 MB one for seconds).
 

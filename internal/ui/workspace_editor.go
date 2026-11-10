@@ -134,9 +134,14 @@ func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 		u.showToast(err.Error(), true)
 		return nil
 	}
-	t := &wsTab{path: path, diff: providers.NewVCSDiffProvider(), mtime: fi.ModTime(), mode: fi.Mode().Perm(), tokGen: -1}
+	return u.wsAddTab(st, path, string(b), fi.ModTime(), fi.Mode().Perm())
+}
+
+// wsAddTab opens a tab over path holding text, as of the file's mtime, and shows it.
+func (u *ui) wsAddTab(st *wsState, path, text string, mtime time.Time, mode os.FileMode) *wsTab {
+	t := &wsTab{path: path, diff: providers.NewVCSDiffProvider(), mtime: mtime, mode: mode, tokGen: -1}
 	t.ed = kit.CodeEditor(wsScheme(), t.diff)
-	t.ed.SetText(string(b))
+	t.ed.SetText(text)
 	t.ed.RegisterCommand(t, key.Filter{Name: "S", Required: key.ModShortcut}, func(layout.Context, key.Event) gvcode.EditorEvent {
 		u.wsSave(t)
 		return nil
@@ -168,23 +173,7 @@ func readText(path string) ([]byte, os.FileInfo, error) {
 
 // wsSave writes t's text over its file (atomically, keeping its mode).
 func (u *ui) wsSave(t *wsTab) {
-	tmp, err := os.CreateTemp(filepath.Dir(t.path), "."+filepath.Base(t.path)+".*")
-	if err == nil {
-		_, err = tmp.WriteString(t.ed.PrepareForSave(t.ed.Text()))
-		if cerr := tmp.Close(); err == nil {
-			err = cerr
-		}
-		if err == nil {
-			err = os.Chmod(tmp.Name(), t.mode)
-		}
-		if err == nil {
-			err = os.Rename(tmp.Name(), t.path)
-		}
-		if err != nil {
-			os.Remove(tmp.Name())
-		}
-	}
-	if err != nil {
+	if err := writeAtomic(t.path, t.ed.PrepareForSave(t.ed.Text()), t.mode); err != nil {
 		u.showToast("Not saved: "+err.Error(), true)
 		return
 	}
@@ -194,6 +183,29 @@ func (u *ui) wsSave(t *wsTab) {
 	t.dirty, t.disk, t.closing = false, false, false
 	u.wsRedraw()
 	u.showToast("Saved "+filepath.Base(t.path), false)
+}
+
+// writeAtomic writes text over path through a temporary file beside it
+// renamed into place, so a crash leaves the old file or the new, never half.
+func writeAtomic(path, text string, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	_, err = tmp.WriteString(text)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), mode)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		os.Remove(tmp.Name())
+	}
+	return err
 }
 
 // wsCheck looks at t's file on disk (the view shown, the main Claude's edit
