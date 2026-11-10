@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -282,33 +283,54 @@ func Run(b *kanban.Board, path string) error {
 		}
 	}()
 	go u.pollLinks() // its first round brings the remote tickets in step with the board
+	return u.loop(func() event.Event { ev := u.w.Event(); files.ListenEvents(ev); return ev })
+}
+
+// loop handles the window's events, next's one after another, until it closes.
+func (u *ui) loop(next func() event.Event) error {
 	var ops op.Ops
 	for {
-		ev := u.w.Event()
-		files.ListenEvents(ev)
-		switch e := ev.(type) {
-		case app.DestroyEvent:
-			return e.Err
-		case app.ConfigEvent:
-			u.focused = e.Config.Focused
-		case app.FrameEvent:
-			gtx := app.NewContext(&ops, e)
-			tg, ig := u.termGen.Load(), u.infraGen()
-			u.frame(gtx)
-			e.Frame(gtx.Ops)
-			if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
-				// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after this returns.
-				// ponytail: a short delay, not a hook into Gio's loop; one more Invalidate after it if 10 ms ever falls short.
-				time.AfterFunc(10*time.Millisecond, u.w.Invalidate)
-			}
+		if done, err := u.event(next(), &ops); done {
+			return err
 		}
 	}
 }
 
-// later runs f on the UI goroutine at the next frame; safe from anywhere.
+// event handles one of the window's events; done when it closed.
+func (u *ui) event(ev event.Event, ops *op.Ops) (done bool, err error) {
+	switch e := ev.(type) {
+	case app.DestroyEvent:
+		return true, e.Err
+	case app.ConfigEvent:
+		u.focused = e.Config.Focused
+	case app.FrameEvent:
+		gtx := app.NewContext(ops, e)
+		tg, ig := u.termGen.Load(), u.infraGen()
+		u.frame(gtx)
+		e.Frame(gtx.Ops)
+		if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
+			// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after this returns.
+			// ponytail: a short delay, not a hook into Gio's loop; one more Invalidate after it if 10 ms ever falls short.
+			time.AfterFunc(10*time.Millisecond, u.w.Invalidate)
+		}
+	default: // Gio's wakeup, from later's Invalidate: a window that isn't shown gets no frames, and a Claude's tool waits on this work (onBoard)
+		u.drain()
+	}
+	return false, nil
+}
+
+// later runs f on the UI goroutine soon (the next frame or wakeup); safe
+// from anywhere.
 func (u *ui) later(f func()) {
 	u.events <- f
 	u.w.Invalidate()
+}
+
+// drain runs the work later queued.
+func (u *ui) drain() {
+	for len(u.events) > 0 {
+		(<-u.events)()
+	}
 }
 
 // busy marks a background fetch for org running until done is called;
@@ -335,9 +357,7 @@ func (u *ui) sig() string {
 // drew from, so a frame that changed the state asks for one more.
 func (u *ui) frame(gtx layout.Context) {
 	tg, ig := u.termGen.Load(), u.infraGen()
-	for len(u.events) > 0 {
-		(<-u.events)()
-	}
+	u.drain()
 	u.reapTerms()
 	u.loginFrame()
 	u.infraFrame()

@@ -33,15 +33,20 @@ type drawClaude struct {
 
 func drawChatKey(path string) string { return "draw:" + path }
 
-// drawStart starts st's Claude: the organization's account, in its folder.
+// drawStart starts st's Claude: the organization's account, in its folder;
+// a card's drawing's in the card's folder, its workspace's projects added,
+// so it reads where the card works and not the rest of the organization.
 func (u *ui) drawStart(st *drawState) (session, error) {
 	acct := orgs.Account(u.root, st.org)
-	dir := orgs.Dir(u.root, st.org, "")
-	card := ""
+	root := orgs.Dir(u.root, st.org, "")
+	dirs, card := []string{root}, ""
 	if c := u.b.Card(st.card); c != nil {
-		card = c.Key()
+		dirs, card = u.projects(c), c.Key()
 	}
-	o := claude.Options{Home: u.home, Org: acct, Dir: dir, Root: dir, System: claude.Drawing(drawName(st.path), st.org, card)}
+	o := claude.Options{Home: u.home, Org: acct, Dir: dirs[0], Root: root, System: claude.Drawing(drawName(st.path), st.org, card, dirs)}
+	for _, p := range dirs[1:] {
+		o.Args = append(o.Args, "--add-dir="+p) // = form: the flag is variadic
+	}
 	mcp, allow := infra.DrawMCP(u.cardSock, st.path)
 	if mcp != "" {
 		o.Args = append(o.Args, "--mcp-config", mcp)

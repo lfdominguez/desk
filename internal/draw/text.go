@@ -1,6 +1,7 @@
 package draw
 
 import (
+	"cmp"
 	"image"
 	"image/color"
 	"math"
@@ -151,6 +152,72 @@ func (e *Element) FitText() {
 		w = math.Max(w, f.measure(l))
 	}
 	e.Width, e.Height = w, float64(len(lines))*e.FontSize*lh
+}
+
+// boundPad is Excalidraw's BOUND_TEXT_PADDING: a label's room from its shape's edge.
+const boundPad = 5
+
+// inner is how much of shape c's side s a label uses (Excalidraw's
+// getBoundTextMaxWidth/Height: an ellipse's inscribed box, half a diamond).
+func inner(c *Element, s float64) float64 {
+	switch c.Type {
+	case "ellipse":
+		s = math.Round(s / 2 * math.Sqrt2)
+	case "diamond":
+		s = math.Round(s / 2)
+	}
+	return s - 2*boundPad
+}
+
+// fitLabel lays label t out in its shape c as Excalidraw does: its text
+// (OriginalText) wrapped to c's width, c taller when the lines need it,
+// t in the middle. An arrow's label isn't wrapped.
+func fitLabel(t, c *Element) {
+	src := cmp.Or(t.OriginalText, t.Text)
+	t.Text = src
+	if max := inner(c, c.Width); c.Type != "arrow" && c.Type != "line" && max > 0 {
+		t.Text = wrap(src, newFaces(t.FontFamily, t.FontSize), max)
+	}
+	t.FitText()
+	if c.Type != "arrow" && c.Type != "line" {
+		need := t.Height + 2*boundPad // inner's inverse
+		switch c.Type {
+		case "ellipse":
+			need *= math.Sqrt2
+		case "diamond":
+			need *= 2
+		}
+		c.Height = math.Max(c.Height, need)
+	}
+	center(t, c)
+}
+
+// wrap breaks s's lines at spaces so none is wider than max, and a word
+// wider than max between its letters.
+func wrap(s string, f *faces, max float64) string {
+	var out []string
+	for _, line := range strings.Split(s, "\n") {
+		cur := ""
+		for _, w := range strings.Fields(line) {
+			if cur != "" && f.measure(cur+" "+w) <= max {
+				cur += " " + w
+				continue
+			}
+			if cur != "" {
+				out = append(out, cur)
+			}
+			cur = ""
+			for _, r := range w {
+				if cur != "" && f.measure(cur+string(r)) > max {
+					out = append(out, cur)
+					cur = ""
+				}
+				cur += string(r)
+			}
+		}
+		out = append(out, cur)
+	}
+	return strings.Join(out, "\n")
 }
 
 // drawText paints a text element: drawn upright at pixel size into its own

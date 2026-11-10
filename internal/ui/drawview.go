@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"image"
 	"math"
@@ -623,7 +624,7 @@ func (u *ui) drawTextBox(gtx layout.Context, st *drawState, px float32) {
 	}
 	if st.typing != e.ID { // a new text: start from its own
 		st.typing = e.ID
-		st.text.SetText(e.Text)
+		st.text.SetText(cmp.Or(e.OriginalText, e.Text)) // a label's as typed, not as wrapped
 		st.text.SetCaret(st.text.Len(), st.text.Len())
 		gtx.Execute(key.FocusCmd{Tag: &st.text})
 	}
@@ -634,7 +635,7 @@ func (u *ui) drawTextBox(gtx layout.Context, st *drawState, px float32) {
 		return
 	}
 	st.textFoc = foc
-	if st.text.Text() != e.Text {
+	if st.text.Text() != cmp.Or(e.OriginalText, e.Text) {
 		ed.SetText(st.text.Text())
 	}
 	s := st.zoom * px

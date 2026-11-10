@@ -27,6 +27,8 @@ type extras struct {
 	Label *string `json:"label"`
 	From  *string `json:"from"`
 	To    *string `json:"to"`
+
+	Roundness json.RawMessage `json:"roundness"` // Excalidraw's, here only to see whether it was given
 }
 
 var patchTypes = []string{"rectangle", "diamond", "ellipse", "arrow", "line", "text", "freedraw", "frame"}
@@ -74,6 +76,9 @@ func (ed *Editor) apply(p Patch) ([]string, error) {
 		if (e.Type == "line" || e.Type == "arrow") && len(e.Points) < 2 {
 			e.Points = [][2]float64{{0, 0}, {e.Width, e.Height}}
 		}
+		if len(e.Points) > 2 && x.Roundness == nil { // a Claude's bends are corners: a round one's curve through them hooks at each
+			e.Roundness = nil
+		}
 		if e.Type == "text" {
 			e.OriginalText = e.Text
 			e.FitText()
@@ -101,9 +106,7 @@ func (ed *Editor) apply(p Patch) ([]string, error) {
 		e.Type, e.ID = typ, x.ID
 		if e.Type == "text" {
 			e.OriginalText = e.Text
-			if e.ContainerID == nil {
-				e.FitText()
-			}
+			ed.fit(e)
 		}
 		if x.Label != nil {
 			ed.label(e, *x.Label)
@@ -156,10 +159,20 @@ func (ed *Editor) label(e *Element, s string) {
 	t.Text, t.OriginalText, t.TextAlign, t.VerticalAlign = s, s, "center", "middle"
 	t.StrokeColor, t.Roughness, t.Opacity = e.StrokeColor, e.Roughness, e.Opacity
 	t.ContainerID = &e.ID
-	t.FitText()
 	e.BoundElements = append(e.BoundElements, Bound{ID: t.ID, Type: "text"})
 	ed.Scene.Elements = append(ed.Scene.Elements, t)
-	center(t, e)
+	fitLabel(t, e)
+}
+
+// fit sizes text e to its text: a label wrapped in its shape.
+func (ed *Editor) fit(e *Element) {
+	if e.ContainerID != nil {
+		if c := ed.Scene.Find(*e.ContainerID); c != nil {
+			fitLabel(e, c)
+			return
+		}
+	}
+	e.FitText()
 }
 
 // center puts label t in the middle of its shape e, at e's angle.

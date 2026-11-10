@@ -783,7 +783,7 @@ func (ed *Editor) Restyle(f func(e *Element)) {
 		for _, e := range ed.Selected() {
 			f(e)
 			if e.Type == "text" {
-				e.FitText()
+				ed.fit(e)
 			}
 			e.Touch()
 		}
@@ -793,9 +793,9 @@ func (ed *Editor) Restyle(f func(e *Element)) {
 
 // SetText types s into the text element being edited.
 func (ed *Editor) SetText(s string) {
-	if e := ed.Scene.Find(ed.Editing); e != nil && e.Text != s {
+	if e := ed.Scene.Find(ed.Editing); e != nil && e.OriginalText != s {
 		e.Text, e.OriginalText = s, s
-		e.FitText()
+		ed.fit(e)
 		ed.Gen++
 	}
 }
@@ -954,7 +954,7 @@ func (ed *Editor) follow() {
 	for _, a := range ed.Scene.Elements {
 		if a.Type == "text" && a.ContainerID != nil && ed.g.held(*a.ContainerID) && !a.IsDeleted {
 			if c := ed.Scene.Find(*a.ContainerID); c != nil {
-				center(a, c)
+				fitLabel(a, c) // a resize wraps it again
 			}
 		}
 		if a.Type != "arrow" || a.IsDeleted {
