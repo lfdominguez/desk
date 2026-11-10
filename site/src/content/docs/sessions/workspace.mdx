@@ -70,6 +70,17 @@ workspace, and desk keeps it (`wrap` under `[editor]` in
 [settings.toml](/reference/desk-toml/#settingstoml)). A wrapped line keeps one line number, on its
 first row, and the foot's line counts lines, not rows.
 
+### Lines
+
+On the lines the caret or the selection is on, each one step for <kbd>Ctrl</kbd>+<kbd>Z</kbd>:
+
+- <kbd>Alt</kbd>+<kbd>↑</kbd> and <kbd>Alt</kbd>+<kbd>↓</kbd> move them up or down past the next
+  line.
+- <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> puts a copy of them below.
+- <kbd>Ctrl</kbd>+<kbd>/</kbd> comments them out with the language's line comment (`//`, `#`,
+  `--`…), at their least indent, or back in when they all are. Languages whose comments wrap the
+  text (Markdown, HTML, JSON) have none: a toast says so.
+
 ### Find, replace, go to line
 
 In the editor, a bar opens over the file:

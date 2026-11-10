@@ -154,6 +154,7 @@ func (u *ui) wsAddTab(st *wsState, path, text string, mtime time.Time, mode os.F
 		return nil
 	})
 	u.wsFindKeys(st, t)
+	u.wsLineKeys(t)
 	st.tabs = append(st.tabs, t)
 	st.cur = len(st.tabs) - 1
 	u.wsRedraw()
