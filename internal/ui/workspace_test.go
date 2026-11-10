@@ -395,9 +395,10 @@ func TestWorkspaceEditSave(t *testing.T) {
 	if !tb.dirty || tb.closing || !h.u.wsTyping(layoutCtx(h)) {
 		t.Fatalf("dirty %v closing %v", tb.dirty, tb.closing)
 	}
-	if tb.tokGen != tb.gen || tb.gen == 0 {
-		t.Fatalf("tokens of gen %d, text %d", tb.tokGen, tb.gen)
+	if tb.gen == 0 {
+		t.Fatal("the edit didn't bump the text's gen")
 	}
+	h.pumpUntil("the edit's tokens", func() bool { return tb.tokGen == tb.gen })
 	if !h.u.quiet(layoutCtx(h)) {
 		t.Fatal("board keys on in the workspace")
 	}
@@ -780,4 +781,38 @@ func TestWorkspaceTabs(t *testing.T) {
 	h.frame()
 	h.u.openSession(c.ID)
 	h.frame()
+}
+
+// TestWorkspaceLexOffFrame: a file's tokens are lexed off the UI goroutine,
+// one lex at a time; an edit made while one runs gets the next.
+func TestWorkspaceLexOffFrame(t *testing.T) {
+	h := newHarness(t)
+	defer func(f func(string, string) []syntax.Token) { wsTokens = f }(wsTokens)
+	calls, release := make(chan string, 4), make(chan struct{})
+	wsTokens = func(src, path string) []syntax.Token {
+		calls <- src
+		<-release
+		return nil
+	}
+	c, dir := wsCard(h)
+	tb := h.u.wsOpen(h.u.wsOf(c.ID), filepath.Join(dir, "main.go"))
+	h.u.wsLex(tb)
+	if !tb.lexing || <-calls != tb.ed.Text() {
+		t.Fatal("no lex started for the opened file")
+	}
+	tb.gen++
+	h.u.wsLex(tb) // one is running: no second
+	release <- struct{}{}
+	h.pumpUntil("the first lex", func() bool { return !tb.lexing })
+	if tb.tokGen != 0 || len(calls) != 0 {
+		t.Fatalf("tokens of gen %d, %d more lexes", tb.tokGen, len(calls))
+	}
+	h.u.wsLex(tb) // the edit's turn
+	<-calls
+	h.u.wsLex(tb)
+	release <- struct{}{}
+	h.pumpUntil("the second lex", func() bool { return tb.tokGen == 1 && !tb.lexing })
+	if h.u.wsLex(tb); tb.lexing || len(calls) != 0 {
+		t.Fatal("lexed again with the tokens current")
+	}
 }

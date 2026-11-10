@@ -238,10 +238,7 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 			u.wsRedraw()
 		}
 	}
-	if t.tokGen != t.gen { // tokens per text generation: an edit, a reload
-		t.ed.SetSyntaxTokens(chromaTokens(t.ed.Text(), t.path)...)
-		t.tokGen = t.gen
-	}
+	u.wsLex(t)
 	tabs := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		kit.Fill(gtx, kit.CPanel)

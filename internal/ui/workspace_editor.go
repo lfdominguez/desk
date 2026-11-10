@@ -36,6 +36,7 @@ type wsTab struct {
 	closing bool         // its × was pressed while dirty: a second one discards
 	gen     int          // bumps on every edit
 	tokGen  int          // the gen its syntax tokens are of
+	lexing  bool         // a lex is running off the UI goroutine: one at a time per tab
 	edit    *kanban.Edit // the change opened from the chat (Open in workspace), nil none
 	note    string       // why the change isn't shown
 	want    *[2]int      // a selection to make once laid out (gvcode places the caret on its shaped text)
@@ -90,6 +91,32 @@ func chromaTokens(src, path string) []syntax.Token {
 		at += n
 	}
 	return out
+}
+
+// wsTokens is the lexer wsLex runs (a var tests replace, to hold one in flight).
+var wsTokens = chromaTokens
+
+// wsLex brings t's syntax tokens up to its text's gen, off the UI goroutine:
+// chroma lexes the whole file (about 30 ms for 20 KB, seconds for MBs), so
+// in a frame it froze typing. One lex runs at a time; edits made meanwhile
+// get the next one, and until it lands the old tokens stay (gvcode looks
+// them up by range, so ones past the text do nothing).
+// ponytail: whole-file re-lex per edit, colors lag on multi-MB files; lex
+// only from the edit on if that ever matters.
+func (u *ui) wsLex(t *wsTab) {
+	if t.tokGen == t.gen || t.lexing {
+		return
+	}
+	t.lexing = true
+	src, gen, path := t.ed.Text(), t.gen, t.path
+	go func() {
+		toks := wsTokens(src, path)
+		u.later(func() {
+			t.ed.SetSyntaxTokens(toks...)
+			t.tokGen, t.lexing = gen, false
+			u.wsRedraw()
+		})
+	}()
 }
 
 // wsOpen opens path in st (or shows its tab), checking it against the disk.

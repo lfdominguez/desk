@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Typing in the workspace editor no longer stalls on big files: the highlighting runs in the
+  background (a 100 KB file stalled each key for about 0.2 s, a 4 MB one for seconds).
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed
