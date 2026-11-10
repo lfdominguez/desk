@@ -17,6 +17,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/unit"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -37,8 +38,9 @@ type cardMenu struct {
 // does it while the menu is open.
 type menuItem struct {
 	id, label string
-	key       key.Name
-	cap       string // the key as shown
+	bind      string   // its shortcut's internal/keys ID, else key
+	key       key.Name // a fixed key: Enter, a column's digit
+	cap       string   // the key as shown
 	ico       kit.IconPath
 	dot       color.NRGBA // a column's color, for Move to's
 	fg        color.NRGBA
@@ -87,8 +89,8 @@ func (u *ui) endSession(id string) bool {
 func (u *ui) menuFilters() []event.Filter {
 	var fs []event.Filter
 	for _, it := range u.menu.items {
-		if it.key == "C" {
-			fs = append(fs, key.Filter{Name: it.key, Required: key.ModShortcut})
+		if it.bind != "" {
+			fs = append(fs, keys.Filters(nil, it.bind)...)
 		} else if it.key != "" {
 			fs = append(fs, key.Filter{Name: it.key})
 		}
@@ -96,10 +98,10 @@ func (u *ui) menuFilters() []event.Filter {
 	return fs
 }
 
-// menuKey runs the open menu's item for key name; it reports whether one ran.
-func (u *ui) menuKey(name key.Name) bool {
+// menuKey runs the open menu's item for e; it reports whether one ran.
+func (u *ui) menuKey(e key.Event) bool {
 	for _, it := range u.menu.items {
-		if it.key == name {
+		if it.bind != "" && keys.Is(it.bind, e) || it.bind == "" && it.key != "" && e.Name == it.key && e.Modifiers == 0 && e.State == key.Press {
 			u.menu = nil
 			it.f()
 			return true
@@ -131,12 +133,17 @@ func (u *ui) drawCardMenu(gtx layout.Context) {
 	items := []menuItem{
 		{id: "Open session", label: "Open session", key: key.NameReturn, cap: "↵", ico: kit.IcoChat, f: func() { u.openPanel(id) }},
 		{id: "Open full window", label: "Open full window", ico: kit.IcoSide, f: func() { u.openSession(id) }},
-		{id: "Open in new window", label: "Open in new window", key: "O", cap: "O", ico: kit.IcoPopOut, f: func() { u.detach(id) }},
-		{id: "Claude Code terminal", label: "Claude Code terminal", key: "T", cap: "T", ico: kit.IcoTerminal, f: func() { u.terminal(id) }},
-		{id: "Remote Control", label: remote, key: "R", cap: "R", ico: kit.IcoSend, f: func() { u.remoteControl(id) }},
-		{id: "Workspace", label: "Workspace", key: "W", cap: "W", ico: kit.IcoCode, f: func() { u.openWS(id) }},
-		{id: "Edit card", label: "Edit card", key: "E", cap: "E", ico: kit.IcoEdit, f: func() { u.open(id) }},
-		{id: "Copy key " + c.Key(), label: "Copy key " + c.Key(), key: "C", cap: kit.ModText("C"), ico: kit.IcoLink, f: func() { u.copyKey = c.Key() }},
+		{id: "Open in new window", label: "Open in new window", bind: "card.window", ico: kit.IcoPopOut, f: func() { u.detach(id) }},
+		{id: "Claude Code terminal", label: "Claude Code terminal", bind: "card.terminal", ico: kit.IcoTerminal, f: func() { u.terminal(id) }},
+		{id: "Remote Control", label: remote, bind: "card.remote", ico: kit.IcoSend, f: func() { u.remoteControl(id) }},
+		{id: "Workspace", label: "Workspace", bind: "card.workspace", ico: kit.IcoCode, f: func() { u.openWS(id) }},
+		{id: "Edit card", label: "Edit card", bind: "card.edit", ico: kit.IcoEdit, f: func() { u.open(id) }},
+		{id: "Copy key " + c.Key(), label: "Copy key " + c.Key(), bind: "card.copy", ico: kit.IcoLink, f: func() { u.copyKey = c.Key() }},
+	}
+	for i := range items {
+		if items[i].bind != "" {
+			items[i].cap = keys.Cap(items[i].bind)
+		}
 	}
 	var moves []menuItem
 	col, _ := u.b.Find(id)
@@ -151,7 +158,7 @@ func (u *ui) drawCardMenu(gtx layout.Context) {
 		}
 		moves = append(moves, it)
 	}
-	tail := menuItem{id: "Archive", label: archive, key: key.NameDeleteBackward, cap: "Backspace", ico: kit.IcoArchive, fg: kit.CRedText, f: func() { u.archiveCard(id) }}
+	tail := menuItem{id: "Archive", label: archive, bind: "card.archive", cap: keys.Cap("card.archive"), ico: kit.IcoArchive, fg: kit.CRedText, f: func() { u.archiveCard(id) }}
 	m.items = append(append(append([]menuItem{}, items...), moves...), tail)
 
 	row := func(it menuItem) layout.FlexChild {

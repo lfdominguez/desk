@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"image"
 	"reflect"
-	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"github.com/lfdominguez/desk/internal/keys"
 )
 
 // The window drives the workspace's Bubble Tea model: one goroutine owns it and runs
@@ -491,67 +492,65 @@ func (d *driver) palPick(i int) {
 	})
 }
 
-// shortcutMod is ⌘ on macOS and Ctrl+Shift elsewhere, so plain Ctrl keys keep
-// going to the shell.
-var shortcutMod = map[bool]key.Modifiers{true: key.ModCommand, false: key.ModCtrl | key.ModShift}[runtime.GOOS == "darwin"]
-
-// shortcut handles the app's own keys; it reports whether e was one.
+// shortcut handles the app's own keys (keys' infra.* bindings); it reports
+// whether e was one.
 func (u *ui) shortcut(e key.Event) bool {
-	if e.State != key.Press || e.Modifiers&shortcutMod != shortcutMod {
-		return false
-	}
 	d, st := u.d, u.st
-	switch name := strings.ToUpper(string(e.Name)); {
-	case name == "K":
+	switch name := string(e.Name); {
+	case keys.Is("infra.palette", e):
 		u.openPalette()
-	case name == "T":
+	case keys.Is("infra.pane", e):
 		d.press("ctrl+t")
-	case name == "W":
+	case keys.Is("infra.close", e):
 		d.press("ctrl+w")
-	case name == "J":
+	case keys.Is("infra.claude", e):
 		u.claude = !u.claude
 		u.saveLayout()
-	case name == "G":
+	case keys.Is("infra.group", e):
 		if st.Group != "" {
 			d.group("")
 		} else if t := u.tab(); t != nil && !t.OrgOnly {
 			d.group(groupKey(t.Dir, t.Group))
 		}
-	case name == "Y":
+	case keys.Is("infra.suggest", e):
 		d.press("ctrl+y")
 		u.wantTerm = true
-	case name == "P":
+	case keys.Is("infra.password", e):
 		d.press("alt+p")
-	case name == "S":
+	case keys.Is("infra.pin", e):
 		d.press("ctrl+s")
-	case name == "L":
+	case keys.Is("infra.composer", e):
 		u.toggleComposer = true
-	case name == "F":
+	case keys.Is("infra.files", e):
 		u.toggleFiles()
-	case name == "H":
+	case keys.Is("infra.find", e):
 		u.openFind()
-	case name == string(key.NameUpArrow) || name == string(key.NameDownArrow):
-		u.selectBlock(name == string(key.NameUpArrow))
-	case name == "C":
+	case keys.Is("infra.blockup", e):
+		u.selectBlock(true)
+	case keys.Is("infra.blockdown", e):
+		u.selectBlock(false)
+	case keys.Is("infra.copy", e):
 		if u.chatSel != nil && u.chatSel.selected() != "" {
 			u.copyOnSelect(u.chatSel.selected())
 		} else {
 			u.copySelection = true
 		}
-	case name == "V":
+	case keys.Is("infra.paste", e):
 		u.pasteWanted = true
+	case keys.Is("infra.next", e):
+		u.cycleTab(true)
+	case keys.Is("infra.prev", e):
+		u.cycleTab(false)
 	// ponytail: on Linux this never matches: Gio's xkb names a key by its
 	// shifted keysym, so Ctrl+Shift+1 arrives as "!" (US layout), and a
 	// non-ASCII one (ES Shift+3 "·") as no key.Event at all. Upgrade: a
 	// patched Gio in third_party naming a digit key by its level-0 keysym
 	// while Ctrl+Shift is held.
-	case len(name) == 1 && name[0] >= '1' && name[0] <= '9':
+	case e.State == key.Press && e.Modifiers&keys.Mod == keys.Mod && len(name) == 1 && name[0] >= '1' && name[0] <= '9':
 		if ts, n := u.orgTabs(), int(name[0]-'1'); n < len(ts) {
 			d.activate(ts[n])
 			u.wantTerm = true
 		}
-	case e.Name == key.NamePageUp || e.Name == key.NamePageDown:
-		u.cycleTab(e.Name == key.NamePageDown)
 	default:
 		return false
 	}
@@ -580,14 +579,15 @@ func (u *ui) cycleTab(next bool) {
 // On macOS ⌘C and ⌘V stay out: a focus-less filter beats the focused
 // editor, whose copy and paste they are there; a focused terminal still
 // hands them to shortcut (termEvents).
-func shortcutFilters() []key.Filter {
-	names := []key.Name{"K", "T", "W", "J", "G", "Y", "P", "S", "L", "F", "H", key.NameUpArrow, key.NameDownArrow, key.NamePageUp, key.NamePageDown, "1", "2", "3", "4", "5", "6", "7", "8", "9"}
-	if shortcutMod != key.ModCommand {
-		names = append(names, "C", "V")
+func shortcutFilters() []event.Filter {
+	ids := []string{"infra.palette", "infra.pane", "infra.close", "infra.claude", "infra.group", "infra.suggest", "infra.password", "infra.pin",
+		"infra.composer", "infra.files", "infra.find", "infra.blockup", "infra.blockdown", "infra.next", "infra.prev"}
+	if keys.Mod != key.ModCommand {
+		ids = append(ids, "infra.copy", "infra.paste")
 	}
-	var fs []key.Filter
-	for _, n := range names {
-		fs = append(fs, key.Filter{Name: n, Required: shortcutMod})
+	fs := keys.Filters(nil, ids...)
+	for n := '1'; n <= '9'; n++ {
+		fs = append(fs, key.Filter{Name: key.Name(n), Required: keys.Mod})
 	}
 	return fs
 }

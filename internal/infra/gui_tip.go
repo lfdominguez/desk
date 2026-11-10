@@ -6,16 +6,25 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"github.com/lfdominguez/desk/internal/keys"
 )
 
 // tbTips is what each toolbar button does, with its key: the buttons are
-// icons only.
-var tbTips = map[string]string{
-	"tbPane":      "New pane (" + modText("T") + ")",
-	"tbBroadcast": "Broadcast: type into every pane of the tab",
-	"tbFiles":     "Directory: this server's files beside this machine's (" + modText("F") + ")",
-	"tbGroup":     "Group view: every session of the group on one page (" + modText("G") + ")",
-	"tbClaude":    "Claude panel (" + modText("J") + ")",
+// icons only. Read per call, so a rebinding shows.
+func tbTips(id string) string {
+	switch id {
+	case "tbPane":
+		return "New pane (" + keys.Short("infra.pane") + ")"
+	case "tbBroadcast":
+		return "Broadcast: type into every pane of the tab"
+	case "tbFiles":
+		return "Directory: this server's files beside this machine's (" + keys.Short("infra.files") + ")"
+	case "tbGroup":
+		return "Group view: every session of the group on one page (" + keys.Short("infra.group") + ")"
+	case "tbClaude":
+		return "Claude panel (" + keys.Short("infra.claude") + ")"
+	}
+	return ""
 }
 
 // tip shows s under button id (laid out as d) while the pointer is on it,

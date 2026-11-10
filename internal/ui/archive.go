@@ -15,6 +15,7 @@ import (
 	"gioui.org/op/paint"
 
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -349,23 +350,23 @@ func (u *ui) archive(gtx layout.Context) layout.Dimensions {
 func (u *ui) archKey(e key.Event) bool {
 	a := &u.arch
 	i := slices.IndexFunc(a.shown, func(e archEntry) bool { return e.c.ID == a.cur })
-	switch e.Name {
-	case key.NameUpArrow, key.NameDownArrow:
+	switch {
+	case e.Name == key.NameUpArrow, e.Name == key.NameDownArrow:
 		if !e.Modifiers.Contain(key.ModShortcut) {
 			a.step(map[key.Name]int{key.NameUpArrow: -1, key.NameDownArrow: 1}[e.Name])
 		}
-	case key.NameLeftArrow, key.NameRightArrow:
-	case "A":
+	case e.Name == key.NameLeftArrow, e.Name == key.NameRightArrow:
+	case keys.Is("arch.all", e):
 		a.check(a.shown, true)
-	case key.NameSpace:
+	case keys.Is("arch.check", e):
 		if i >= 0 {
 			a.check(a.shown[i:i+1], !a.sel[a.cur])
 		}
-	case key.NameReturn:
+	case e.Name == key.NameReturn:
 		if i >= 0 {
 			u.openSession(a.cur)
 		}
-	case key.NameDeleteForward:
+	case keys.Is("arch.delete", e):
 		if chk := a.checked(a.shown); len(chk) > 0 {
 			u.archBulk("delete", chk)
 		} else if i >= 0 {

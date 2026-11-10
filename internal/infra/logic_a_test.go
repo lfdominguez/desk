@@ -22,6 +22,7 @@ import (
 	"github.com/charmbracelet/x/vt"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/keys"
 )
 
 // --- helpers (suffix A: this file's) ---
@@ -833,7 +834,7 @@ func TestCallToolConnectAndRunbookA(t *testing.T) {
 		return tab.callTool(toolCall{Name: "save_runbook", Args: b})
 	}
 	r1, r2 := save("Restart PHP"), save("Restart PHP")
-	if r1.IsError || r1.Text != "saved "+filepath.Join(dir, "runbooks", "restart-php.md")+"; the user starts it from the palette ("+modText("K")+")" ||
+	if r1.IsError || r1.Text != "saved "+filepath.Join(dir, "runbooks", "restart-php.md")+"; the user starts it from the palette ("+keys.Short("infra.palette")+")" ||
 		!strings.Contains(r2.Text, "restart-php-2.md") {
 		t.Errorf("save: %+v %+v", r1, r2)
 	}
@@ -1873,7 +1874,7 @@ func TestPalKeyA(t *testing.T) {
 		t.Errorf("default model: %q", org.model)
 	}
 	pick("broadcast", "broadcast typing to all panes")
-	if m.flash != "broadcast needs two or more panes ("+modText("T")+" opens one)" {
+	if m.flash != "broadcast needs two or more panes ("+keys.Short("infra.pane")+" opens one)" {
 		t.Errorf("broadcast: %q", m.flash)
 	}
 	pick("forward", "forward PORT[:HOST]:PORT")

@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/keys"
 )
 
 // Alerts: a [[nagios]] source with alerts = true is polled every minute. Hard,
@@ -119,7 +121,7 @@ func (m *model) setAlerts(msg alertsMsg) {
 	for _, a := range msg.alerts {
 		if !old[a.key()] {
 			desktopNotify(a.State+" · "+a.name(), a.Org+": "+a.Output)
-			m.flash = "▲ " + a.State + " " + a.name() + " · " + modText("K") + " → investigate"
+			m.flash = "▲ " + a.State + " " + a.name() + " · " + keys.Short("infra.palette") + " → investigate"
 		}
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/x/styledtext"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -322,6 +323,7 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 		if !gtx.Focused(&u.apEdit) {
 			gtx.Execute(keyFocus(&u.apEdit))
 		}
+		kit.Newline(gtx, &u.apEdit)
 		for {
 			ev, ok := u.apEdit.Update(gtx)
 			if !ok {
@@ -474,9 +476,9 @@ func (u *ui) paletteSheet(gtx layout.Context, opened bool) layout.Dimensions {
 		scopes, shown = palScopes(items, s)
 	}
 	for {
-		ev, ok := gtx.Event(
+		ev, ok := gtx.Event(append(keys.Filters(&u.palIn, "pal.next", "pal.prev"),
 			key.Filter{Focus: &u.palIn, Name: key.NameUpArrow}, key.Filter{Focus: &u.palIn, Name: key.NameDownArrow},
-			key.Filter{Focus: &u.palIn, Name: key.NameEscape}, key.Filter{Focus: &u.palIn, Name: key.NameTab, Optional: key.ModShift})
+			key.Filter{Focus: &u.palIn, Name: key.NameEscape})...)
 		if !ok {
 			break
 		}
@@ -484,19 +486,17 @@ func (u *ui) paletteSheet(gtx layout.Context, opened bool) layout.Dimensions {
 		if !ok || e.State != key.Press {
 			continue
 		}
-		switch e.Name {
-		case key.NameUpArrow:
+		switch {
+		case keys.Is("pal.next", e):
+			setScope(scopes[(slices.Index(scopes, u.palScope)+1)%len(scopes)])
+		case keys.Is("pal.prev", e):
+			setScope(scopes[(slices.Index(scopes, u.palScope)+len(scopes)-1)%len(scopes)])
+		case e.Name == key.NameUpArrow:
 			u.palSel = max(0, u.palSel-1)
-		case key.NameDownArrow:
+		case e.Name == key.NameDownArrow:
 			u.palSel = min(len(shown)-1, u.palSel+1)
-		case key.NameEscape:
+		case e.Name == key.NameEscape:
 			u.closePalette()
-		case key.NameTab: // the next scope; shift: the one before
-			step := 1
-			if e.Modifiers.Contain(key.ModShift) {
-				step = len(scopes) - 1
-			}
-			setScope(scopes[(slices.Index(scopes, u.palScope)+step)%len(scopes)])
 		}
 	}
 	pick := func(k int) { // k-th shown item
@@ -614,7 +614,7 @@ func (u *ui) paletteSheet(gtx layout.Context, opened bool) layout.Dimensions {
 							return d
 						}), layout.Rigid(hgap(2)))
 					}
-					row = append(row, spacer(), layout.Rigid(u.hint("tab", "next scope")))
+					row = append(row, spacer(), layout.Rigid(u.hint(keys.Cap("pal.next"), "next scope")))
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx, row...)
 				})
 			}),
@@ -798,21 +798,21 @@ func (u *ui) palPreview(it guiPal) layout.Widget {
 
 // guiCommands are palette actions the window runs itself, ahead of the model's.
 var guiCommands = []struct {
-	label, hint string
-	run         func(u *ui)
+	label, hint, key string // key: its shortcut's id, read when shown
+	run              func(u *ui)
 }{
-	{"New directory split (files)", "browse this server and copy to this machine · " + modText("F"), (*ui).openFiles},
-	{"Open server notes", "what Claude remembers about each server (markdown, editable)", func(u *ui) {
+	{"New directory split (files)", "browse this server and copy to this machine", "infra.files", (*ui).openFiles},
+	{"Open server notes", "what Claude remembers about each server (markdown, editable)", "", func(u *ui) {
 		d := filepath.Join(stateDir(), "notes")
 		os.MkdirAll(d, 0o700)
 		openLocal(d)
 	}},
-	{"Open recordings", "terminal recordings, one per pane (asciinema play <file>)", func(u *ui) {
+	{"Open recordings", "terminal recordings, one per pane (asciinema play <file>)", "", func(u *ui) {
 		d := filepath.Join(stateDir(), "recordings")
 		os.MkdirAll(d, 0o700)
 		openLocal(d)
 	}},
-	{"Open audit log", "every command and approval, per org and day (JSON lines)", func(u *ui) {
+	{"Open audit log", "every command and approval, per org and day (JSON lines)", "", func(u *ui) {
 		os.MkdirAll(auditDir(), 0o700)
 		openLocal(auditDir())
 	}},
@@ -823,6 +823,9 @@ func (u *ui) guiPal() []guiPal {
 	var out []guiPal
 	for _, c := range guiCommands {
 		if _, ok := fzfScore(u.palQ, c.label); ok && strings.TrimSpace(u.palQ) != "" {
+			if c.key != "" {
+				c.hint += " · " + keys.Short(c.key)
+			}
 			out = append(out, guiPal{Kind: "actions", Label: c.label, Hint: c.hint})
 		}
 	}

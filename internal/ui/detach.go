@@ -14,6 +14,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -325,7 +326,7 @@ func (u *ui) detachedFrame(gtx layout.Context, d *detached) {
 func (u *ui) detachedKeys(gtx layout.Context, id string) {
 	filters := kit.ZoomFilters()
 	if _, tt := u.termCard(); tt == nil || u.edit != nil && u.edit.in == u.pane { // a terminal takes every other key, esc included
-		filters = append(filters, key.Filter{Name: key.NameEscape}, key.Filter{Name: "O", Required: key.ModShortcut | key.ModShift})
+		filters = append(append(filters, key.Filter{Name: key.NameEscape}), keys.Filters(nil, "session.window")...)
 	}
 	for {
 		ev, ok := gtx.Event(filters...)
@@ -336,7 +337,7 @@ func (u *ui) detachedKeys(gtx layout.Context, id string) {
 		if !ok || e.State != key.Press || u.zoomKey(e) {
 			continue
 		}
-		if e.Name == "O" {
+		if keys.Is("session.window", e) {
 			u.reattach(id)
 		} else {
 			u.detachedEscape(gtx)

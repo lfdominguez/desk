@@ -171,6 +171,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 		defer func() { u.selBack = nil }()
 	}
 	u.pasteImage(gtx, &u.chatIn, &u.chatPaste, func() bool { return true }) // one box for every card, the panel's and the session view's
+	kit.Newline(gtx, &u.chatIn)
 	for {
 		ev, ok := u.chatIn.Update(gtx)
 		if !ok {

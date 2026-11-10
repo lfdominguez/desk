@@ -220,11 +220,8 @@ func (f *wsFind) count() string {
 
 // wsFindKeys are the editor's commands that open the bar.
 func (u *ui) wsFindKeys(st *wsState, t *wsTab) {
-	for name, mode := range map[key.Name]int{"F": findText, "H": findReplace, "G": findLine} {
-		t.ed.RegisterCommand(t, key.Filter{Name: name, Required: key.ModShortcut}, func(layout.Context, key.Event) gvcode.EditorEvent {
-			u.wsFindOpen(st, t, mode)
-			return nil
-		})
+	for id, mode := range map[string]int{"ws.find": findText, "ws.replace": findReplace, "ws.goline": findLine} {
+		u.wsCmd(t, id, func() { u.wsFindOpen(st, t, mode) })
 	}
 }
 

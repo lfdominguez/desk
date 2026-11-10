@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
 )
@@ -261,7 +262,7 @@ func (w *Workspace) SetShown(on bool) { w.u.hidden.Store(!on) }
 
 // ShortcutFilters are the keys Shortcut takes (Ctrl+Shift+letter on Linux,
 // ⌘ on macOS), for a window-wide handler that sees them first.
-func ShortcutFilters() []key.Filter { return shortcutFilters() }
+func ShortcutFilters() []event.Filter { return shortcutFilters() }
 
 // Shortcut runs the workspace's own key e (palette, new pane, Claude panel
 // …); it reports whether e was one. Layout already reads these filters;

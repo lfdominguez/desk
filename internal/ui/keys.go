@@ -7,6 +7,7 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/layout"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -15,6 +16,9 @@ import (
 // fields, T its terminal, / or Ctrl+F search, Ctrl+N a new card, esc backs
 // out of whatever is open.
 func (u *ui) keys(gtx layout.Context) {
+	if u.cfg != nil && u.cfg.rec != "" { // the shortcuts page records the next key, esc included
+		return
+	}
 	filters := kit.ZoomFilters() // the text size everywhere: no editor, terminal or pane keeps Ctrl+=, Ctrl+- or Ctrl+0
 	if _, tt := u.termCard(); tt != nil && u.edit == nil && u.unlock == nil && u.cfg == nil {
 		u.zoomKeys(gtx, filters) // a terminal takes every other key, esc and Ctrl+N included: Claude Code uses them
@@ -28,28 +32,28 @@ func (u *ui) keys(gtx layout.Context) {
 	if u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" && u.pal == nil {
 		// the palette also over the message box: no editor uses Ctrl+K; nor
 		// Ctrl+Shift+O, the session in its own window
-		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut}, key.Filter{Name: "O", Required: key.ModShortcut | key.ModShift})
+		filters = append(filters, keys.Filters(nil, "palette", "session.window")...)
 		if strings.HasPrefix(u.view, "ws:") { // quick open, from the editor too
-			filters = append(filters, key.Filter{Name: "P", Required: key.ModShortcut})
+			filters = append(filters, keys.Filters(nil, "ws.open")...)
 		}
 	}
 	// Gio hands a key to these focus-less filters even over a focused
 	// editor, so the shortcuts only listen on the board itself: not while
 	// typing, in a dialog or in a card's session view.
 	if !u.quiet(gtx) {
-		filters = append(filters, key.Filter{Name: "N", Required: key.ModShortcut}, key.Filter{Name: "F", Required: key.ModShortcut},
-			key.Filter{Name: "/"}, key.Filter{Name: key.NameReturn}, key.Filter{Name: "E"}, key.Filter{Name: "T"})
+		filters = append(filters, keys.Filters(nil, "board.new", "board.search", "card.edit", "card.terminal")...)
+		filters = append(filters, key.Filter{Name: key.NameReturn})
 		for _, n := range []key.Name{key.NameUpArrow, key.NameDownArrow, key.NameLeftArrow, key.NameRightArrow} {
 			filters = append(filters, key.Filter{Name: n, Optional: key.ModShortcut})
 		}
 		if u.undo != nil {
-			filters = append(filters, key.Filter{Name: "Z", Required: key.ModShortcut})
+			filters = append(filters, keys.Filters(nil, "undo")...)
 		}
 		if u.menu != nil {
 			filters = append(filters, u.menuFilters()...)
 		}
 		if u.view == viewArchive {
-			filters = append(filters, key.Filter{Name: key.NameSpace}, key.Filter{Name: key.NameDeleteForward}, key.Filter{Name: "A", Required: key.ModShortcut})
+			filters = append(filters, keys.Filters(nil, "arch.check", "arch.delete", "arch.all")...)
 		}
 	}
 	for {
@@ -68,47 +72,47 @@ func (u *ui) keys(gtx layout.Context) {
 		if u.zoomKey(e) {
 			continue
 		}
-		if e.Name == "K" && e.Modifiers.Contain(key.ModShortcut) {
+		if keys.Is("palette", e) {
 			u.openPalette()
 			continue
 		}
-		if e.Name == "O" && e.Modifiers.Contain(key.ModShortcut|key.ModShift) {
+		if keys.Is("session.window", e) {
 			if id := u.sessionCard(); id != "" {
 				u.detach(id)
 			}
 			continue
 		}
-		if e.Name == "P" && e.Modifiers.Contain(key.ModShortcut) {
+		if keys.Is("ws.open", e) {
 			u.openFiles()
 			continue
 		}
-		if u.menu != nil && u.menuKey(e.Name) {
+		if u.menu != nil && u.menuKey(e) {
 			continue
 		}
 		if u.view == viewArchive && u.archKey(e) {
 			continue
 		}
 		move := e.Modifiers.Contain(key.ModShortcut)
-		switch e.Name {
-		case "Z":
+		switch {
+		case keys.Is("undo", e):
 			u.runUndo()
-		case "N":
+		case keys.Is("board.new", e):
 			u.newCard(u.selCol())
-		case "F", "/":
+		case keys.Is("board.search", e):
 			gtx.Execute(key.FocusCmd{Tag: &u.search})
-		case key.NameReturn: // the session
+		case e.Name == key.NameReturn && e.Modifiers == 0: // the session
 			if u.sel != "" {
 				u.openPanel(u.sel)
 			}
-		case "E": // the card's fields
+		case keys.Is("card.edit", e): // the card's fields
 			if u.sel != "" {
 				u.open(u.sel)
 			}
-		case "T":
+		case keys.Is("card.terminal", e):
 			if u.sel != "" {
 				u.terminal(u.sel)
 			}
-		case key.NameUpArrow, key.NameDownArrow, key.NameLeftArrow, key.NameRightArrow:
+		case e.Name == key.NameUpArrow, e.Name == key.NameDownArrow, e.Name == key.NameLeftArrow, e.Name == key.NameRightArrow:
 			d := map[key.Name]image.Point{key.NameUpArrow: {0, -1}, key.NameDownArrow: {0, 1}, key.NameLeftArrow: {-1, 0}, key.NameRightArrow: {1, 0}}[e.Name]
 			if move {
 				u.moveSel(d.X, d.Y)

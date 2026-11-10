@@ -20,6 +20,8 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/lfdominguez/desk/internal/keys"
+	"github.com/lfdominguez/desk/internal/ui/kit"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -67,7 +69,7 @@ func (u *ui) claudePanel(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(u.lbl("Claude", 12, cText, fSemi(sansFont))),
 					layout.Rigid(hgap(8)),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.label(gtx, where, 11, cText3, sansFont, 1) }),
-					layout.Rigid(u.lbl(modText("L"), 11, cText3, sansFont)))
+					layout.Rigid(u.lbl(keys.Short("infra.composer"), 11, cText3, sansFont)))
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -630,7 +632,7 @@ func (u *ui) codeBlock(gtx layout.Context, id string, b mdBlock, suggest string)
 					}
 					if suggest != "" && strings.TrimSpace(b.code) == strings.TrimSpace(suggest) {
 						kids = append(kids, layout.Rigid(hgap(6)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							d, ok := u.button(gtx, id+"type", cAccSoft, cHover, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 10, Right: 10}, u.lbl("Type at prompt  "+modText("Y"), 12, cAccText, fSemi(sansFont)))
+							d, ok := u.button(gtx, id+"type", cAccSoft, cHover, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 10, Right: 10}, u.lbl("Type at prompt  "+keys.Short("infra.suggest"), 12, cAccText, fSemi(sansFont)))
 							if ok {
 								u.d.press("ctrl+y")
 								u.wantTerm = true
@@ -679,6 +681,7 @@ func (u *ui) tokens(code, lang string) []styledtext.SpanStyle {
 }
 
 func (u *ui) composer(gtx layout.Context, t *guiTab) layout.Dimensions {
+	kit.Newline(gtx, &u.input)
 	for {
 		ev, ok := u.input.Update(gtx)
 		if !ok {
@@ -713,7 +716,7 @@ func (u *ui) composer(gtx layout.Context, t *guiTab) layout.Dimensions {
 			layout.Rigid(vgap(6)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-					layout.Flexed(1, u.lblFill("↵ send · ⇧↵ new line", 11, cText3, sansFont)),
+					layout.Flexed(1, u.lblFill("↵ send · "+keys.Short("text.newline")+" new line", 11, cText3, sansFont)),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						if t != nil && t.Busy { // stop the turn; ↵ still queues a question
 							d, ok := u.button(gtx, "stop", cPanelCard, cHover, rCtl, layout.UniformInset(6), icon(16, cText, icoStop))

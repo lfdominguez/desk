@@ -22,6 +22,7 @@ var All = []Binding{
 	{ID: "zoom.out", Scope: "Anywhere", What: "Smaller text", Def: []Chord{ctl("-")}},
 	{ID: "zoom.reset", Scope: "Anywhere", What: "Text back to 100%", Def: []Chord{ctl("0")}},
 	{ID: "escape", Scope: "Anywhere", What: "Back out of the innermost thing open", Fixed: "esc"},
+	{ID: "session.window", Scope: "Anywhere", What: "The session in view in its own window", Def: []Chord{ctlSh("O")}},
 
 	{ID: "board.new", Scope: "Board and card menu", What: "New card", Def: []Chord{ctl("N")}},
 	{ID: "board.search", Scope: "Board and card menu", What: "Search the cards", Def: []Chord{bare("/"), ctl("F")}, Bare: true},
@@ -29,6 +30,7 @@ var All = []Binding{
 	{ID: "board.move", Scope: "Board and card menu", What: "Move the selected card", Fixed: "Ctrl+↑ ↓ ← →"},
 	{ID: "board.open", Scope: "Board and card menu", What: "Open the card's session", Fixed: "↵"},
 	{ID: "card.edit", Scope: "Board and card menu", What: "Edit the card", Def: []Chord{bare("E")}, Bare: true},
+	{ID: "card.window", Scope: "Board and card menu", What: "Open the card's session in a new window (card menu)", Def: []Chord{bare("O")}, Bare: true},
 	{ID: "card.terminal", Scope: "Board and card menu", What: "The card's Claude Code terminal", Def: []Chord{bare("T")}, Bare: true},
 	{ID: "card.remote", Scope: "Board and card menu", What: "Remote Control on or off (card menu)", Def: []Chord{bare("R")}, Bare: true},
 	{ID: "card.workspace", Scope: "Board and card menu", What: "The card's workspace (card menu)", Def: []Chord{bare("W")}, Bare: true},
@@ -67,6 +69,15 @@ var All = []Binding{
 	{ID: "term.pastetext", Scope: "Card terminal", What: "Paste an image's path, or the text", Fixed: "Ctrl+Shift+V"},
 
 	{ID: "ws.save", Scope: "Card workspace", What: "Save the file", Def: []Chord{ctl("S")}},
+	{ID: "ws.open", Scope: "Card workspace", What: "Quick open: a file of the card's projects", Def: []Chord{ctl("P")}},
+	{ID: "ws.wrap", Scope: "Card workspace", What: "Wrap long lines, in every tab", Def: []Chord{{"Z", key.ModAlt}}},
+	{ID: "ws.find", Scope: "Card workspace", What: "Find in the file", Def: []Chord{ctl("F")}},
+	{ID: "ws.replace", Scope: "Card workspace", What: "Find and replace", Def: []Chord{ctl("H")}},
+	{ID: "ws.goline", Scope: "Card workspace", What: "Go to a line", Def: []Chord{ctl("G")}},
+	{ID: "ws.lineup", Scope: "Card workspace", What: "Move the line or selected lines up", Def: []Chord{{key.NameUpArrow, key.ModAlt}}},
+	{ID: "ws.linedown", Scope: "Card workspace", What: "Move the line or selected lines down", Def: []Chord{{key.NameDownArrow, key.ModAlt}}},
+	{ID: "ws.duplicate", Scope: "Card workspace", What: "Duplicate the line or selected lines", Def: []Chord{ctlSh("D")}},
+	{ID: "ws.comment", Scope: "Card workspace", What: "Comment or uncomment the lines", Def: []Chord{ctl("/")}},
 	{ID: "ws.undo", Scope: "Card workspace", What: "Undo, redo in the editor", Fixed: "Ctrl+Z, Ctrl+Shift+Z"},
 
 	{ID: "draw.select", Scope: "Drawings", What: "Selection", Def: []Chord{bare("V"), bare("1")}, Bare: true},

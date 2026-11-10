@@ -15,6 +15,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -85,7 +86,7 @@ func (u *ui) drawerRows(s *sheet) []sheetRow {
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
 				iconBtn("shSess", kit.IcoChat, "Open session", func() { u.commit(); u.openPanel(id) }),
 				iconBtn("shTerm", kit.IcoTerminal, "Claude Code terminal", func() { u.commit(); u.terminal(id) }),
-				iconBtn("shDel", kit.IcoTrash, "Delete ("+kit.ModText("Backspace")+"), undo with "+kit.ModText("Z"), u.remove),
+				iconBtn("shDel", kit.IcoTrash, "Delete ("+keys.Cap("sheet.delete")+"), undo with "+keys.Cap("undo"), u.remove),
 				iconBtn("shClose", kit.IcoX, "Close and save (esc)", u.commit))
 		})
 	}}
@@ -215,7 +216,7 @@ func (u *ui) drawerFoot(gtx layout.Context) layout.Dimensions {
 				layout.Rigid(kit.Icon(14, kit.CGreen, kit.IcoCheck)), layout.Rigid(kit.HGap(8)),
 				layout.Flexed(1, k.LblFill("Changes save when you close", 12, kit.CText3, kit.Sans)),
 				layout.Rigid(k.Hint("esc", "close")), layout.Rigid(kit.HGap(14)),
-				layout.Rigid(k.Hint(kit.ModText("Backspace"), "delete")))
+				layout.Rigid(k.Hint(keys.Cap("sheet.delete"), "delete")))
 		})
 	})
 }

@@ -22,6 +22,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/draw"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -424,27 +425,34 @@ func (u *ui) drawPointer(gtx layout.Context, st *drawState, px float32) {
 	}
 }
 
-// drawKeys are the editor's keys, Excalidraw's: a tool's letter or digit,
-// Delete, Ctrl+Z/Ctrl+Shift+Z (Ctrl+Y), Ctrl+D, Ctrl+A, Ctrl+C/X/V
-// (drawclip.go), arrows nudge,
-// Ctrl+] and Ctrl+[ (with Shift: to the front, the back), Space held
-// pans, Shift+1 fits, Alt+Shift+D the dark canvas. Off while one of
-// desk's editors or dialogs has the keyboard.
+// drawTools are the tools' shortcuts, Excalidraw's letters and digits.
+var drawTools = []struct{ id, tool string }{{"draw.select", draw.ToolSelect}, {"draw.hand", draw.ToolHand}, {"draw.rect", draw.ToolRectangle},
+	{"draw.diamond", draw.ToolDiamond}, {"draw.ellipse", draw.ToolEllipse}, {"draw.arrow", draw.ToolArrow}, {"draw.line", draw.ToolLine},
+	{"draw.draw", draw.ToolFreedraw}, {"draw.text", draw.ToolText}, {"draw.eraser", draw.ToolEraser}, {"draw.frame", draw.ToolFrame}}
+
+// drawCmds are the editor's other shortcuts (internal/keys' draw.*), in the
+// order they're matched: a chord with Shift before the same one without.
+var drawCmds = []string{"draw.redo", "draw.undo", "draw.duplicate", "draw.all", "draw.ungroup", "draw.group", "draw.copy", "draw.cut", "draw.paste",
+	"draw.front", "draw.back", "draw.forward", "draw.backward", "draw.dark", "draw.fit", "draw.delete", "draw.image"}
+
+// drawKeys are the editor's keys, Excalidraw's (internal/keys' draw.*, so
+// rebindable): a tool's letter or digit, Delete, Ctrl+Z/Ctrl+Shift+Z
+// (Ctrl+Y), Ctrl+D, Ctrl+A, Ctrl+C/X/V (drawclip.go), Ctrl+] and Ctrl+[
+// (with Shift: to the front, the back), Ctrl+1 fits, Alt+Shift+D the dark
+// canvas; arrows nudge (with Ctrl by 10: Shift alone types), Space held pans.
+// Off while one of desk's editors or dialogs has the keyboard.
 func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 	if u.drawKeysOff(gtx) {
 		return
 	}
-	mods := key.ModShortcut | key.ModShift | key.ModAlt
-	var fs []event.Filter
-	for _, n := range []key.Name{"V", "H", "R", "D", "O", "A", "L", "P", "T", "E", "Y", "Z", "F", "G", "C", "X", "[", "]", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-		key.NameDeleteBackward, key.NameDeleteForward, key.NameUpArrow, key.NameDownArrow, key.NameLeftArrow, key.NameRightArrow, key.NameSpace, key.NameReturn} {
-		fs = append(fs, key.Filter{Name: n, Optional: mods})
+	fs := keys.Filters(nil, drawCmds...)
+	for _, t := range drawTools {
+		fs = append(fs, keys.Filters(nil, t.id)...)
 	}
-	ed := st.ed
-	tools := map[key.Name]string{"V": draw.ToolSelect, "1": draw.ToolSelect, "H": draw.ToolHand, "R": draw.ToolRectangle, "2": draw.ToolRectangle,
-		"D": draw.ToolDiamond, "3": draw.ToolDiamond, "O": draw.ToolEllipse, "4": draw.ToolEllipse, "A": draw.ToolArrow, "5": draw.ToolArrow,
-		"L": draw.ToolLine, "6": draw.ToolLine, "P": draw.ToolFreedraw, "7": draw.ToolFreedraw, "T": draw.ToolText, "8": draw.ToolText,
-		"E": draw.ToolEraser, "0": draw.ToolEraser, "F": draw.ToolFrame}
+	for _, n := range []key.Name{key.NameUpArrow, key.NameDownArrow, key.NameLeftArrow, key.NameRightArrow} {
+		fs = append(fs, key.Filter{Name: n, Optional: key.ModShortcut})
+	}
+	fs = append(fs, key.Filter{Name: key.NameSpace}, key.Filter{Name: key.NameReturn})
 	for {
 		ev, ok := gtx.Event(fs...)
 		if !ok {
@@ -461,59 +469,84 @@ func (u *ui) drawKeys(gtx layout.Context, st *drawState, size image.Point) {
 		if e.State != key.Press {
 			continue
 		}
-		ctrl, shift, alt := e.Modifiers.Contain(key.ModShortcut), e.Modifiers.Contain(key.ModShift), e.Modifiers.Contain(key.ModAlt)
-		step := 1.0
-		if shift {
-			step = 10
+		u.drawCmd(gtx, st, size, e)
+	}
+}
+
+// drawCmd runs the drawing's shortcut e.
+func (u *ui) drawCmd(gtx layout.Context, st *drawState, size image.Point, e key.Event) {
+	ed := st.ed
+	step := 1.0
+	if e.Modifiers.Contain(key.ModShortcut) {
+		step = 10
+	}
+	cmd := ""
+	for _, id := range drawCmds {
+		if keys.Is(id, e) {
+			cmd = id
+			break
 		}
-		switch {
-		case ctrl && e.Name == "Z" && shift, ctrl && e.Name == "Y":
-			ed.Redo()
-		case ctrl && e.Name == "Z":
-			ed.Undo()
-		case ctrl && e.Name == "D":
-			ed.Duplicate()
-		case ctrl && e.Name == "A":
-			ed.SelectAll()
-		case ctrl && e.Name == "G" && shift:
-			ed.Ungroup()
-		case ctrl && e.Name == "G":
-			ed.Group()
-		case ctrl && e.Name == "C":
-			drawCopy(gtx, st)
-		case ctrl && e.Name == "X":
-			if drawCopy(gtx, st) {
-				ed.Delete()
-			}
-		case ctrl && e.Name == "V":
-			u.drawPaste(st.path)
-		case ctrl && e.Name == "]":
-			ed.Order(map[bool]int{true: 2, false: 1}[shift])
-		case ctrl && e.Name == "[":
-			ed.Order(map[bool]int{true: -2, false: -1}[shift])
-		case alt && shift && e.Name == "D":
-			u.drawToggleTheme(st)
-		case shift && e.Name == "1":
-			st.fit(size, gtx.Metric.PxPerDp)
-		case ctrl || alt:
-		case e.Name == key.NameDeleteBackward || e.Name == key.NameDeleteForward:
+	}
+	switch cmd {
+	case "draw.redo":
+		ed.Redo()
+	case "draw.undo":
+		ed.Undo()
+	case "draw.duplicate":
+		ed.Duplicate()
+	case "draw.all":
+		ed.SelectAll()
+	case "draw.ungroup":
+		ed.Ungroup()
+	case "draw.group":
+		ed.Group()
+	case "draw.copy":
+		drawCopy(gtx, st)
+	case "draw.cut":
+		if drawCopy(gtx, st) {
 			ed.Delete()
-		case e.Name == key.NameReturn:
-			if sel := ed.Selected(); len(sel) == 1 && sel[0].Type == "text" {
-				ed.EditText(sel[0].ID)
+		}
+	case "draw.paste":
+		u.drawPaste(st.path)
+	case "draw.front":
+		ed.Order(2)
+	case "draw.back":
+		ed.Order(-2)
+	case "draw.forward":
+		ed.Order(1)
+	case "draw.backward":
+		ed.Order(-1)
+	case "draw.dark":
+		u.drawToggleTheme(st)
+	case "draw.fit":
+		st.fit(size, gtx.Metric.PxPerDp)
+	case "draw.delete":
+		ed.Delete()
+	case "draw.image":
+		u.drawPickImage(st.path)
+	}
+	if cmd != "" {
+		return
+	}
+	switch {
+	case e.Name == key.NameReturn && e.Modifiers == 0:
+		if sel := ed.Selected(); len(sel) == 1 && sel[0].Type == "text" {
+			ed.EditText(sel[0].ID)
+		}
+	case e.Name == key.NameUpArrow:
+		ed.Nudge(0, -step)
+	case e.Name == key.NameDownArrow:
+		ed.Nudge(0, step)
+	case e.Name == key.NameLeftArrow:
+		ed.Nudge(-step, 0)
+	case e.Name == key.NameRightArrow:
+		ed.Nudge(step, 0)
+	default:
+		for _, t := range drawTools {
+			if keys.Is(t.id, e) {
+				ed.SetTool(t.tool)
+				return
 			}
-		case e.Name == key.NameUpArrow:
-			ed.Nudge(0, -step)
-		case e.Name == key.NameDownArrow:
-			ed.Nudge(0, step)
-		case e.Name == key.NameLeftArrow:
-			ed.Nudge(-step, 0)
-		case e.Name == key.NameRightArrow:
-			ed.Nudge(step, 0)
-		case e.Name == "9":
-			u.drawPickImage(st.path)
-		case tools[e.Name] != "":
-			ed.SetTool(tools[e.Name])
 		}
 	}
 }

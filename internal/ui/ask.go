@@ -168,6 +168,7 @@ func (u *ui) answerAsk(id string, allow bool) {
 // E edit, S allow the tool from now on; an interview's digits pick and
 // enter goes on. Its own fields submit with enter too.
 func (u *ui) askKeys(gtx layout.Context, id string, a *askState, act *func()) {
+	kit.Newline(gtx, &a.cmd)
 	for _, e := range append([]*widget.Editor{&a.cmd}, editorsOf(a.other)...) {
 		for {
 			ev, ok := e.Update(gtx)

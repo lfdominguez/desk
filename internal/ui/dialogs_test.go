@@ -344,10 +344,11 @@ func TestMenuPlacement(t *testing.T) {
 	if m.r.Max.X != r.Max.X+204 {
 		t.Fatalf("columns at the left: %v from %v", m.r, r)
 	}
-	if h.u.menuKey("Q") || h.u.menu == nil {
-		t.Fatal("Q was the menu's")
+	if h.u.menuKey(key.Event{Name: "Q", State: key.Press}) || h.u.menuKey(key.Event{Name: "E", Modifiers: key.ModShift, State: key.Press}) ||
+		h.u.menuKey(key.Event{Name: "1", Modifiers: key.ModShift, State: key.Press}) || h.u.menu == nil {
+		t.Fatal("Q, Shift+E or Shift+1 was the menu's")
 	}
-	if !h.u.menuKey("E") || h.u.menu != nil || h.u.edit == nil {
+	if !h.u.menuKey(key.Event{Name: "E", State: key.Press}) || h.u.menu != nil || h.u.edit == nil {
 		t.Fatal("E")
 	}
 	h.u.edit = nil

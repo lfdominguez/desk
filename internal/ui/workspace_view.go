@@ -15,6 +15,7 @@ import (
 	"github.com/oligo/gvcode"
 
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -360,14 +361,14 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 				layout.Flexed(1, k.LblFill(strings.Replace(t.path, u.home, "~", 1), 11, kit.CText3, kit.Mono)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					d, ok := k.Button(gtx, "wsWrap", color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Left: 6, Right: 6}, k.Lbl("Wrap", 11, wrap, kit.Medium(kit.Sans)))
-					k.Tip(gtx, "wsWrap", d, "Wrap long lines, in every tab (Alt+Z)", true)
+					k.Tip(gtx, "wsWrap", d, "Wrap long lines, in every tab ("+keys.Cap("ws.wrap")+")", true)
 					if ok {
 						*act = u.wsToggleWrap
 					}
 					return d
 				}),
 				layout.Rigid(kit.HGap(10)),
-				layout.Rigid(k.Lbl(fmt.Sprintf("Ln %d, Col %d   %s saves", line+1, col+1, kit.ModText("S")), 11, kit.CText3, kit.Sans)))
+				layout.Rigid(k.Lbl(fmt.Sprintf("Ln %d, Col %d   %s saves", line+1, col+1, keys.Cap("ws.save")), 11, kit.CText3, kit.Sans)))
 		})
 	}))
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
@@ -378,6 +379,7 @@ func (u *ui) wsChat(gtx layout.Context, id string, st *wsState, w int) layout.Di
 	k := u.k
 	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))
 	kit.Fill(gtx, kit.CPanel)
+	kit.Newline(gtx, &st.in)
 	for {
 		ev, ok := st.in.Update(gtx)
 		if !ok {

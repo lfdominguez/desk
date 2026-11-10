@@ -16,28 +16,32 @@ import (
 	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/draw"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
 // drawTool is a button of the toolbar.
 type drawTool struct {
-	tool, tip string
-	ico       kit.IconPath
+	tool, name, bind string // bind: its shortcut's internal/keys ID
+	ico              kit.IconPath
 }
 
+// tip is the button's name with its keys, as they're bound now.
+func (t drawTool) tip() string { return t.name + " — " + keys.Caps(t.bind) }
+
 var drawToolbar = []drawTool{
-	{draw.ToolHand, "Hand (panning tool) — H", kit.IcoHand},
-	{draw.ToolSelect, "Selection — V or 1", kit.IcoPointer},
-	{draw.ToolRectangle, "Rectangle — R or 2", kit.IcoSquare},
-	{draw.ToolDiamond, "Diamond — D or 3", kit.IcoDiamond},
-	{draw.ToolEllipse, "Ellipse — O or 4", kit.IcoCircle},
-	{draw.ToolArrow, "Arrow — A or 5", kit.IcoArrow},
-	{draw.ToolLine, "Line — L or 6", kit.IcoLine},
-	{draw.ToolFreedraw, "Draw — P or 7", kit.IcoPencil},
-	{draw.ToolText, "Text — T or 8", kit.IcoLetter},
-	{drawImageTool, "Insert image — 9", kit.IcoImage},
-	{draw.ToolEraser, "Eraser — E or 0", kit.IcoEraser},
-	{draw.ToolFrame, "Frame — F", kit.IcoFrame},
+	{draw.ToolHand, "Hand (panning tool)", "draw.hand", kit.IcoHand},
+	{draw.ToolSelect, "Selection", "draw.select", kit.IcoPointer},
+	{draw.ToolRectangle, "Rectangle", "draw.rect", kit.IcoSquare},
+	{draw.ToolDiamond, "Diamond", "draw.diamond", kit.IcoDiamond},
+	{draw.ToolEllipse, "Ellipse", "draw.ellipse", kit.IcoCircle},
+	{draw.ToolArrow, "Arrow", "draw.arrow", kit.IcoArrow},
+	{draw.ToolLine, "Line", "draw.line", kit.IcoLine},
+	{draw.ToolFreedraw, "Draw", "draw.draw", kit.IcoPencil},
+	{draw.ToolText, "Text", "draw.text", kit.IcoLetter},
+	{drawImageTool, "Insert image", "draw.image", kit.IcoImage},
+	{draw.ToolEraser, "Eraser", "draw.eraser", kit.IcoEraser},
+	{draw.ToolFrame, "Frame", "draw.frame", kit.IcoFrame},
 }
 
 // drawImageTool is the toolbar's Image: a file to choose, not a tool to draw with.
@@ -82,7 +86,7 @@ func (u *ui) drawTools(gtx layout.Context, st *drawState, size image.Point, act 
 			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				id := "drawTool" + t.tool
 				d, ok := k.IconBtn(gtx, id, t.ico, ed.Tool == t.tool)
-				tips = append(tips, func() { k.Tip(gtx, id, d, t.tip, false) })
+				tips = append(tips, func() { k.Tip(gtx, id, d, t.tip(), false) })
 				if ok {
 					tool := t.tool
 					*act = func() { ed.EndText(); ed.SetTool(tool) }
@@ -160,7 +164,7 @@ func (u *ui) drawTools(gtx layout.Context, st *drawState, size image.Point, act 
 		return layout.Flex{}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				d, ok := k.IconBtn(gtx, "drawFit", kit.IcoFit, false)
-				k.Tip(gtx, "drawFit", d, "Show it all — Shift+1", true)
+				k.Tip(gtx, "drawFit", d, "Show it all — "+keys.Cap("draw.fit"), true)
 				if ok {
 					*act = func() { st.fit(size, gtx.Metric.PxPerDp) }
 				}
@@ -176,7 +180,7 @@ func (u *ui) drawTools(gtx layout.Context, st *drawState, size image.Point, act 
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				d, ok := k.IconBtn(gtx, "drawTheme", kit.IcoMoon, st.dark())
-				k.Tip(gtx, "drawTheme", d, "Dark canvas — Alt+Shift+D", true)
+				k.Tip(gtx, "drawTheme", d, "Dark canvas — "+keys.Cap("draw.dark"), true)
 				if ok {
 					*act = func() { u.drawToggleTheme(st) }
 				}
@@ -485,7 +489,7 @@ func (u *ui) drawStyle(gtx layout.Context, st *drawState, sel []*draw.Element, a
 			if len(sel) > 1 {
 				gs = append(gs, func(gtx layout.Context) layout.Dimensions {
 					d, ok := k.Button(gtx, "drawGroup", kit.CPane, kit.CHover, kit.RCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, k.Lbl("Group", 11, kit.CText2, kit.Sans))
-					k.Tip(gtx, "drawGroup", d, "Group — Ctrl+G", false)
+					k.Tip(gtx, "drawGroup", d, "Group — "+keys.Cap("draw.group"), false)
 					if ok {
 						*act = ed.Group
 					}
@@ -495,7 +499,7 @@ func (u *ui) drawStyle(gtx layout.Context, st *drawState, sel []*draw.Element, a
 			if grouped {
 				gs = append(gs, func(gtx layout.Context) layout.Dimensions {
 					d, ok := k.Button(gtx, "drawUngroup", kit.CPane, kit.CHover, kit.RCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, k.Lbl("Ungroup", 11, kit.CText2, kit.Sans))
-					k.Tip(gtx, "drawUngroup", d, "Ungroup — Ctrl+Shift+G", false)
+					k.Tip(gtx, "drawUngroup", d, "Ungroup — "+keys.Cap("draw.ungroup"), false)
 					if ok {
 						*act = ed.Ungroup
 					}
@@ -505,13 +509,13 @@ func (u *ui) drawStyle(gtx layout.Context, st *drawState, sel []*draw.Element, a
 			section("Group", gs...)
 		}
 		section("Layers",
-			btn("drawToBack", "Send to back — Ctrl+Shift+[", kit.IcoBack, func() { ed.Order(-2) }),
-			btn("drawBackward", "Send backward — Ctrl+[", kit.IcoBackward, func() { ed.Order(-1) }),
-			btn("drawForward", "Bring forward — Ctrl+]", kit.IcoForward, func() { ed.Order(1) }),
-			btn("drawFront", "Bring to front — Ctrl+Shift+]", kit.IcoFront, func() { ed.Order(2) }))
+			btn("drawToBack", "Send to back — "+keys.Cap("draw.back"), kit.IcoBack, func() { ed.Order(-2) }),
+			btn("drawBackward", "Send backward — "+keys.Cap("draw.backward"), kit.IcoBackward, func() { ed.Order(-1) }),
+			btn("drawForward", "Bring forward — "+keys.Cap("draw.forward"), kit.IcoForward, func() { ed.Order(1) }),
+			btn("drawFront", "Bring to front — "+keys.Cap("draw.front"), kit.IcoFront, func() { ed.Order(2) }))
 		section("Actions",
-			btn("drawDup", "Duplicate — Ctrl+D", kit.IcoCopy, ed.Duplicate),
-			btn("drawDel", "Delete — Delete", kit.IcoTrash, ed.Delete))
+			btn("drawDup", "Duplicate — "+keys.Cap("draw.duplicate"), kit.IcoCopy, ed.Duplicate),
+			btn("drawDel", "Delete — "+keys.Cap("draw.delete"), kit.IcoTrash, ed.Delete))
 	}
 	return layout.UniformInset(8).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		st.styles.Axis = layout.Vertical

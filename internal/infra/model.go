@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/keys"
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/sshc"
 )
@@ -187,7 +188,7 @@ func (t *Tab) typingTo(term *Term) []*Term {
 // toggleBroadcast turns typing into all of t's panes on or off.
 func (m *model) toggleBroadcast(t *Tab) {
 	if t == nil || len(t.panes) < 2 && !t.broadcast {
-		m.flash = "broadcast needs two or more panes (" + modText("T") + " opens one)"
+		m.flash = "broadcast needs two or more panes (" + keys.Short("infra.pane") + " opens one)"
 		return
 	}
 	t.broadcast = !t.broadcast

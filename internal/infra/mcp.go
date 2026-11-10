@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 )
 
@@ -568,7 +569,7 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		if err != nil {
 			return toolResult{Text: err.Error(), IsError: true}
 		}
-		return toolResult{Text: "saved " + p + "; the user starts it from the palette (" + modText("K") + ")"}
+		return toolResult{Text: "saved " + p + "; the user starts it from the palette (" + keys.Short("infra.palette") + ")"}
 	case "connect":
 		n, err := t.findHost(a.Host)
 		if err != nil {

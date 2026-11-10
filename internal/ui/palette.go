@@ -16,6 +16,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/fzf"
 	"github.com/lfdominguez/desk/internal/infra"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -154,7 +155,7 @@ func (u *ui) palItems() []*palItem {
 	act := func(id, title, cap string, ico kit.IconPath, run func()) {
 		actions = append(actions, &palItem{id: "act:" + id, kind: palAction, title: title, ico: ico, right: cap, keyCap: cap != "", run: run})
 	}
-	act("new", "New card", kit.ModText("N"), kit.IcoPlus, func() { u.newCard(u.selCol()) })
+	act("new", "New card", keys.Cap("board.new"), kit.IcoPlus, func() { u.newCard(u.selCol()) })
 	for _, o := range u.orgList {
 		act("new:"+o, "New card in "+o, "", kit.IcoPlus, func() {
 			u.newCard(u.selCol())
@@ -166,6 +167,7 @@ func (u *ui) palItems() []*palItem {
 		act("settings:"+o, "Open "+o+" settings", "", kit.IcoEdit, func() { u.openConfig(o) })
 	}
 	act("folders", "Search folders", "", kit.IcoSearch, func() { u.openConfig(cfgFolders) })
+	act("keys", "Keyboard shortcuts", "", kit.IcoEdit, func() { u.openConfig(cfgKeys) })
 	var files []*palItem
 	if u.pal != nil {
 		files = u.pal.files
@@ -300,8 +302,8 @@ func (u *ui) paletteDialog(gtx layout.Context) {
 	}
 	rows, order := u.palRowsKept(p)
 	for {
-		ev, ok := gtx.Event(key.Filter{Name: key.NameUpArrow}, key.Filter{Name: key.NameDownArrow},
-			key.Filter{Name: key.NameTab, Optional: key.ModShift}, key.Filter{Name: key.NameReturn}, key.Filter{Name: key.NameEnter})
+		ev, ok := gtx.Event(append(keys.Filters(nil, "pal.next", "pal.prev"), key.Filter{Name: key.NameUpArrow}, key.Filter{Name: key.NameDownArrow},
+			key.Filter{Name: key.NameReturn}, key.Filter{Name: key.NameEnter})...)
 		if !ok {
 			break
 		}
@@ -309,21 +311,20 @@ func (u *ui) paletteDialog(gtx layout.Context) {
 		if !ok || e.State != key.Press {
 			continue
 		}
-		switch e.Name {
-		case key.NameUpArrow:
-			p.sel = max(p.sel-1, 0)
-		case key.NameDownArrow:
-			p.sel = max(min(p.sel+1, len(order)-1), 0)
-		case key.NameTab:
-			n := p.scopes()
-			if e.Modifiers.Contain(key.ModShift) {
+		switch n := p.scopes(); {
+		case keys.Is("pal.next", e), keys.Is("pal.prev", e):
+			if keys.Is("pal.prev", e) {
 				p.scope = (p.scope + n - 1) % n
 			} else {
 				p.scope = (p.scope + 1) % n
 			}
 			p.sel = 0
 			rows, order = u.palRowsKept(p)
-		case key.NameReturn, key.NameEnter:
+		case e.Name == key.NameUpArrow:
+			p.sel = max(p.sel-1, 0)
+		case e.Name == key.NameDownArrow:
+			p.sel = max(min(p.sel+1, len(order)-1), 0)
+		case e.Name == key.NameReturn, e.Name == key.NameEnter:
 			if p.sel < len(order) {
 				u.palPick(order[p.sel])
 				return
@@ -377,7 +378,7 @@ func (u *ui) paletteDialog(gtx layout.Context) {
 			ch = append(ch, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
 			}),
-				layout.Rigid(k.Hint("tab", "next scope")))
+				layout.Rigid(k.Hint(keys.Cap("pal.next"), "next scope")))
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, ch...)
 		})
 	}
