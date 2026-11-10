@@ -6,6 +6,26 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Change any keyboard shortcut**: **Settings → Keyboard shortcuts** (or **Keyboard shortcuts**
+  in the command palette) lists every shortcut of desk and its infra workspace by where it works.
+  **Change** takes the next key you press, a key another shortcut there already uses is named
+  before you save, **Reset** and **Reset all** put the defaults back. Saved in `settings.toml`
+  under `[keys]`; buttons, tips and the workspace editor's open tabs take your keys at once.
+
+### Changed
+
+- **No shortcut is Shift alone any more**: every key with a modifier has Ctrl or Alt in it, since
+  Shift alone types (Shift+2 is `@` on many layouts). What moved:
+  - A new line in a message box (a session's, the workspace's, a drawing's chat, the permission
+    and approval boxes' edit, the infra Claude's): **Alt+Enter**, was Shift+Enter, which now does
+    nothing.
+  - The palettes' previous scope: **Ctrl+Shift+Tab**, was Shift+Tab.
+  - Drawings: show it all is **Ctrl+1**, was Shift+1; arrows move by 10 with **Ctrl**, was Shift.
+  - The files split: **Ctrl**+arrows, PgUp/PgDn, Home/End mark what they pass, was Shift; rename
+    is **F2** only (Shift+F6 is gone).
+
 ## [2026.11.11.1] - 2026-11-11
 
 ### Fixed
