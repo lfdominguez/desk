@@ -9,7 +9,7 @@ import (
 )
 
 // CodeEditor is gvcode's editor in desk's look: Geist Mono, our colours,
-// line numbers, no wrap. scheme brings the syntax scopes (its palette is
+// line numbers, no wrap (gvcode.WrapLine turns it on). scheme brings the syntax scopes (its palette is
 // set here); gutters are added after the line numbers (a diff's, say).
 func CodeEditor(scheme syntax.ColorScheme, gutters ...gutter.GutterProvider) *gvcode.Editor {
 	scheme.Foreground = gvcolor.MakeColor(CText)

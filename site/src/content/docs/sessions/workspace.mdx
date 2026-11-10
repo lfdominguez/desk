@@ -1,6 +1,6 @@
 ---
 title: The workspace
-description: A card's IDE view, where you read and edit its projects' files beside a second Claude that reads them with you, never writes, and answers the card's own Claude.
+description: A card's editor view, where you read and edit its projects' files beside a second Claude that reads them with you, never writes, and answers the card's own Claude.
 ---
 
 Every card has a workspace: its projects' files, an editor, and a second Claude, the workspace
@@ -23,8 +23,14 @@ workspace is where you look over its shoulder, ask about what it did, and fix th
 <figcaption>The workspace icon in a session's header.</figcaption>
 </figure>
 
-<kbd>Esc</kbd> goes back to the card's session, even from inside the editor. The chat icon at the
-top right does the same.
+<kbd>Esc</kbd> goes back to the card's session, even from inside the editor (with the find bar
+open, it closes that first). The chat icon at the top right does the same.
+
+The tree, the editor and the workspace Claude's chat sit side by side. Drag the line between two
+of them to make the tree (160 to 480 dp) or the chat (300 to 720 dp) wider or narrower; desk keeps
+the widths for every card's workspace (`[editor]` in
+[settings.toml](/reference/desk-toml/#settingstoml)). In a narrow window the chat, then the tree,
+give way so the editor keeps room.
 
 ## Projects
 
@@ -42,22 +48,65 @@ adds it with desk's `add_project` tool. desk takes the repository's root above t
 <figcaption>The tree: folders first, each read when you open it. Files and tabs show their kind's icon, as VS Code's default (Seti) theme draws it.</figcaption>
 </figure>
 
-- A click on a folder opens or closes it; desk reads it as you open it, so a closed and reopened
-  folder shows what's there now. `.git` and `node_modules` stay out.
+- A click on a folder opens or closes it; desk reads it as you open it. Open folders are read
+  again when you open the workspace and when the card's Claude writes a file in them, so a new file
+  shows up. `.git`, `node_modules`, `.worktrees`, `__pycache__` and `.venv` stay out.
 - A click on a file opens it in a tab.
+- <kbd>Ctrl</kbd>+<kbd>P</kbd>, from the editor too, opens the [palette](/board/palette/) on the
+  workspace's files (its **Files** tab, only there): type part of a name or path, <kbd>Enter</kbd>
+  opens the file. The folders the tree leaves out are left out here too.
 - The **×** on an added project's row takes it out of the workspace (not its files).
 
 The projects are saved on the card (`projects` in the board file).
 
 ## The editor
 
-Files open in tabs over the editor: line numbers, the code's highlighting (the same colors as the
-chat's code), no wrapping, undo and redo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>,
+Files open in tabs over the editor (more than fit scroll sideways, the one shown kept in view):
+line numbers, the code's highlighting (the same colors as the
+chat's code), undo and redo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>,
 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd>
-to indent selected lines. The foot shows the file's path and the caret's line and column.
+to indent selected lines. The foot shows the file's path, **Wrap** and the caret's line and column.
 
-- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions. A tab with
+Long lines run off to the right until you turn on wrapping: <kbd>Alt</kbd>+<kbd>Z</kbd> in the
+editor, or **Wrap** in the foot (lit while it's on). It counts for every tab and every card's
+workspace, and desk keeps it (`wrap` under `[editor]` in
+[settings.toml](/reference/desk-toml/#settingstoml)). A wrapped line keeps one line number, on its
+first row, and the foot's line counts lines, not rows.
+
+### Lines
+
+On the lines the caret or the selection is on, each one step for <kbd>Ctrl</kbd>+<kbd>Z</kbd>:
+
+- <kbd>Alt</kbd>+<kbd>↑</kbd> and <kbd>Alt</kbd>+<kbd>↓</kbd> move them up or down past the next
+  line.
+- <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> puts a copy of them below.
+- <kbd>Ctrl</kbd>+<kbd>/</kbd> comments them out with the language's line comment (`//`, `#`,
+  `--`…), at their least indent, or back in when they all are. Languages whose comments wrap the
+  text (Markdown, HTML, JSON) have none: a toast says so.
+
+### Find, replace, go to line
+
+In the editor, a bar opens over the file:
+
+- <kbd>Ctrl</kbd>+<kbd>F</kbd> finds in the file shown, with the selection (on one line) as the
+  query. Matching is plain text: a query without capitals finds any case, one with capitals finds
+  that case. Every match is marked; typing selects the first from the caret on, <kbd>Enter</kbd>
+  or **↓** the next, **↑** the one before, going round at the ends. The bar counts them ("2 of
+  7").
+- <kbd>Ctrl</kbd>+<kbd>H</kbd> adds **Replace with**: <kbd>Enter</kbd> or **Replace** replaces the
+  match selected and selects the next; **All** replaces every match, undone in one
+  <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
+- <kbd>Ctrl</kbd>+<kbd>G</kbd> asks for a line number: <kbd>Enter</kbd> puts the caret at its
+  start.
+
+<kbd>Esc</kbd> or the **×** closes the bar and gives the editor the keys back.
+
+- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions (a file opened
+  through a symlink is written where the link points; the link stays). A tab with
   changes not saved shows **●** after its name; its **×** asks once before dropping them.
+- Quitting desk with changes not saved keeps them (in `unsaved.json` beside the board, readable
+  only by you): when you open that card's workspace again, its tabs come back with your text and
+  the **●**. If a file changed on disk meanwhile, the bar below asks which to keep.
 - When the file changes on disk (the card's Claude edited it, say) and you have no changes in it,
   the tab reloads by itself. desk looks when the card's Claude finishes an edit to that file, when
   you open the workspace and when you switch to the tab.
@@ -118,5 +167,6 @@ added while it runs restarts it (resumed) before its next answer.
   Claude:"), as the [infra Claude's](/servers/cards/) messages do. When you ask it to pass a
   suggestion on, it sends it the same way (`suggest_to_card`).
 
-Its conversation is kept beside the card's (`chats/ws-<card>.jsonl`). Open tabs aren't kept: the
-workspace opens with none when desk starts again.
+Its conversation is kept beside the card's (`chats/ws-<card>.jsonl`). The open tabs are kept on the
+card (`tabs` in the board file) and open again with its workspace; a file gone from disk is left
+out.

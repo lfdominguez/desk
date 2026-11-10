@@ -62,6 +62,7 @@ type Card struct {
 	Remote    bool      `json:"remote,omitempty"`     // its terminal's Claude runs with Remote Control
 	Alert     string    `json:"alert,omitempty"`      // the monitoring alert it investigates: "org|host|service"
 	Projects  []string  `json:"projects,omitempty"`   // its workspace's folders beyond its own (absolute)
+	Tabs      []string  `json:"tabs,omitempty"`       // the files open in its workspace, in order (absolute)
 	WSSession string    `json:"ws_session,omitempty"` // its workspace Claude's session (claude --resume)
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age

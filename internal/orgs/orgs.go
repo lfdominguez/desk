@@ -280,6 +280,7 @@ type settings struct {
 	CardLang string   `toml:"card_lang,omitempty"` // what cards (and Improve, and tickets) are written in
 	ChatLang string   `toml:"chat_lang,omitempty"` // what Claude speaks with the user in
 	Zoom     int      `toml:"zoom,omitempty"`      // the terminals' and session panel's text, in percent (zoom.go)
+	Editor   Editor   `toml:"editor,omitempty"`    // the workspace's panes and editor (editor.go)
 }
 
 func loadSettings() (s settings) {

@@ -10,8 +10,6 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"github.com/oligo/gvcode"
@@ -26,10 +24,11 @@ func (u *ui) openWS(id string) {
 		return
 	}
 	u.view, u.panel, u.sel = "ws:"+id, "", id
-	for _, t := range u.wsOf(id).tabs {
+	st := u.wsOf(id)
+	for _, t := range st.tabs {
 		u.wsCheck(t)
 	}
-	u.wsRedraw()
+	u.wsRefresh(st, "") // what changed while it wasn't shown (a shell's work, say)
 }
 
 // wsSend sends the user's message to the workspace Claude, with what they
@@ -56,6 +55,9 @@ func (u *ui) wsSend(id, text string) {
 func (u *ui) wsTyping(gtx layout.Context) bool {
 	for _, st := range u.ws {
 		if gtx.Focused(&st.in) {
+			return true
+		}
+		if f := st.find; f != nil && (gtx.Focused(&f.q) || gtx.Focused(&f.rep) || gtx.Focused(&f.line)) {
 			return true
 		}
 		for _, t := range st.tabs {
@@ -85,10 +87,6 @@ func (u *ui) wsView(gtx layout.Context) layout.Dimensions {
 		}
 	}()
 	k := u.k
-	vline := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, kit.CLine, clip.Rect(image.Rect(0, 0, gtx.Dp(1), gtx.Constraints.Max.Y)).Op())
-		return layout.Dimensions{Size: image.Pt(gtx.Dp(1), gtx.Constraints.Max.Y)}
-	})
 	header := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		kit.Fill(gtx, kit.CPanel)
@@ -111,12 +109,13 @@ func (u *ui) wsView(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(header),
 		layout.Rigid(kit.VGap(1)),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			tw, cw := u.wsPanes(gtx)
 			return layout.Flex{}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsTree(gtx, c, st, &act) }),
-				vline,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsTree(gtx, c, st, tw, &act) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsEdge(gtx, 0, tw) }),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.wsCenter(gtx, id, st, &act) }),
-				vline,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsChat(gtx, id, st) }))
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsEdge(gtx, 1, cw) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsChat(gtx, id, st, cw) }))
 		}))
 }
 
@@ -148,9 +147,9 @@ func (u *ui) wsRows(c *kanban.Card, st *wsState) []wsRow {
 	return rows
 }
 
-func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, act *func()) layout.Dimensions {
+func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, w int, act *func()) layout.Dimensions {
 	k := u.k
-	gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(260), gtx.Constraints.Max.Y))
+	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))
 	kit.Fill(gtx, kit.CPanel)
 	rows := u.wsRows(c, st)
 	cur := ""
@@ -238,51 +237,50 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 			u.wsRedraw()
 		}
 	}
-	if t.tokGen != t.gen { // tokens per text generation: an edit, a reload
-		t.ed.SetSyntaxTokens(chromaTokens(t.ed.Text(), t.path)...)
-		t.tokGen = t.gen
-	}
+	u.wsLex(t)
 	tabs := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		kit.Fill(gtx, kit.CPanel)
-		var kids []layout.FlexChild
-		for i, tb := range st.tabs {
-			on := i == st.cur
-			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				fill, fg := kit.CPanel, kit.CText3
-				if on {
-					fill, fg = kit.CPane, kit.CText
-				}
-				name := filepath.Base(tb.path)
-				if tb.dirty {
-					name += " ●"
-				}
-				d, ok := k.Button(gtx, "wsTab"+tb.path, fill, kit.CHover, 0, layout.Inset{Top: 7, Bottom: 7, Left: 12, Right: 4}, func(gtx layout.Context) layout.Dimensions {
-					semantic.SelectedOp(on).Add(gtx.Ops) // the tab shown, for screen readers
-					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-						layout.Rigid(k.FileIcon(tb.path, 16)), layout.Rigid(kit.HGap(4)),
-						layout.Rigid(k.Lbl(name, 12, fg, kit.Medium(kit.Sans))), layout.Rigid(kit.HGap(6)),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							d, ok := k.Button(gtx, "wsTabX"+tb.path, color.NRGBA{}, kit.CHover, kit.RCtl, layout.UniformInset(2), kit.Icon(11, kit.CText3, kit.IcoX))
-							if ok {
-								n := i
-								*act = func() { u.wsCloseTab(st, n) }
-							}
-							return d
-						}))
-				})
-				if ok && *act == nil {
-					n := i
-					*act = func() {
-						st.cur = n
-						u.wsCheck(st.tabs[n])
-						u.wsRedraw()
-					}
-				}
-				return d
-			}))
+		if p := st.tabBar.Position; st.cur != st.shown { // a tab just shown scrolls into view; a scroll by hand stays
+			if st.cur < p.First || st.cur >= p.First+p.Count {
+				st.tabBar.ScrollTo(st.cur)
+			}
+			st.shown = st.cur
 		}
-		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, kids...)
+		return st.tabBar.Layout(gtx, len(st.tabs), func(gtx layout.Context, i int) layout.Dimensions {
+			tb, on := st.tabs[i], i == st.cur
+			fill, fg := kit.CPanel, kit.CText3
+			if on {
+				fill, fg = kit.CPane, kit.CText
+			}
+			name := filepath.Base(tb.path)
+			if tb.dirty {
+				name += " ●"
+			}
+			d, ok := k.Button(gtx, "wsTab"+tb.path, fill, kit.CHover, 0, layout.Inset{Top: 7, Bottom: 7, Left: 12, Right: 4}, func(gtx layout.Context) layout.Dimensions {
+				semantic.SelectedOp(on).Add(gtx.Ops) // the tab shown, for screen readers
+				return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(k.FileIcon(tb.path, 16)), layout.Rigid(kit.HGap(4)),
+					layout.Rigid(k.Lbl(name, 12, fg, kit.Medium(kit.Sans))), layout.Rigid(kit.HGap(6)),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						d, ok := k.Button(gtx, "wsTabX"+tb.path, color.NRGBA{}, kit.CHover, kit.RCtl, layout.UniformInset(2), kit.Icon(11, kit.CText3, kit.IcoX))
+						if ok {
+							n := i
+							*act = func() { u.wsCloseTab(st, n) }
+						}
+						return d
+					}))
+			})
+			if ok && *act == nil {
+				n := i
+				*act = func() {
+					st.cur = n
+					u.wsCheck(st.tabs[n])
+					u.wsRedraw()
+				}
+			}
+			return d
+		})
 	}
 	bar := func(gtx layout.Context, fg color.NRGBA, msg string, btns ...layout.FlexChild) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -329,8 +327,15 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 				}))
 		}))
 	}
+	if st.find != nil {
+		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsFindBar(gtx, st, t, act) }))
+	}
 	kids = append(kids, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: 4}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			if u.focusLater == t.ed { // back from the find bar
+				gtx.Execute(key.FocusCmd{Tag: t.ed})
+				u.focusLater = nil
+			}
 			d := t.ed.Layout(gtx, k.Sh)
 			if w := t.want; w != nil { // now that its text is shaped; the next frame scrolls to it
 				t.want = nil
@@ -344,8 +349,21 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 		line, col := t.ed.CaretPos()
 		return layout.Inset{Top: 4, Bottom: 4, Left: 12, Right: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
-			return layout.Flex{}.Layout(gtx,
+			wrap := kit.CText3
+			if u.wsEd.Wrap {
+				wrap = kit.CAccText
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 				layout.Flexed(1, k.LblFill(strings.Replace(t.path, u.home, "~", 1), 11, kit.CText3, kit.Mono)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d, ok := k.Button(gtx, "wsWrap", color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Left: 6, Right: 6}, k.Lbl("Wrap", 11, wrap, kit.Medium(kit.Sans)))
+					k.Tip(gtx, "wsWrap", d, "Wrap long lines, in every tab (Alt+Z)", true)
+					if ok {
+						*act = u.wsToggleWrap
+					}
+					return d
+				}),
+				layout.Rigid(kit.HGap(10)),
 				layout.Rigid(k.Lbl(fmt.Sprintf("Ln %d, Col %d   %s saves", line+1, col+1, kit.ModText("S")), 11, kit.CText3, kit.Sans)))
 		})
 	}))
@@ -353,9 +371,9 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 }
 
 // wsChat is the workspace Claude's conversation and its composer.
-func (u *ui) wsChat(gtx layout.Context, id string, st *wsState) layout.Dimensions {
+func (u *ui) wsChat(gtx layout.Context, id string, st *wsState, w int) layout.Dimensions {
 	k := u.k
-	gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(400), gtx.Constraints.Max.Y))
+	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))
 	kit.Fill(gtx, kit.CPanel)
 	for {
 		ev, ok := st.in.Update(gtx)

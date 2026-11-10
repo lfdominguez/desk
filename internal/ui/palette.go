@@ -24,13 +24,14 @@ import (
 // scopes; an empty search shows the last items opened first.
 
 // palScopes are the palette's tabs; an item's kind is its tab's index.
-var palScopes = []string{"All", "Cards", "Servers", "Sessions", "Actions"}
+var palScopes = []string{"All", "Cards", "Servers", "Sessions", "Actions", "Files"}
 
 const (
 	palCard = 1 + iota
 	palServer
 	palSession
 	palAction
+	palFile // a card workspace's files, while it is the view (workspace_open.go)
 )
 
 // palRecents is how many opened items the empty search remembers.
@@ -43,6 +44,7 @@ type palette struct {
 	sel   int    // the selected item, in the order shown
 	focus bool   // focus q on the next frame
 	list  layout.List
+	files []*palItem // the workspace's files, walked as it opened there
 	// what palRowsKept last worked out, and for what
 	rowsKey string
 	rows    []palRow
@@ -74,6 +76,18 @@ func (u *ui) openPalette() {
 	p := &palette{focus: true, list: layout.List{Axis: layout.Vertical}}
 	p.q.SingleLine = true
 	u.pal, u.menu = p, nil
+	if id, ok := strings.CutPrefix(u.view, "ws:"); ok {
+		p.files = u.wsFileItems(id)
+	}
+}
+
+// scopes is how many of palScopes the palette shows: Files only with a
+// workspace's files.
+func (p *palette) scopes() int {
+	if p.files == nil {
+		return palFile
+	}
+	return len(palScopes)
 }
 
 // closePalette closes it; its search's focus goes with it (the router
@@ -152,7 +166,11 @@ func (u *ui) palItems() []*palItem {
 		act("settings:"+o, "Open "+o+" settings", "", kit.IcoEdit, func() { u.openConfig(o) })
 	}
 	act("folders", "Search folders", "", kit.IcoSearch, func() { u.openConfig(cfgFolders) })
-	return slices.Concat(cards, servers, sessions, actions)
+	var files []*palItem
+	if u.pal != nil {
+		files = u.pal.files
+	}
+	return slices.Concat(cards, servers, sessions, actions, files)
 }
 
 // stateWord is how a server's state reads on its row; idle says nothing.
@@ -202,7 +220,7 @@ func (u *ui) palRows(q string, scope int) (rows []palRow, order []*palItem) {
 				rest = append(rest, it)
 			}
 		}
-		for k := palCard; k <= palAction; k++ {
+		for k := palCard; k < len(palScopes); k++ {
 			add(palScopes[k], slices.DeleteFunc(slices.Clone(rest), func(it *palItem) bool { return it.kind != k }))
 		}
 		return rows, order
@@ -297,7 +315,7 @@ func (u *ui) paletteDialog(gtx layout.Context) {
 		case key.NameDownArrow:
 			p.sel = max(min(p.sel+1, len(order)-1), 0)
 		case key.NameTab:
-			n := len(palScopes)
+			n := p.scopes()
 			if e.Modifiers.Contain(key.ModShift) {
 				p.scope = (p.scope + n - 1) % n
 			} else {
@@ -343,7 +361,7 @@ func (u *ui) paletteDialog(gtx layout.Context) {
 	tabs := func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Left: 12, Right: 12, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			var ch []layout.FlexChild
-			for i, s := range palScopes {
+			for i, s := range palScopes[:p.scopes()] {
 				ch = append(ch, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					fg, fill := kit.CText3, color.NRGBA{}
 					if i == p.scope {

@@ -36,6 +36,7 @@ type wsTab struct {
 	closing bool         // its × was pressed while dirty: a second one discards
 	gen     int          // bumps on every edit
 	tokGen  int          // the gen its syntax tokens are of
+	lexing  bool         // a lex is running off the UI goroutine: one at a time per tab
 	edit    *kanban.Edit // the change opened from the chat (Open in workspace), nil none
 	note    string       // why the change isn't shown
 	want    *[2]int      // a selection to make once laid out (gvcode places the caret on its shaped text)
@@ -92,6 +93,32 @@ func chromaTokens(src, path string) []syntax.Token {
 	return out
 }
 
+// wsTokens is the lexer wsLex runs (a var tests replace, to hold one in flight).
+var wsTokens = chromaTokens
+
+// wsLex brings t's syntax tokens up to its text's gen, off the UI goroutine:
+// chroma lexes the whole file (about 30 ms for 20 KB, seconds for MBs), so
+// in a frame it froze typing. One lex runs at a time; edits made meanwhile
+// get the next one, and until it lands the old tokens stay (gvcode looks
+// them up by range, so ones past the text do nothing).
+// ponytail: whole-file re-lex per edit, colors lag on multi-MB files; lex
+// only from the edit on if that ever matters.
+func (u *ui) wsLex(t *wsTab) {
+	if t.tokGen == t.gen || t.lexing {
+		return
+	}
+	t.lexing = true
+	src, gen, path := t.ed.Text(), t.gen, t.path
+	go func() {
+		toks := wsTokens(src, path)
+		u.later(func() {
+			t.ed.SetSyntaxTokens(toks...)
+			t.tokGen, t.lexing = gen, false
+			u.wsRedraw()
+		})
+	}()
+}
+
 // wsOpen opens path in st (or shows its tab), checking it against the disk.
 func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 	for i, t := range st.tabs {
@@ -107,17 +134,44 @@ func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 		u.showToast(err.Error(), true)
 		return nil
 	}
-	t := &wsTab{path: path, diff: providers.NewVCSDiffProvider(), mtime: fi.ModTime(), mode: fi.Mode().Perm(), tokGen: -1}
+	t := u.wsAddTab(st, path, string(b), fi.ModTime(), fi.Mode().Perm())
+	u.wsKeepTabs(st)
+	return t
+}
+
+// wsAddTab opens a tab over path holding text, as of the file's mtime, and shows it.
+func (u *ui) wsAddTab(st *wsState, path, text string, mtime time.Time, mode os.FileMode) *wsTab {
+	t := &wsTab{path: path, diff: providers.NewVCSDiffProvider(), mtime: mtime, mode: mode, tokGen: -1}
 	t.ed = kit.CodeEditor(wsScheme(), t.diff)
-	t.ed.SetText(string(b))
+	t.ed.WithOptions(gvcode.WrapLine(u.wsEd.Wrap))
+	t.ed.SetText(text)
 	t.ed.RegisterCommand(t, key.Filter{Name: "S", Required: key.ModShortcut}, func(layout.Context, key.Event) gvcode.EditorEvent {
 		u.wsSave(t)
 		return nil
 	})
+	t.ed.RegisterCommand(t, key.Filter{Name: "Z", Required: key.ModAlt}, func(layout.Context, key.Event) gvcode.EditorEvent {
+		u.wsToggleWrap()
+		return nil
+	})
+	u.wsFindKeys(st, t)
+	u.wsLineKeys(t)
 	st.tabs = append(st.tabs, t)
 	st.cur = len(st.tabs) - 1
 	u.wsRedraw()
 	return t
+}
+
+// wsToggleWrap turns word wrap on or off in every workspace's tabs, and keeps
+// it. gvcode keeps one number per line on its first row, and the caret's line
+// counts lines, not rows, so nothing else changes with it.
+func (u *ui) wsToggleWrap() {
+	u.wsEd.Wrap = !u.wsEd.Wrap
+	for _, st := range u.ws {
+		for _, t := range st.tabs {
+			t.ed.WithOptions(gvcode.WrapLine(u.wsEd.Wrap))
+		}
+	}
+	u.wsSaveEditor()
 }
 
 // readText reads a file the editor can show: text, not too big.
@@ -141,23 +195,11 @@ func readText(path string) ([]byte, os.FileInfo, error) {
 
 // wsSave writes t's text over its file (atomically, keeping its mode).
 func (u *ui) wsSave(t *wsTab) {
-	tmp, err := os.CreateTemp(filepath.Dir(t.path), "."+filepath.Base(t.path)+".*")
-	if err == nil {
-		_, err = tmp.WriteString(t.ed.PrepareForSave(t.ed.Text()))
-		if cerr := tmp.Close(); err == nil {
-			err = cerr
-		}
-		if err == nil {
-			err = os.Chmod(tmp.Name(), t.mode)
-		}
-		if err == nil {
-			err = os.Rename(tmp.Name(), t.path)
-		}
-		if err != nil {
-			os.Remove(tmp.Name())
-		}
+	to := t.path
+	if p, err := filepath.EvalSymlinks(to); err == nil {
+		to = p // the file a link points at: the rename would put a plain file in the link's place
 	}
-	if err != nil {
+	if err := writeAtomic(to, t.ed.PrepareForSave(t.ed.Text()), t.mode); err != nil {
 		u.showToast("Not saved: "+err.Error(), true)
 		return
 	}
@@ -167,6 +209,29 @@ func (u *ui) wsSave(t *wsTab) {
 	t.dirty, t.disk, t.closing = false, false, false
 	u.wsRedraw()
 	u.showToast("Saved "+filepath.Base(t.path), false)
+}
+
+// writeAtomic writes text over path through a temporary file beside it
+// renamed into place, so a crash leaves the old file or the new, never half.
+func writeAtomic(path, text string, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	_, err = tmp.WriteString(text)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), mode)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		os.Remove(tmp.Name())
+	}
+	return err
 }
 
 // wsCheck looks at t's file on disk (the view shown, the main Claude's edit
@@ -210,7 +275,8 @@ func (u *ui) wsKeepMine(t *wsTab) {
 	u.wsRedraw()
 }
 
-// wsTouched is the main session's edit to path done: its open tabs check it.
+// wsTouched is the main session's edit to path done: its open tabs check
+// it, and the tree shows it if it's new.
 func (u *ui) wsTouched(id, path string) {
 	if st := u.ws[id]; st != nil {
 		for _, t := range st.tabs {
@@ -218,6 +284,7 @@ func (u *ui) wsTouched(id, path string) {
 				u.wsCheck(t)
 			}
 		}
+		u.wsRefresh(st, path)
 	}
 }
 
@@ -313,5 +380,6 @@ func (u *ui) wsCloseTab(st *wsState, i int) {
 	if st.cur >= i && st.cur > 0 {
 		st.cur--
 	}
+	u.wsKeepTabs(st)
 	u.wsRedraw()
 }

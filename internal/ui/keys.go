@@ -28,6 +28,9 @@ func (u *ui) keys(gtx layout.Context) {
 	if u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" && u.pal == nil {
 		// the palette also over the message box: no editor uses Ctrl+K
 		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut})
+		if strings.HasPrefix(u.view, "ws:") { // quick open, from the editor too
+			filters = append(filters, key.Filter{Name: "P", Required: key.ModShortcut})
+		}
 	}
 	// Gio hands a key to these focus-less filters even over a focused
 	// editor, so the shortcuts only listen on the board itself: not while
@@ -66,6 +69,10 @@ func (u *ui) keys(gtx layout.Context) {
 		}
 		if e.Name == "K" && e.Modifiers.Contain(key.ModShortcut) {
 			u.openPalette()
+			continue
+		}
+		if e.Name == "P" && e.Modifiers.Contain(key.ModShortcut) {
+			u.openFiles()
 			continue
 		}
 		if u.menu != nil && u.menuKey(e.Name) {
@@ -167,6 +174,8 @@ func (u *ui) escape(gtx layout.Context) {
 		u.drawEscape(u.drawOpen())
 	case strings.HasPrefix(u.view, "drc:"): // a card's drawings: back to the board, its panel open
 		u.view, u.blur = "", true
+	case strings.HasPrefix(u.view, "ws:") && u.wsOf(strings.TrimPrefix(u.view, "ws:")).find != nil: // its find bar first
+		u.wsFindClose(u.wsOf(strings.TrimPrefix(u.view, "ws:")))
 	case strings.HasPrefix(u.view, "ws:"): // the workspace, from its editors too: back to the session
 		u.view, u.blur = "sess:"+strings.TrimPrefix(u.view, "ws:"), true
 	case u.typing(gtx) && !gtx.Focused(&u.chatIn): // an answer field: leave it, not the session

@@ -176,6 +176,9 @@ type ui struct {
 	ws      map[string]*wsState // cards' workspaces (workspace.go), by card
 	wsGen   int                 // bumps on any workspace change, for sig
 	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
+	unsaved []wsUnsaved         // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
+	wsEd    orgs.Editor         // the workspace's pane widths and wrap, as the settings keep them (workspace_panes.go)
+	wsGrips [2]wsGrip           // the tree's and the chat's edges, being dragged
 
 	draws    map[string]*drawState // open drawings (drawview.go), by file
 	libs     map[string]*drawLib   // organizations' libraries (drawlib.go), read once
@@ -191,6 +194,7 @@ func newUI(b *kanban.Board, path string) *ui {
 		chats: map[string][]kanban.ChatMsg{}, procs: map[string]session{}, pending: map[string]claude.Directives{}, locked: map[string]*vault.LockedError{}, events: make(chan func(), 256),
 		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}, draws: map[string]*drawState{}, libs: map[string]*drawLib{}, drawList: map[string][]drawItem{}, thumbs: map[string]drawThumb{}}
 	u.orgList = orgs.List(u.root)
+	u.unsaved, u.wsEd = loadUnsaved(path), orgs.EditorSettings()
 	u.search.SingleLine, u.search.Submit = true, true
 	u.pickQ.SingleLine, u.pickQ.Submit, u.pickList.Axis = true, true, layout.Vertical
 	u.chatIn.Submit = true
@@ -263,7 +267,7 @@ func Run(b *kanban.Board, path string) error {
 	}
 	defer u.windowed()()
 	defer func() {
-		u.flushPending()
+		u.quitting()
 		if u.infra != nil {
 			u.infra.Close() // saves its session: tabs, panes, chats
 		}
@@ -349,7 +353,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver)
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver)
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click
@@ -466,7 +470,7 @@ func (u *ui) quitOn(c <-chan os.Signal, exit func(int)) {
 	<-c
 	done := make(chan bool)
 	u.later(func() {
-		u.flushPending()
+		u.quitting()
 		close(done)
 	})
 	select {

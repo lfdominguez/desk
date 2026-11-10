@@ -12,11 +12,24 @@ day). A release's section here is its notes on GitHub. The format follows
   card menu, restarts the card's Claude Code terminal with Remote Control, to go on from
   claude.ai/code or the Claude app (its link and QR code show in the terminal). It stays on for the
   card until turned off.
+- The workspace's tree and chat are as wide as you drag the lines beside them, kept for every card;
+  in a narrow window they give way to the editor.
+- Word wrap in the workspace editor: Alt+Z or the foot's **Wrap**, for every tab, kept.
+- A card's workspace keeps its open tabs and opens them again.
+- **Find and replace in the workspace editor**: Ctrl+F finds (plain text, any case unless the
+  query has capitals, every match marked and counted), Ctrl+H replaces one or all (one undo),
+  Ctrl+G goes to a line.
+- Quick open: Ctrl+P in a card's workspace opens the palette on its files (a **Files** tab).
+- Line commands in the workspace editor: Alt+↑/↓ move lines, Ctrl+Shift+D duplicates them,
+  Ctrl+/ comments them out or back in.
 
 ### Changed
 
 - A card's drawing's Claude works in the card's folder and its workspace's projects, and reads
   nowhere else unless you ask it to.
+- The workspace's tabs scroll sideways when they don't fit, instead of being squeezed out.
+- The workspace's tree shows a file the card's Claude creates, and reads open folders again when
+  you open the workspace; it leaves out `.worktrees`, `__pycache__` and `.venv` too.
 
 ### Fixed
 
@@ -29,6 +42,11 @@ day). A release's section here is its notes on GitHub. The format follows
 - Arrows a Claude draws with bends have sharp corners, no longer curves that hook at each bend.
 - A Claude's drawing tools no longer fail with "desk's board didn't answer" while desk's window
   is hidden; the edit used to land anyway after the Claude had given up on it.
+- Saving a file opened through a symlink in the workspace replaced the link with a plain file.
+- Quitting desk no longer loses the workspace editor's changes not saved: they come back, still
+  unsaved, when you open that card's workspace again.
+- Typing in the workspace editor no longer stalls on big files: the highlighting runs in the
+  background (a 100 KB file stalled each key for about 0.2 s, a 4 MB one for seconds).
 
 ## [2026.11.09.1] - 2026-11-09
 

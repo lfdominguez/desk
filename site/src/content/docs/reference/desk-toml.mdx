@@ -254,6 +254,15 @@ desk's own settings, not an organization's, are in `~/.config/desk/settings.toml
 | `chat_lang` | string | `English` | The language Claude speaks with you in. |
 | `zoom` | int | `100` | The text size of the terminals and the session panel, in percent, from 50 to 300. <kbd>Ctrl</kbd>+<kbd>=</kbd>, <kbd>Ctrl</kbd>+<kbd>-</kbd> and <kbd>Ctrl</kbd>+<kbd>0</kbd> change it. |
 | `[[folder]]` | tables | `$DESK_ROOT` (`~/Work`), depth 2 | Where desk looks for organizations, in order. When two give the same name, the first wins. |
+| `[editor]` | table | | The [workspace](/sessions/workspace/)'s layout, for every card. desk writes it as you drag. |
+
+`[editor]`:
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `tree` | int | `260` | The project tree's width in dp, from 160 to 480. |
+| `chat` | int | `400` | The workspace Claude's chat's width in dp, from 300 to 720. |
+| `wrap` | bool | `false` | The editor wraps long lines (<kbd>Alt</kbd>+<kbd>Z</kbd>). |
 
 Each `[[folder]]`:
 
