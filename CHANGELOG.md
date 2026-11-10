@@ -15,6 +15,7 @@ day). A release's section here is its notes on GitHub. The format follows
 - **Find and replace in the workspace editor**: Ctrl+F finds (plain text, any case unless the
   query has capitals, every match marked and counted), Ctrl+H replaces one or all (one undo),
   Ctrl+G goes to a line.
+- Quick open: Ctrl+P in a card's workspace opens the palette on its files (a **Files** tab).
 - Line commands in the workspace editor: Alt+↑/↓ move lines, Ctrl+Shift+D duplicates them,
   Ctrl+/ comments them out or back in.
 

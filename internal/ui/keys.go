@@ -28,6 +28,9 @@ func (u *ui) keys(gtx layout.Context) {
 	if u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" && u.pal == nil {
 		// the palette also over the message box: no editor uses Ctrl+K
 		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut})
+		if strings.HasPrefix(u.view, "ws:") { // quick open, from the editor too
+			filters = append(filters, key.Filter{Name: "P", Required: key.ModShortcut})
+		}
 	}
 	// Gio hands a key to these focus-less filters even over a focused
 	// editor, so the shortcuts only listen on the board itself: not while
@@ -66,6 +69,10 @@ func (u *ui) keys(gtx layout.Context) {
 		}
 		if e.Name == "K" && e.Modifiers.Contain(key.ModShortcut) {
 			u.openPalette()
+			continue
+		}
+		if e.Name == "P" && e.Modifiers.Contain(key.ModShortcut) {
+			u.openFiles()
 			continue
 		}
 		if u.menu != nil && u.menuKey(e.Name) {
