@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The workspace's tree and chat are as wide as you drag the lines beside them, kept for every card;
+  in a narrow window they give way to the editor.
+
 ### Fixed
 
 - Quitting desk no longer loses the workspace editor's changes not saved: they come back, still

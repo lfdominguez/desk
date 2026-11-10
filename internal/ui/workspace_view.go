@@ -10,8 +10,6 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"github.com/oligo/gvcode"
@@ -85,10 +83,6 @@ func (u *ui) wsView(gtx layout.Context) layout.Dimensions {
 		}
 	}()
 	k := u.k
-	vline := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, kit.CLine, clip.Rect(image.Rect(0, 0, gtx.Dp(1), gtx.Constraints.Max.Y)).Op())
-		return layout.Dimensions{Size: image.Pt(gtx.Dp(1), gtx.Constraints.Max.Y)}
-	})
 	header := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		kit.Fill(gtx, kit.CPanel)
@@ -111,12 +105,13 @@ func (u *ui) wsView(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(header),
 		layout.Rigid(kit.VGap(1)),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			tw, cw := u.wsPanes(gtx)
 			return layout.Flex{}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsTree(gtx, c, st, &act) }),
-				vline,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsTree(gtx, c, st, tw, &act) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsEdge(gtx, 0, tw) }),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.wsCenter(gtx, id, st, &act) }),
-				vline,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsChat(gtx, id, st) }))
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsEdge(gtx, 1, cw) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsChat(gtx, id, st, cw) }))
 		}))
 }
 
@@ -148,9 +143,9 @@ func (u *ui) wsRows(c *kanban.Card, st *wsState) []wsRow {
 	return rows
 }
 
-func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, act *func()) layout.Dimensions {
+func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, w int, act *func()) layout.Dimensions {
 	k := u.k
-	gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(260), gtx.Constraints.Max.Y))
+	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))
 	kit.Fill(gtx, kit.CPanel)
 	rows := u.wsRows(c, st)
 	cur := ""
@@ -350,9 +345,9 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 }
 
 // wsChat is the workspace Claude's conversation and its composer.
-func (u *ui) wsChat(gtx layout.Context, id string, st *wsState) layout.Dimensions {
+func (u *ui) wsChat(gtx layout.Context, id string, st *wsState, w int) layout.Dimensions {
 	k := u.k
-	gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(400), gtx.Constraints.Max.Y))
+	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))
 	kit.Fill(gtx, kit.CPanel)
 	for {
 		ev, ok := st.in.Update(gtx)

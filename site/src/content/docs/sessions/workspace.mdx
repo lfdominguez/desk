@@ -1,6 +1,6 @@
 ---
 title: The workspace
-description: A card's IDE view, where you read and edit its projects' files beside a second Claude that reads them with you, never writes, and answers the card's own Claude.
+description: A card's editor view, where you read and edit its projects' files beside a second Claude that reads them with you, never writes, and answers the card's own Claude.
 ---
 
 Every card has a workspace: its projects' files, an editor, and a second Claude, the workspace
@@ -25,6 +25,12 @@ workspace is where you look over its shoulder, ask about what it did, and fix th
 
 <kbd>Esc</kbd> goes back to the card's session, even from inside the editor. The chat icon at the
 top right does the same.
+
+The tree, the editor and the workspace Claude's chat sit side by side. Drag the line between two
+of them to make the tree (160 to 480 dp) or the chat (300 to 720 dp) wider or narrower; desk keeps
+the widths for every card's workspace (`[editor]` in
+[settings.toml](/reference/desk-toml/#settingstoml)). In a narrow window the chat, then the tree,
+give way so the editor keeps room.
 
 ## Projects
 
