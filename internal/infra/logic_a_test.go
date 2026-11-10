@@ -1683,10 +1683,14 @@ func TestKeyConnStateA(t *testing.T) {
 	if p.term == term || tab.term != p.term || term.hup != true || time.Until(p.waitUntil) < connectWait-time.Second {
 		t.Fatal("r starts the connection over")
 	}
+	// The redial's own shell may get going (connected) at any time: a fake
+	// one that failed instead, so the state doesn't hang on a real bash.
 	p.term.Close()
-	p.term.exited, p.term.reached = true, false
-	for i := 0; i < 250 && tab.connState() != "failed"; i++ { // up to 5 s: 1 s ran out on a busy CI runner
-		time.Sleep(20 * time.Millisecond)
+	failed, _ := fakeTermA(t, "local")
+	failed.b, failed.exited = nil, true
+	p.term, tab.term = failed, failed
+	if tab.connState() != "failed" {
+		t.Fatalf("state %q", tab.connState())
 	}
 	press("c")
 	if len(m.tabs) != 0 {

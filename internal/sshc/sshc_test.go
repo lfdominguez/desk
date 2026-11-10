@@ -6,6 +6,7 @@ import (
 	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -303,6 +304,38 @@ func TestPoolFirstCallerCancelled(t *testing.T) {
 	close(answer)
 	if err := <-second; err != nil {
 		t.Fatalf("second failed with the first: %v", err)
+	}
+}
+
+// lateCtx is cancelled with nothing to tell AfterFunc: its Done never
+// closes, as when the closing goroutine hasn't run yet.
+type lateCtx struct {
+	context.Context
+	gone *atomic.Bool
+}
+
+func (c lateCtx) Done() <-chan struct{} { return nil }
+func (c lateCtx) Err() error {
+	if c.gone.Load() {
+		return context.Canceled
+	}
+	return nil
+}
+
+// TestDialCancelledDuringAuth: a dial cancelled while it authenticates
+// fails, even when the handshake then goes through.
+func TestDialCancelledDuringAuth(t *testing.T) {
+	w := newWorld(t)
+	s := pwServer(t, w, sshtest.Opts{})
+	o := w.opts(base(""), s)
+	var gone atomic.Bool
+	o.Prompt = func(string, bool) (string, error) { gone.Store(true); return "pw", nil }
+	c, err := Dial(lateCtx{context.Background(), &gone}, "srv", o)
+	if c != nil {
+		c.Close()
+	}
+	if !errors.Is(err, context.Canceled) || s.Count() != 1 {
+		t.Fatalf("err %v, %d connections", err, s.Count())
 	}
 }
 

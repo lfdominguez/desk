@@ -21,7 +21,8 @@ func TestChangesLocal(t *testing.T) {
 	oldL, oldE, oldGo := changesLogs, changesEtc, localGo
 	changesLogs, changesEtc, localGo = logs, etc, true
 	defer func() { changesLogs, changesEtc, localGo = oldL, oldE, oldGo }()
-	at := func(d time.Duration) string { return time.Now().Add(-d).Format("2006-01-02 15:04:05") }
+	now := time.Now() // one clock reading: the log lines and what's wanted of them must agree
+	at := func(d time.Duration) string { return now.Add(-d).Format("2006-01-02 15:04:05") }
 	write(t, filepath.Join(logs, "dpkg.log"), at(30*time.Minute)+" install foo:amd64 <none> 1.0\n"+
 		at(30*time.Minute)+" status installed foo:amd64 1.0\n"+at(3*time.Hour)+" upgrade bar 1 2\n"+at(10*time.Minute)+" remove baz 1 <none>\n"+at(5*time.Minute)+" upgrade new 1 2\nshort line\n")
 	var gz bytes.Buffer

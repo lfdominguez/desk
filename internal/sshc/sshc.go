@@ -192,6 +192,12 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	sc, chans, reqs, err := ssh.NewClientConn(conn, addr, conf)
 	stop()
+	if err == nil && ctx.Err() != nil {
+		// AfterFunc closes conn on a goroutine of its own: the handshake
+		// can finish first. Cancelled is cancelled.
+		sc.Close()
+		err = ctx.Err()
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			err = ctx.Err()
