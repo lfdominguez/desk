@@ -320,12 +320,12 @@ func TestWorkspaceView(t *testing.T) {
 }
 
 // TestWorkspaceTree: a folder is read when expanded (not before, not per
-// frame), .git and node_modules stay out, folders come first, a click on
-// a file opens it.
+// frame), .git, node_modules, .worktrees, __pycache__ and .venv stay out,
+// folders come first, a click on a file opens it.
 func TestWorkspaceTree(t *testing.T) {
 	h := newHarness(t)
 	c, dir := wsCard(h)
-	for _, d := range []string{".git", "node_modules", "pkg"} {
+	for _, d := range []string{".git", "node_modules", ".worktrees", "__pycache__", ".venv", "pkg"} {
 		os.MkdirAll(filepath.Join(dir, d), 0o755)
 	}
 	os.WriteFile(filepath.Join(dir, "pkg", "a.go"), []byte("package pkg\n"), 0o644)

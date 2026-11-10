@@ -70,7 +70,7 @@ func (u *ui) wsPanes(gtx layout.Context) (tree, chat int) {
 // pane i's width (0 the tree, at its right; 1 the chat, at its left), shown
 // w px now. The width is saved on release.
 func (u *ui) wsEdge(gtx layout.Context, i, w int) layout.Dimensions {
-	g, side := &u.wsGrips[i], float32(1-2*i) // the tree grows rightwards, the chat leftwards
+	g, side := &u.wsGrips[i], float32(1-2*i)                     // the tree grows rightwards, the chat leftwards
 	at := func(x float32) float32 { return x + side*float32(w) } // the pointer in a frame the edge doesn't move
 	for {
 		ev, ok := gtx.Event(pointer.Filter{Target: g, Kinds: pointer.Press | pointer.Drag | pointer.Release | pointer.Cancel})

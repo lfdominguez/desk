@@ -64,7 +64,16 @@ func (u *ui) wsRestore(id string, st *wsState) {
 		if e.Card != id {
 			return false
 		}
-		t := u.wsAddTab(st, e.Path, e.Text, e.Mtime, e.Mode)
+		i := slices.IndexFunc(st.tabs, func(t *wsTab) bool { return t.path == e.Path })
+		var t *wsTab
+		if i < 0 {
+			t = u.wsAddTab(st, e.Path, e.Text, e.Mtime, e.Mode)
+		} else { // reopened from the card's tabs, as on disk: the kept text over it
+			t, st.cur = st.tabs[i], i
+			t.ed.SetText(e.Text)
+			t.mtime, t.mode = e.Mtime, e.Mode
+			t.gen++
+		}
 		t.dirty = true
 		if fi, err := os.Stat(e.Path); err == nil && !fi.ModTime().Equal(e.Mtime) {
 			t.disk = true // changed on disk since: the bar asks

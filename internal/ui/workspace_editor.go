@@ -134,7 +134,9 @@ func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 		u.showToast(err.Error(), true)
 		return nil
 	}
-	return u.wsAddTab(st, path, string(b), fi.ModTime(), fi.Mode().Perm())
+	t := u.wsAddTab(st, path, string(b), fi.ModTime(), fi.Mode().Perm())
+	u.wsKeepTabs(st)
+	return t
 }
 
 // wsAddTab opens a tab over path holding text, as of the file's mtime, and shows it.
@@ -191,7 +193,11 @@ func readText(path string) ([]byte, os.FileInfo, error) {
 
 // wsSave writes t's text over its file (atomically, keeping its mode).
 func (u *ui) wsSave(t *wsTab) {
-	if err := writeAtomic(t.path, t.ed.PrepareForSave(t.ed.Text()), t.mode); err != nil {
+	to := t.path
+	if p, err := filepath.EvalSymlinks(to); err == nil {
+		to = p // the file a link points at: the rename would put a plain file in the link's place
+	}
+	if err := writeAtomic(to, t.ed.PrepareForSave(t.ed.Text()), t.mode); err != nil {
 		u.showToast("Not saved: "+err.Error(), true)
 		return
 	}
@@ -267,7 +273,8 @@ func (u *ui) wsKeepMine(t *wsTab) {
 	u.wsRedraw()
 }
 
-// wsTouched is the main session's edit to path done: its open tabs check it.
+// wsTouched is the main session's edit to path done: its open tabs check
+// it, and the tree shows it if it's new.
 func (u *ui) wsTouched(id, path string) {
 	if st := u.ws[id]; st != nil {
 		for _, t := range st.tabs {
@@ -275,6 +282,7 @@ func (u *ui) wsTouched(id, path string) {
 				u.wsCheck(t)
 			}
 		}
+		u.wsRefresh(st, path)
 	}
 }
 
@@ -370,5 +378,6 @@ func (u *ui) wsCloseTab(st *wsState, i int) {
 	if st.cur >= i && st.cur > 0 {
 		st.cur--
 	}
+	u.wsKeepTabs(st)
 	u.wsRedraw()
 }

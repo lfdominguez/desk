@@ -3,9 +3,12 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/kanban"
 )
 
 // reopen is desk started again over the same board: no workspaces open, the
@@ -37,10 +40,13 @@ func TestWorkspaceUnsavedKept(t *testing.T) {
 		t.Fatalf("kept %d tabs, want the one changed", len(h.u.unsaved))
 	}
 	st = h.u.wsOf(c.ID)
-	if len(st.tabs) != 1 || len(h.u.unsaved) != 0 {
-		t.Fatalf("%d tabs back, %d still waiting", len(st.tabs), len(h.u.unsaved))
+	if len(st.tabs) != 2 || len(h.u.unsaved) != 0 || st.tabs[0].dirty {
+		t.Fatalf("%d tabs back (the clean one as on disk), %d still waiting", len(st.tabs), len(h.u.unsaved))
 	}
-	back := st.tabs[0]
+	back := st.tab() // the kept one, over its tab reopened from the card, shown
+	if len(st.tabs) != 2 || back != st.tabs[1] || back.gen == 0 {
+		t.Fatal("the kept text didn't land on the reopened tab")
+	}
 	if back.path != tb.path || back.ed.Text() != "package main // mine\n" || !back.dirty || back.disk || back.mode != 0o640 || !back.mtime.Equal(tb.mtime) {
 		t.Fatalf("put back as %q dirty %v disk %v mode %v", back.ed.Text(), back.dirty, back.disk, back.mode)
 	}
@@ -56,8 +62,40 @@ func TestWorkspaceUnsavedKept(t *testing.T) {
 		t.Fatal("the file stays with nothing left to keep")
 	}
 	h.reopen()
-	if h.u.unsaved != nil || len(h.u.wsOf(c.ID).tabs) != 0 {
-		t.Fatal("put back a tab already saved")
+	for _, tb := range h.u.wsOf(c.ID).tabs {
+		if tb.dirty || h.u.unsaved != nil {
+			t.Fatalf("put back %s, already saved", tb.path)
+		}
+	}
+}
+
+// TestWorkspaceTabsKept: the files open are kept on the card (in the board
+// file) and open again with its workspace; one gone from disk is skipped.
+func TestWorkspaceTabsKept(t *testing.T) {
+	h := newHarness(t)
+	c, dir := wsCard(h)
+	a, b, gone := filepath.Join(dir, "main.go"), filepath.Join(dir, "b.go"), filepath.Join(dir, "gone.go")
+	os.WriteFile(b, []byte("package main\n"), 0o644)
+	os.WriteFile(gone, []byte("package main\n"), 0o644)
+	st := h.u.wsOf(c.ID)
+	for _, p := range []string{a, gone, b, a} { // a again: its tab shown, not a second one
+		h.u.wsOpen(st, p)
+	}
+	h.u.wsCloseTab(st, 0)
+	if want := []string{gone, b}; !slices.Equal(h.u.b.Card(c.ID).Tabs, want) {
+		t.Fatalf("kept %v, want %v", h.u.b.Card(c.ID).Tabs, want)
+	}
+	if saved, err := kanban.Load(h.u.path); err != nil || len(saved.Card(c.ID).Tabs) != 2 {
+		t.Fatalf("not in the board file: %v", err)
+	}
+	os.Remove(gone)
+	h.reopen()
+	st = h.u.wsOf(c.ID)
+	if len(st.tabs) != 1 || st.tabs[0].path != b || h.u.toastBad {
+		t.Fatalf("%d tabs, toast %q", len(st.tabs), h.u.toast)
+	}
+	if !slices.Equal(h.u.b.Card(c.ID).Tabs, []string{b}) {
+		t.Fatalf("the gone file still kept: %v", h.u.b.Card(c.ID).Tabs)
 	}
 }
 

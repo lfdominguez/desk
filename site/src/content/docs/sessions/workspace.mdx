@@ -48,8 +48,9 @@ adds it with desk's `add_project` tool. desk takes the repository's root above t
 <figcaption>The tree: folders first, each read when you open it. Files and tabs show their kind's icon, as VS Code's default (Seti) theme draws it.</figcaption>
 </figure>
 
-- A click on a folder opens or closes it; desk reads it as you open it, so a closed and reopened
-  folder shows what's there now. `.git` and `node_modules` stay out.
+- A click on a folder opens or closes it; desk reads it as you open it. Open folders are read
+  again when you open the workspace and when the card's Claude writes a file in them, so a new file
+  shows up. `.git`, `node_modules`, `.worktrees`, `__pycache__` and `.venv` stay out.
 - A click on a file opens it in a tab.
 - The **×** on an added project's row takes it out of the workspace (not its files).
 
@@ -57,7 +58,8 @@ The projects are saved on the card (`projects` in the board file).
 
 ## The editor
 
-Files open in tabs over the editor: line numbers, the code's highlighting (the same colors as the
+Files open in tabs over the editor (more than fit scroll sideways, the one shown kept in view):
+line numbers, the code's highlighting (the same colors as the
 chat's code), undo and redo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>,
 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd>
 to indent selected lines. The foot shows the file's path, **Wrap** and the caret's line and column.
@@ -68,7 +70,8 @@ workspace, and desk keeps it (`wrap` under `[editor]` in
 [settings.toml](/reference/desk-toml/#settingstoml)). A wrapped line keeps one line number, on its
 first row, and the foot's line counts lines, not rows.
 
-- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions. A tab with
+- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions (a file opened
+  through a symlink is written where the link points; the link stays). A tab with
   changes not saved shows **●** after its name; its **×** asks once before dropping them.
 - Quitting desk with changes not saved keeps them (in `unsaved.json` beside the board, readable
   only by you): when you open that card's workspace again, its tabs come back with your text and
@@ -133,5 +136,6 @@ added while it runs restarts it (resumed) before its next answer.
   Claude:"), as the [infra Claude's](/servers/cards/) messages do. When you ask it to pass a
   suggestion on, it sends it the same way (`suggest_to_card`).
 
-Its conversation is kept beside the card's (`chats/ws-<card>.jsonl`). Open tabs aren't kept: the
-workspace opens with none when desk starts again.
+Its conversation is kept beside the card's (`chats/ws-<card>.jsonl`). The open tabs are kept on the
+card (`tabs` in the board file) and open again with its workspace; a file gone from disk is left
+out.

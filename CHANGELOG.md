@@ -11,9 +11,17 @@ day). A release's section here is its notes on GitHub. The format follows
 - The workspace's tree and chat are as wide as you drag the lines beside them, kept for every card;
   in a narrow window they give way to the editor.
 - Word wrap in the workspace editor: Alt+Z or the foot's **Wrap**, for every tab, kept.
+- A card's workspace keeps its open tabs and opens them again.
+
+### Changed
+
+- The workspace's tabs scroll sideways when they don't fit, instead of being squeezed out.
+- The workspace's tree shows a file the card's Claude creates, and reads open folders again when
+  you open the workspace; it leaves out `.worktrees`, `__pycache__` and `.venv` too.
 
 ### Fixed
 
+- Saving a file opened through a symlink in the workspace replaced the link with a plain file.
 - Quitting desk no longer loses the workspace editor's changes not saved: they come back, still
   unsaved, when you open that card's workspace again.
 - Typing in the workspace editor no longer stalls on big files: the highlighting runs in the

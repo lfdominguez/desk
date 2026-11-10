@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -108,6 +111,98 @@ func TestWorkspaceWrap(t *testing.T) {
 	h.clickButton("wsWrap")
 	if h.u.wsEd.Wrap || a.ed.TextView().WrapLine || b.ed.TextView().WrapLine || orgs.EditorSettings().Wrap {
 		t.Fatal("the foot's Wrap didn't turn it off everywhere")
+	}
+}
+
+// TestWorkspaceTabsScroll: more tabs than fit scroll sideways, the one shown
+// brought into view; a scroll by hand stays until another tab is shown.
+func TestWorkspaceTabsScroll(t *testing.T) {
+	h := newHarness(t)
+	c, dir := wsCard(h)
+	h.u.openWS(c.ID)
+	st := h.u.wsOf(c.ID)
+	var last string
+	for i := range 40 {
+		last = filepath.Join(dir, fmt.Sprintf("file%02d.go", i))
+		os.WriteFile(last, []byte("package main\n"), 0o644)
+		h.u.wsOpen(st, last)
+	}
+	h.frame()
+	if st.tabBar.Position.First == 0 {
+		t.Fatal("the last tab opened isn't scrolled into view")
+	}
+	h.areaOf("wsTab" + last) // on screen, clickable
+	st.tabBar.Position.First = 3
+	h.frame()
+	if st.tabBar.Position.First != 3 {
+		t.Fatalf("a scroll by hand undone: first %d", st.tabBar.Position.First)
+	}
+	st.cur = 0
+	h.frame()
+	if st.tabBar.Position.First != 0 {
+		t.Fatalf("the first tab shown, the bar at %d", st.tabBar.Position.First)
+	}
+	st.cur = 1 // in view already: the bar stays
+	h.frame()
+	if st.tabBar.Position.First != 0 || st.shown != 1 {
+		t.Fatalf("first %d, shown %d", st.tabBar.Position.First, st.shown)
+	}
+}
+
+// TestWorkspaceTreeFollows: a file the card's Claude writes shows in the open
+// folders above it (only those), and opening the workspace reads them all
+// again.
+func TestWorkspaceTreeFollows(t *testing.T) {
+	h := newHarness(t)
+	c, dir := wsCard(h)
+	pkg, other := filepath.Join(dir, "pkg"), filepath.Join(dir, "other")
+	os.MkdirAll(pkg, 0o755)
+	os.MkdirAll(other, 0o755)
+	h.u.openWS(c.ID)
+	st := h.u.wsOf(c.ID)
+	h.u.wsToggle(st, pkg)
+	h.u.wsToggle(st, other)
+	names := func(d string) (out []string) {
+		for _, e := range st.kids[d] {
+			out = append(out, e.name)
+		}
+		return out
+	}
+	os.WriteFile(filepath.Join(pkg, "new.go"), nil, 0o644)
+	os.WriteFile(filepath.Join(other, "later.go"), nil, 0o644)
+	h.u.wsTouched(c.ID, filepath.Join(pkg, "new.go"))
+	if !slices.Contains(names(pkg), "new.go") {
+		t.Fatalf("pkg %v", names(pkg))
+	}
+	if len(names(other)) != 0 {
+		t.Fatal("read a folder the file isn't in")
+	}
+	h.u.openSession(c.ID)
+	h.u.openWS(c.ID)
+	if !slices.Contains(names(other), "later.go") {
+		t.Fatalf("other %v after opening the workspace", names(other))
+	}
+	h.u.wsTouched("gone", filepath.Join(pkg, "x.go")) // no workspace: nothing to do
+}
+
+// TestWorkspaceSaveLink: saving a file opened through a symlink writes the
+// file it points at and leaves the link a link.
+func TestWorkspaceSaveLink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	h := newHarness(t)
+	c, dir := wsCard(h)
+	target, link := filepath.Join(dir, "main.go"), filepath.Join(dir, "link.go")
+	os.Symlink("main.go", link)
+	tb := h.u.wsOpen(h.u.wsOf(c.ID), link)
+	tb.ed.SetText("package linked\n")
+	h.u.wsSave(tb)
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("the link was replaced by a file")
+	}
+	if b, _ := os.ReadFile(target); string(b) != "package linked\n" {
+		t.Fatalf("the linked file holds %q", b)
 	}
 }
 

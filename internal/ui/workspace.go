@@ -25,17 +25,20 @@ import (
 
 // wsState is a card's workspace as the window keeps it while desk runs.
 type wsState struct {
-	open  map[string]bool      // folders expanded in the tree
-	kids  map[string][]wsEntry // their entries, read when expanded
-	tabs  []*wsTab             // the files open
-	cur   int                  // the tab shown
-	in    widget.Editor        // the composer
-	chat  layout.List
-	tree  layout.List
-	proc  session  // its Claude: nil until first used
-	from  []string // who asked each turn queued, in order: "you" or "card"
-	last  string   // the running turn's latest reply
-	stale bool     // the projects changed: the next question restarts it (resumed, with them)
+	id     string               // its card
+	open   map[string]bool      // folders expanded in the tree
+	kids   map[string][]wsEntry // their entries, read when expanded
+	tabs   []*wsTab             // the files open
+	cur    int                  // the tab shown
+	in     widget.Editor        // the composer
+	chat   layout.List
+	tree   layout.List
+	tabBar layout.List // the tabs, scrolling sideways when they don't fit
+	shown  int         // the tab tabBar last brought into view
+	proc   session     // its Claude: nil until first used
+	from   []string    // who asked each turn queued, in order: "you" or "card"
+	last   string      // the running turn's latest reply
+	stale  bool        // the projects changed: the next question restarts it (resumed, with them)
 }
 
 // wsEntry is a file or folder in the tree.
@@ -47,21 +50,44 @@ type wsEntry struct {
 // wsKey is where the workspace Claude's conversation is kept among the chats.
 func wsKey(id string) string { return "ws-" + id }
 
-// wsOf is card id's workspace, made on first use with its own folder open
-// and the tabs with changes not saved that the last quit kept.
+// wsOf is card id's workspace, made on first use with its own folder open,
+// the files it had open (those still readable) and the tabs with changes
+// not saved that the last quit kept.
 func (u *ui) wsOf(id string) *wsState {
 	if st := u.ws[id]; st != nil {
 		return st
 	}
-	st := &wsState{open: map[string]bool{}, kids: map[string][]wsEntry{}}
+	st := &wsState{id: id, open: map[string]bool{}, kids: map[string][]wsEntry{}}
 	st.in.Submit = true
-	st.chat.Axis, st.chat.ScrollToEnd, st.tree.Axis = layout.Vertical, true, layout.Vertical
+	st.chat.Axis, st.chat.ScrollToEnd, st.tree.Axis, st.shown = layout.Vertical, true, layout.Vertical, -1
+	u.ws[id] = st
 	if c := u.b.Card(id); c != nil {
 		u.wsToggle(st, u.projects(c)[0])
+		for _, p := range c.Tabs {
+			if b, fi, err := readText(p); err == nil {
+				u.wsAddTab(st, p, string(b), fi.ModTime(), fi.Mode().Perm())
+			}
+		}
 	}
-	u.ws[id] = st
 	u.wsRestore(id, st)
+	u.wsKeepTabs(st)
 	return st
+}
+
+// wsKeepTabs keeps st's open files on its card, to open again next time.
+func (u *ui) wsKeepTabs(st *wsState) {
+	c := u.b.Card(st.id)
+	if c == nil {
+		return
+	}
+	var ps []string
+	for _, t := range st.tabs {
+		ps = append(ps, t.path)
+	}
+	if !slices.Equal(ps, c.Tabs) {
+		c.Tabs = ps
+		u.save()
+	}
 }
 
 // projects are card c's workspace folders: its own first, then those added.
@@ -84,13 +110,27 @@ func (u *ui) wsToggle(st *wsState, dir string) {
 	st.kids[dir] = readTree(dir)
 }
 
-// readTree is folder dir's entries, folders first, without the ones no one
-// reads (.git, node_modules).
+// wsRefresh reads again the open folders above path (a file just written
+// may be new to them), or every open folder for "".
+func (u *ui) wsRefresh(st *wsState, path string) {
+	for d := range st.open {
+		if path == "" || strings.HasPrefix(path, d+string(filepath.Separator)) {
+			st.kids[d] = readTree(d)
+		}
+	}
+	u.wsRedraw()
+}
+
+// wsHidden are the folders the tree leaves out: no one reads them, and
+// .worktrees holds whole copies of the repository.
+var wsHidden = map[string]bool{".git": true, "node_modules": true, ".worktrees": true, "__pycache__": true, ".venv": true}
+
+// readTree is folder dir's entries, folders first, without wsHidden's.
 func readTree(dir string) []wsEntry {
 	es, _ := os.ReadDir(dir)
 	var dirs, files []wsEntry // each by name (ReadDir's order)
 	for _, e := range es {
-		if n := e.Name(); n == ".git" || n == "node_modules" {
+		if wsHidden[e.Name()] {
 			continue
 		}
 		p, isDir := filepath.Join(dir, e.Name()), e.IsDir()
