@@ -2139,3 +2139,36 @@ func TestOrgLoading(t *testing.T) {
 		t.Fatalf("all ended: %v", h.u.loading)
 	}
 }
+
+// TestLetGoProcExit: the -p process desk stops for the terminal reports
+// "signal: killed" later; that exit is no failure: no error in the chat, the
+// card stays "In its terminal". The live process's exit still counts.
+func TestLetGoProcExit(t *testing.T) {
+	h := newHarness(t)
+	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
+		return term.Start(prog("raw"), w, ht, notify)
+	}
+	defer func() { startTerm = term.Start }()
+	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
+	h.u.send(c.ID, "go")
+	old := h.mainClaudes()[0]
+	h.u.terminal(c.ID)
+	old.on(claude.Event{Kind: claude.KindExit, Text: "signal: killed: "})
+	h.frame()
+	if cd := h.u.b.Card(c.ID); cd.Status != kanban.StatusWaiting || cd.Note != "In its terminal" {
+		t.Fatalf("status %q note %q", cd.Status, cd.Note)
+	}
+	for _, m := range h.u.chat(c.ID) {
+		if m.Who == "error" {
+			t.Fatalf("error in the chat: %q", m.Text)
+		}
+	}
+	h.u.closeTerm(c.ID)
+	h.u.send(c.ID, "again")
+	now := h.mainClaudes()[1]
+	now.on(claude.Event{Kind: claude.KindExit, Text: "exit status 1: boom"})
+	h.frame()
+	if cd := h.u.b.Card(c.ID); cd.Status != kanban.StatusFailed || h.u.procs[c.ID] != nil {
+		t.Fatalf("live exit: status %q", cd.Status)
+	}
+}

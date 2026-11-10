@@ -280,7 +280,13 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		} else {
 			o.New = c.Session.ID
 		}
-		p, err = startClaude(o, func(e claude.Event) { u.later(func() { u.onEvent(id, base, e) }) })
+		p, err = startClaude(o, func(e claude.Event) {
+			u.later(func() {
+				if u.procs[id] == p { // one desk let go of (its terminal, archive): its "signal: killed" is no failure
+					u.onEvent(id, base, e)
+				}
+			})
+		})
 		if err != nil {
 			u.showToast("Claude: "+err.Error(), true)
 			return
