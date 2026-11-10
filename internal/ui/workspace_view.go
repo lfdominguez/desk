@@ -57,6 +57,9 @@ func (u *ui) wsTyping(gtx layout.Context) bool {
 		if gtx.Focused(&st.in) {
 			return true
 		}
+		if f := st.find; f != nil && (gtx.Focused(&f.q) || gtx.Focused(&f.rep) || gtx.Focused(&f.line)) {
+			return true
+		}
 		for _, t := range st.tabs {
 			if gtx.Focused(t.ed) {
 				return true
@@ -324,8 +327,15 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 				}))
 		}))
 	}
+	if st.find != nil {
+		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.wsFindBar(gtx, st, t, act) }))
+	}
 	kids = append(kids, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: 4}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			if u.focusLater == t.ed { // back from the find bar
+				gtx.Execute(key.FocusCmd{Tag: t.ed})
+				u.focusLater = nil
+			}
 			d := t.ed.Layout(gtx, k.Sh)
 			if w := t.want; w != nil { // now that its text is shaped; the next frame scrolls to it
 				t.want = nil

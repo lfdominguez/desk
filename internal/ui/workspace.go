@@ -35,6 +35,7 @@ type wsState struct {
 	tree   layout.List
 	tabBar layout.List // the tabs, scrolling sideways when they don't fit
 	shown  int         // the tab tabBar last brought into view
+	find   *wsFind     // the find bar over the editor, nil closed (workspace_find.go)
 	proc   session     // its Claude: nil until first used
 	from   []string    // who asked each turn queued, in order: "you" or "card"
 	last   string      // the running turn's latest reply

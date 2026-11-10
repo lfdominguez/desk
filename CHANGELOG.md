@@ -12,6 +12,9 @@ day). A release's section here is its notes on GitHub. The format follows
   in a narrow window they give way to the editor.
 - Word wrap in the workspace editor: Alt+Z or the foot's **Wrap**, for every tab, kept.
 - A card's workspace keeps its open tabs and opens them again.
+- **Find and replace in the workspace editor**: Ctrl+F finds (plain text, any case unless the
+  query has capitals, every match marked and counted), Ctrl+H replaces one or all (one undo),
+  Ctrl+G goes to a line.
 
 ### Changed
 

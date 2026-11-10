@@ -23,8 +23,8 @@ workspace is where you look over its shoulder, ask about what it did, and fix th
 <figcaption>The workspace icon in a session's header.</figcaption>
 </figure>
 
-<kbd>Esc</kbd> goes back to the card's session, even from inside the editor. The chat icon at the
-top right does the same.
+<kbd>Esc</kbd> goes back to the card's session, even from inside the editor (with the find bar
+open, it closes that first). The chat icon at the top right does the same.
 
 The tree, the editor and the workspace Claude's chat sit side by side. Drag the line between two
 of them to make the tree (160 to 480 dp) or the chat (300 to 720 dp) wider or narrower; desk keeps
@@ -69,6 +69,23 @@ editor, or **Wrap** in the foot (lit while it's on). It counts for every tab and
 workspace, and desk keeps it (`wrap` under `[editor]` in
 [settings.toml](/reference/desk-toml/#settingstoml)). A wrapped line keeps one line number, on its
 first row, and the foot's line counts lines, not rows.
+
+### Find, replace, go to line
+
+In the editor, a bar opens over the file:
+
+- <kbd>Ctrl</kbd>+<kbd>F</kbd> finds in the file shown, with the selection (on one line) as the
+  query. Matching is plain text: a query without capitals finds any case, one with capitals finds
+  that case. Every match is marked; typing selects the first from the caret on, <kbd>Enter</kbd>
+  or **↓** the next, **↑** the one before, going round at the ends. The bar counts them ("2 of
+  7").
+- <kbd>Ctrl</kbd>+<kbd>H</kbd> adds **Replace with**: <kbd>Enter</kbd> or **Replace** replaces the
+  match selected and selects the next; **All** replaces every match, undone in one
+  <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
+- <kbd>Ctrl</kbd>+<kbd>G</kbd> asks for a line number: <kbd>Enter</kbd> puts the caret at its
+  start.
+
+<kbd>Esc</kbd> or the **×** closes the bar and gives the editor the keys back.
 
 - <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions (a file opened
   through a symlink is written where the link points; the link stays). A tab with

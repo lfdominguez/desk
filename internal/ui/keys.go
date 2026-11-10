@@ -167,6 +167,8 @@ func (u *ui) escape(gtx layout.Context) {
 		u.drawEscape(u.drawOpen())
 	case strings.HasPrefix(u.view, "drc:"): // a card's drawings: back to the board, its panel open
 		u.view, u.blur = "", true
+	case strings.HasPrefix(u.view, "ws:") && u.wsOf(strings.TrimPrefix(u.view, "ws:")).find != nil: // its find bar first
+		u.wsFindClose(u.wsOf(strings.TrimPrefix(u.view, "ws:")))
 	case strings.HasPrefix(u.view, "ws:"): // the workspace, from its editors too: back to the session
 		u.view, u.blur = "sess:"+strings.TrimPrefix(u.view, "ws:"), true
 	case u.typing(gtx) && !gtx.Focused(&u.chatIn): // an answer field: leave it, not the session
