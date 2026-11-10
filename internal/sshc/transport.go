@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/lfdominguez/desk/internal/sshconfig"
@@ -26,6 +27,7 @@ func connect(ctx context.Context, cfg *sshconfig.Config, o Options) (net.Conn, *
 		if err != nil {
 			return nil, nil, err
 		}
+		o.Step("Opening a channel to "+addr, false)
 		conn, err := jc.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			jc.Close()
@@ -34,10 +36,11 @@ func connect(ctx context.Context, cfg *sshconfig.Config, o Options) (net.Conn, *
 		return conn, jc, nil
 	}
 	if pc := cfg.ProxyCommand(); pc != "" {
+		o.Step("Starting ProxyCommand", false)
 		conn, err := proxyCommand(cfg, pc, o.Logf)
 		return conn, nil, err
 	}
-	conn, err := dialTCP(ctx, cfg, addr)
+	conn, err := dialTCP(ctx, cfg, addr, o.Step)
 	return conn, nil, err
 }
 
@@ -47,6 +50,7 @@ func connect(ctx context.Context, cfg *sshconfig.Config, o Options) (net.Conn, *
 func dialHop(ctx context.Context, hops []sshconfig.Hop, o Options) (*Client, error) {
 	last := hops[len(hops)-1]
 	ho := o
+	ho.Step = func(name string, user bool) { o.Step("via "+last.Host+": "+name, user) }
 	ho.Options.User, ho.Options.Port, ho.Options.Overrides = last.User, last.Port, nil
 	if len(hops) > 1 {
 		var rest []string
@@ -75,10 +79,19 @@ func hopString(h sshconfig.Hop) string {
 // dialTCP is ssh_connect_direct: AddressFamily, BindAddress or
 // BindInterface, ConnectTimeout and TCPKeepAlive, tried ConnectionAttempts
 // times a second apart.
-func dialTCP(ctx context.Context, cfg *sshconfig.Config, addr string) (net.Conn, error) {
+// step names the lookup of a host name, then each connect (the dialer's
+// Control runs once the address is known).
+func dialTCP(ctx context.Context, cfg *sshconfig.Config, addr string, step func(string, bool)) (net.Conn, error) {
 	d, network, err := dialer(cfg)
 	if err != nil {
 		return nil, err
+	}
+	if net.ParseIP(cfg.HostName()) == nil {
+		step("Looking up "+cfg.HostName(), false)
+	}
+	d.Control = func(_, address string, _ syscall.RawConn) error {
+		step("Connecting to "+address, false)
+		return nil
 	}
 	var conn net.Conn
 	for i := range max(cfg.Int("connectionattempts"), 1) {

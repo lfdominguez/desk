@@ -6,6 +6,15 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Each step of a server connection, with its time**: a pane that opens a new SSH connection
+  shows, live in its connection box, every step (the config, the name lookup, the TCP connect or
+  jump host, the vault's password, key exchange, host key, each authentication method, the
+  shell) and how long it took, a wait on you apart from network time. A failed step stays with
+  its error; once connected, the pane's header says "connected in …" and lists the steps on hover.
+  A pane that reuses an open connection shows none.
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed

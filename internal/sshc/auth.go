@@ -137,6 +137,7 @@ func (a *auth) first() (string, bool) {
 }
 
 func (a *auth) password() (string, error) {
+	a.o.Step("Authenticating: password", false)
 	if a.hc.unsafe {
 		return "", errors.New("Password authentication is disabled to avoid man-in-the-middle attacks.")
 	}
@@ -149,6 +150,7 @@ func (a *auth) password() (string, error) {
 // challenge answers keyboard-interactive: a lone hidden question takes
 // Options.Password first (it is the password, on most servers).
 func (a *auth) challenge(name, instruction string, qs []string, echos []bool) ([]string, error) {
+	a.o.Step("Authenticating: keyboard-interactive", false)
 	if a.hc.unsafe {
 		return nil, errors.New("Keyboard-interactive authentication is disabled to avoid man-in-the-middle attacks.")
 	}
@@ -190,6 +192,7 @@ type id struct {
 // by its -cert.pub; then filtered by PubkeyAcceptedAlgorithms. A key is
 // read (its passphrase asked) only once the server would take it.
 func (a *auth) signers() ([]ssh.Signer, error) {
+	a.o.Step("Authenticating: public key", false)
 	cfg := a.cfg
 	var agentKeys []ssh.Signer
 	if a.ag != nil {

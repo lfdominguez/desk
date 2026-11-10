@@ -32,6 +32,12 @@ type Options struct {
 	Password func() (string, bool)
 	// Logf gets the lines ssh prints or logs: warnings, banners, debug.
 	Logf func(format string, args ...any)
+	// Step hears each step of the dial as it starts (a step ends when the
+	// next one starts or Dial returns); user marks a wait on the user's
+	// answer rather than on the network. nil hears nothing.
+	Step func(name string, user bool)
+
+	stepped bool // Step, Prompt and Password already report steps (a jump host's dial)
 }
 
 // ErrLost is a connection whose server stopped answering keepalives
@@ -65,6 +71,9 @@ type Client struct {
 // failure is a *NegotiationError, a *HostKeyChangedError, wraps ErrHostKey,
 // or says what ssh would.
 func Dial(ctx context.Context, host string, o Options) (*Client, error) {
+	if o.Step != nil {
+		o.Step("Reading the config", false) // Match exec runs commands
+	}
 	cfg, err := sshconfig.Resolve(host, o.Options)
 	if err != nil {
 		return nil, err
@@ -73,6 +82,12 @@ func Dial(ctx context.Context, host string, o Options) (*Client, error) {
 }
 
 func (o Options) withDefaults(cfg *sshconfig.Config) Options {
+	if o.Step == nil {
+		o.Step = func(string, bool) {}
+	} else if !o.stepped {
+		o = o.stepping() // before BatchMode's Prompt below, which asks nobody
+
+	}
 	if o.Logf == nil {
 		o.Logf = func(string, ...any) {}
 	}
@@ -82,6 +97,43 @@ func (o Options) withDefaults(cfg *sshconfig.Config) Options {
 	if o.Password == nil {
 		o.Password = func() (string, bool) { return "", false }
 	}
+	return o
+}
+
+// stepping makes Prompt and Password steps of their own: a question is the
+// user's time, a password lookup (a vault, maybe unlocked first) its own;
+// the step they interrupt resumes after them.
+func (o Options) stepping() Options {
+	step, cur := o.Step, ""
+	var mu sync.Mutex
+	o.Step = func(name string, user bool) {
+		if !user {
+			mu.Lock()
+			cur = name
+			mu.Unlock()
+		}
+		step(name, user)
+	}
+	around := func(name string, user bool) func() {
+		mu.Lock()
+		was := cur
+		mu.Unlock()
+		step(name, user)
+		return func() { o.Step(was, false) }
+	}
+	if ask := o.Prompt; ask != nil {
+		o.Prompt = func(prompt string, echo bool) (string, error) {
+			defer around("Waiting for your answer", true)()
+			return ask(prompt, echo)
+		}
+	}
+	if pw := o.Password; pw != nil {
+		o.Password = func() (string, bool) {
+			defer around("Looking up the password", false)()
+			return pw()
+		}
+	}
+	o.stepped = true
 	return o
 }
 
@@ -113,6 +165,7 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	if err != nil {
 		return fail(err)
 	}
+	o.Step("Preparing authentication", false) // the agent, and Password's first look
 	au := newAuth(cfg, o, hc)
 	defer au.close()
 	conf.Auth = au.methods()
@@ -125,9 +178,15 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	hc.clear = func() { conn.SetDeadline(time.Time{}) }
 	conf.HostKeyCallback = func(_ string, _ net.Addr, key ssh.PublicKey) error {
 		hc.clear()
-		return hc.check(key)
+		o.Step("Checking the host key", false)
+		if err := hc.check(key); err != nil {
+			return err
+		}
+		o.Step("Authenticating", false)
+		return nil
 	}
 	addr := net.JoinHostPort(cfg.HostName(), strconv.Itoa(cfg.Port()))
+	o.Step("Exchanging keys", false)
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	sc, chans, reqs, err := ssh.NewClientConn(conn, addr, conf)
 	stop()
@@ -139,6 +198,7 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	}
 	c := &Client{Client: ssh.NewClient(sc, chans, reqs), cfg: cfg, opt: o, hc: hc, jump: jump, done: make(chan struct{})}
 	go func() { c.end(c.Client.Wait()) }()
+	o.Step("Starting forwards", false)
 	if err := c.start(); err != nil {
 		c.Close()
 		return nil, err

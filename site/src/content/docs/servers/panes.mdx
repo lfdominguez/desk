@@ -133,9 +133,28 @@ side.
 
 While a pane's connection isn't up, a box over it says what's going on and what you can do.
 
+### Connecting, step by step
+
+When a pane opens a new connection to a server, the box shows each step as it happens, with its
+time (milliseconds under a second, then seconds): reading the config, looking up the host name,
+connecting to its address (or the jump host's steps, prefixed "via <host>:", or the
+ProxyCommand), looking up the password in the vault, exchanging keys, checking the host key,
+each authentication method tried, starting the forwards and opening the shell. A wait on you (a
+passphrase, a password, a "yes/no") is its own step, in grey, so it doesn't read as network time.
+After 10 seconds the box adds that a VPN may be down; **Close** (<kbd>C</kbd> or <kbd>Esc</kbd>)
+closes the pane.
+
+Once the shell is up the box goes, and the pane's header reads "connected in 2.4 s" until its next
+connection; hover it for the steps and the total, with the part spent waiting for you apart. A
+step that fails is marked with its time, and the box below says why.
+
+A pane that shares a connection already open to that server (a second pane, the files panel) has
+no steps: it didn't connect.
+
 ### Not answering yet
 
-If the server hasn't answered after 10 seconds:
+If a pane that shares a connection still being made hasn't heard from the server after 10
+seconds:
 
 <figure class="cut">
 
@@ -207,7 +226,7 @@ prompt reads "Asks for deploy's password" with **Type server password**
 
 A server with [`#@ wol`](/servers/servers-file/#wol) gets a magic packet each time a pane
 opens on it, just before desk connects. desk doesn't wait for it to boot: if the pane says the
-server isn't answering yet, **Keep waiting**.
+server isn't answering yet, give it time (or **Keep waiting**, when the box offers it).
 
 ## Recordings
 

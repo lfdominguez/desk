@@ -5,6 +5,7 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/unit"
 )
 
 // tbTips is what each toolbar button does, with its key: the buttons are
@@ -22,13 +23,18 @@ var tbTips = map[string]string{
 // buttons sit at the window's right. As kit.Tip, read after the button is
 // laid out, so the hover is this frame's.
 func (u *ui) tip(gtx layout.Context, id string, d layout.Dimensions, s string) {
+	u.tipW(gtx, id, d, 360, 120, u.lbl(s, 11, cText, sansFont))
+}
+
+// tipW is tip with any content, up to w×h dp.
+func (u *ui) tipW(gtx layout.Context, id string, d layout.Dimensions, w, h unit.Dp, content layout.Widget) {
 	if !u.click(id).Hovered() {
 		return
 	}
 	m := op.Record(gtx.Ops)
 	tgtx := gtx
-	tgtx.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(360), gtx.Dp(120))}
-	td := boxed(cPanelCard, cRim, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, u.lbl(s, 11, cText, sansFont))(tgtx)
+	tgtx.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(w), gtx.Dp(h))}
+	td := boxed(cPanelCard, cRim, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, content)(tgtx)
 	call := m.Stop()
 	m = op.Record(gtx.Ops)
 	op.Offset(image.Pt(d.Size.X-td.Size.X, d.Size.Y+gtx.Dp(4))).Add(gtx.Ops)

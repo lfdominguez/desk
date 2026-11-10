@@ -56,9 +56,10 @@ type Term struct {
 	typed      bool   // Claude wrote the current prompt line
 	byClaude   bool   // Claude typed into the current prompt
 	injected   bool
-	reached    bool  // the server asked something (password, host key): it answered
-	up         bool  // the SSH session started: authenticated, the shell running
-	err        error // why the SSH connection couldn't be made
+	reached    bool       // the server asked something (password, host key): it answered
+	up         bool       // the SSH session started: authenticated, the shell running
+	err        error      // why the SSH connection couldn't be made
+	steps      []connStep // the dial's steps (connsteps.go); none when the pool had the connection
 	started    time.Time
 	integrated bool // saw at least one OSC 133 mark
 	exited     bool

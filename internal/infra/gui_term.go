@@ -338,6 +338,17 @@ func (u *ui) pane(gtx layout.Context, t *guiTab, i int) layout.Dimensions {
 				return layout.Inset{Left: 10}.Layout(gtx, u.pill("typing into every pane", cOrange, cOrangeSoft))
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // how its connection went, until the next
+				ss := p.Term.Steps()
+				if p.Conn != "" || stepsTotal(ss) == "" {
+					return layout.Dimensions{}
+				}
+				id := fmt.Sprintf("steps%p", p.Term)
+				s := "connected in " + fmtDur(ss[len(ss)-1].End.Sub(ss[0].Start))
+				d, _ := u.button(gtx, id, color.NRGBA{}, cHover, rCtl, layout.Inset{Top: 2, Bottom: 2, Left: 7, Right: 7}, u.lbl(s, 11, cText3, sansFont))
+				u.tipW(gtx, id, d, 460, 600, u.connSteps(ss, gtx.Now))
+				return layout.Inset{Right: 6}.Layout(gtx, func(layout.Context) layout.Dimensions { return d })
+			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if !p.Focused {
 					return layout.Dimensions{}
@@ -950,6 +961,12 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 	}
 	title, sub, guide := connText(p, gtx.Now)
 	var kids []layout.FlexChild
+	ss := p.Term.Steps() // live: they come with the dial, not with a snapshot
+	steps := func() {
+		if len(ss) > 0 {
+			kids = append(kids, layout.Rigid(vgap(10)), layout.Rigid(u.connSteps(ss, gtx.Now)))
+		}
+	}
 	if p.Conn == "failed" {
 		head := []layout.FlexChild{layout.Rigid(u.lbl(title, 15, cText, fBold(sansFont)))}
 		if sub != "" {
@@ -962,6 +979,7 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, head...)
 				}))
 		}))
+		steps()
 		if c := p.KeyChange; c != nil { // the key sent and the one known, to compare
 			lines := []string{fmt.Sprintf("sent now  %-8s %s", c.Type, c.Remote)}
 			for _, o := range c.Old {
@@ -991,7 +1009,11 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, row...)
 		}))
 	} else {
-		gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(time.Second)}) // the seconds count up
+		tick := time.Second // the seconds count up
+		if p.Conn == "connecting" {
+			tick = 100 * time.Millisecond // and the running step's time
+		}
+		gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(tick)})
 		row := []layout.FlexChild{u.kb("connC", kit.Ghost, "Close", "C", press("c")), spacer()}
 		switch p.Conn {
 		case "timeout":
@@ -1009,14 +1031,18 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 				return layout.Dimensions{Size: image.Pt(w, h)}
 			}), layout.Rigid(vgap(6)))
 		}
-		kids = append(kids, text(sub, cText3, sansFont), layout.Rigid(vgap(10)))
-		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		kids = append(kids, text(sub, cText3, sansFont))
+		steps()
+		kids = append(kids, layout.Rigid(vgap(10)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, row...)
 		}))
 	}
 	width, in := unit.Dp(420), layout.Inset{Top: 18, Bottom: 16, Left: 18, Right: 18}
 	if p.Conn != "failed" {
 		width, in = 360, layout.Inset{Top: 14, Bottom: 14, Left: 16, Right: 16}
+	}
+	if len(ss) > 0 {
+		width = 460 // a step's name and its time on one line
 	}
 	if p.KeyChange != nil {
 		width = 560 // a fingerprint per line
@@ -1054,6 +1080,11 @@ func connText(p guiPane, now time.Time) (title, sub, guide string) {
 		}
 	case "timeout":
 		title, sub = p.Name+" isn't answering yet", secs(now.Sub(p.Since))+" and counting. A VPN may be down."
+	case "connecting": // its steps show under it, so no Keep waiting
+		title, sub = "Connecting to "+p.Name+"…", secs(now.Sub(p.Since))
+		if now.Sub(p.Since) > connectWait {
+			sub += " and counting. A VPN may be down."
+		}
 	case "reconnecting":
 		title, sub = "Reconnecting to "+p.Name+"…", "The connection dropped "+secs(now.Sub(p.Since))+" ago"
 		if p.Tries > 0 {
@@ -1063,6 +1094,42 @@ func connText(p guiPane, now time.Time) (title, sub, guide string) {
 		title, sub = "Connecting to "+p.Name+"…", "Waiting for the server · "+secs(now.Sub(p.Since))
 	}
 	return title, sub, guide
+}
+
+// connSteps lists a dial's steps with their times (the running one's
+// counting), and the total once it connected.
+func (u *ui) connSteps(ss []connStep, now time.Time) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		var rows []layout.FlexChild
+		for _, s := range ss {
+			mark, mc, nc := "✓", cGreen, cText2
+			switch {
+			case s.Err != "":
+				mark, mc, nc = "✕", cRedText, cRedText
+			case s.End.IsZero():
+				mark, mc, nc = "•", cAcc, cText
+			}
+			if s.User {
+				nc = cText3 // the user's time, not the network's
+			}
+			rows = append(rows, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.Y = 0
+				return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Dp(16)
+						return u.label(gtx, mark, 12, mc, sansFont, 1)
+					}),
+					layout.Flexed(1, u.lblFill(s.Name, 12, nc, sansFont)),
+					layout.Rigid(hgap(10)),
+					layout.Rigid(u.lbl(fmtDur(s.dur(now)), 12, cText3, monoFont)),
+				)
+			}), layout.Rigid(vgap(3)))
+		}
+		if t := stepsTotal(ss); t != "" {
+			rows = append(rows, layout.Rigid(vgap(3)), layout.Rigid(u.lbl(t, 12, cText, fSemi(sansFont))))
+		}
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
+	}
 }
 
 // lastLine is s's last line with text: what ssh said as it ended.

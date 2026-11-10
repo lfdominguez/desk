@@ -476,14 +476,18 @@ func (m model) View() tea.View { return tea.View{} }
 
 const connectWait = 10 * time.Second
 
-// connState is "" once the pane's connection is up, "timeout" while it hasn't
-// answered past waitUntil, "failed" when it ended without ever connecting.
+// connState is "" once the pane's connection is up, "connecting" while its
+// own dial runs (the box shows its steps, a question asked included),
+// "timeout" while it hasn't answered past waitUntil, "failed" when it ended
+// without ever connecting.
 func (p *Pane) connState() string {
 	c := p.term
 	_, exited := c.State()
 	switch {
 	case !p.lost.IsZero():
 		return "reconnecting"
+	case c.connecting():
+		return "connecting"
 	case c.Connected():
 		return ""
 	case exited:

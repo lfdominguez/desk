@@ -195,9 +195,13 @@ func (t *Term) connect(p *sshProc, host, dir string) {
 	o := sshOpts(host, dir)
 	sshAsk(&o, host, dir, func() { t.markReached() })
 	o.Logf = func(f string, a ...any) { t.print(fmt.Sprintf(f, a...)) }
+	o.Step = t.step // heard only when the pool dials for this pane
 	c, release, err := sshPool.Get(p.ctx, host, o)
 	var s *sshc.Session
 	if err == nil {
+		if t.dialed() {
+			t.step("Opening the shell", false)
+		}
 		p.mu.Lock()
 		w, h := p.w, p.h
 		p.mu.Unlock()
@@ -205,6 +209,7 @@ func (t *Term) connect(p *sshProc, host, dir string) {
 			release()
 		}
 	}
+	t.endSteps(err)
 	if err != nil {
 		t.mu.Lock()
 		t.err, t.reached = err, false // a question answered, then refused: failed, not connected
