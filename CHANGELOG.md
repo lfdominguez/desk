@@ -6,6 +6,19 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- A card's drawing's Claude works in the card's folder and its workspace's projects, and reads
+  nowhere else unless you ask it to.
+
+### Fixed
+
+- Labels wrap inside their shape, which grows taller to hold them, instead of running over its
+  edges.
+- Arrows a Claude draws with bends have sharp corners, no longer curves that hook at each bend.
+- A Claude's drawing tools no longer fail with "desk's board didn't answer" while desk's window
+  is hidden; the edit used to land anyway after the Claude had given up on it.
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed

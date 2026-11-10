@@ -2331,7 +2331,7 @@ func TestCoverOnBoardTimeout(t *testing.T) {
 	defer func(d time.Duration) { boardWait = d }(boardWait)
 	boardWait = 10 * time.Millisecond
 	u := newUI(kanban.Default(), filepath.Join(t.TempDir(), "board.json"))
-	if _, err := onBoard(u, func() (int, error) { return 1, nil }); err == nil || err.Error() != "desk's board didn't answer" {
+	if _, err := onBoard(u, func() (int, error) { return 1, nil }); err == nil || !strings.HasPrefix(err.Error(), "desk's board didn't answer in time") {
 		t.Fatalf("%v", err)
 	}
 }

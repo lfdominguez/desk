@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -341,4 +342,23 @@ func TestCardDrawings(t *testing.T) {
 	}
 	h.u.view = "drc:nope"
 	h.frame() // a gone card's list draws nothing, quietly
+}
+
+func TestCardDrawingClaudeScope(t *testing.T) {
+	h := newHarness(t)
+	c := acmeCard(h)
+	c.Dir, c.Projects = "web", []string{"/p/api"}
+	path := filepath.Join(h.u.cardDrawingsDir("Acme", c.ID), "D.excalidraw")
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	draw.NewScene().Save(path)
+	h.u.openDrawing("Acme", path)
+	if err := h.u.drawAsk(h.u.draws[path], "hi"); err != nil {
+		t.Fatal(err)
+	}
+	o := h.drawClaudes()[0].opts
+	web := filepath.Join(h.u.root, "Acme", "web")
+	if o.Dir != web || o.Root != filepath.Join(h.u.root, "Acme") || !slices.Contains(o.Args, "--add-dir=/p/api") ||
+		!strings.Contains(o.System, "these folders: "+web+", /p/api.") {
+		t.Errorf("%+v", o)
+	}
 }

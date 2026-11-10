@@ -238,10 +238,10 @@ func TestDirectivesMore(t *testing.T) {
 	if !strings.HasSuffix(CardTools, DrawingTools) {
 		t.Fatal("a card's Claude draws too")
 	}
-	if s := Drawing("Flow", "Acme", ""); !strings.Contains(s, `drawing "Flow" (of organization Acme)`) || !strings.HasSuffix(s, DrawingTools) {
+	if s := Drawing("Flow", "Acme", "", []string{"/a"}); !strings.Contains(s, `drawing "Flow" (of organization Acme)`) || !strings.HasSuffix(s, DrawingTools) {
 		t.Fatalf("%s", s)
 	}
-	if s := Drawing("Flow", "Acme", "DESK-3"); !strings.Contains(s, `drawing "Flow" (of card DESK-3 of organization Acme)`) {
+	if s := Drawing("Flow", "Acme", "DESK-3", []string{"/a/b", "/c"}); !strings.Contains(s, `drawing "Flow" (of card DESK-3 of organization Acme)`) || !strings.Contains(s, "these folders: /a/b, /c.") {
 		t.Fatalf("%s", s)
 	}
 	clean, d := Take("hi\nDESK-TICKET: Fix login\nDESK-CARD: write docs\nDESK-CARD:\n")

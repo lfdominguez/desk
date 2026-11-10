@@ -110,7 +110,7 @@ func onBoard[T any](u *ui, f func() (T, error)) (T, error) {
 		return r.v, r.err
 	case <-time.After(boardWait):
 		var zero T
-		return zero, errors.New("desk's board didn't answer")
+		return zero, errors.New("desk's board didn't answer in time; it may still do it, so look before asking again") // the work stays queued
 	}
 }
 

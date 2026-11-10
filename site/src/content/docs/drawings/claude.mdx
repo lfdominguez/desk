@@ -15,9 +15,14 @@ change something: what you have selected goes with your message, so "make these 
 <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> is a new line.
 
 It runs with the organization's account, in its folder, so it can read the organization's files
-to draw from them. It draws only through the drawing tools: it never changes a file or runs a
+to draw from them. A card's drawing's Claude runs in the card's folder instead, with the
+projects of the card's [workspace](/sessions/workspace/), and reads only there unless you ask it
+to look elsewhere. It draws only through the drawing tools: it never changes a file or runs a
 command. A card's drawing's Claude knows which card the drawing belongs to. It is not the card's
 session, though; the card's own Claude can draw too.
+
+A label wraps to its shape's width, as in Excalidraw, and the shape grows taller to hold it.
+Arrows and lines a Claude draws with bends get sharp corners, unless it asks for round ones.
 
 Its conversation is kept with the drawing and picks up where it left off, across restarts.
 

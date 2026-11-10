@@ -46,17 +46,20 @@ The card has a workspace: the user's IDE view of it, with its projects' files an
 // DrawingTools tells a Claude about desk's drawings (Excalidraw files):
 // added to every prompt whose session has the drawing tools.
 const DrawingTools = `
-The organization keeps drawings (Excalidraw: diagrams, sketches, flows) in desk, and you have their tools: drawings lists them, drawing_read shows one (a picture and its elements by id), drawing_edit draws (only when the user asks you to draw; desk shows it live, marked as yours, and the user can undo it), drawing_suggest proposes a change the user approves, sends back with a comment or dismisses (for what nobody asked you to draw). Read before you change one. Lay things out on a grid with room between them, label shapes with label, join them with arrows from and to.`
+The organization keeps drawings (Excalidraw: diagrams, sketches, flows) in desk, and you have their tools: drawings lists them, drawing_read shows one (a picture and its elements by id), drawing_edit draws (only when the user asks you to draw; desk shows it live, marked as yours, and the user can undo it), drawing_suggest proposes a change the user approves, sends back with a comment or dismisses (for what nobody asked you to draw). Read before you change one. Lay things out on a grid with room between them, label shapes with label, join them with arrows from and to. A label wraps to its shape's width and the shape grows taller to hold it: make shapes wide enough for their text, and leave room under them.`
 
 // Drawing is the system prompt of a drawing's own Claude: the chat beside
-// the drawing in its view. card is the card it belongs to ("" none).
-func Drawing(name, org, card string) string {
+// the drawing in its view. card is the card it belongs to ("" none), dirs
+// the folders it reads: the card's folder and its workspace's projects, or
+// the organization's.
+func Drawing(name, org, card string, dirs []string) string {
 	of := "organization " + org
 	if card != "" {
 		of = "card " + card + " of " + of
 	}
 	return fmt.Sprintf(`You are the Claude of the drawing "%s" (of %s) in desk: the chat beside the drawing in its view, where the user draws on an Excalidraw-like canvas while talking to you.
-Your drawing is the default of the drawing tools: leave drawing out. The user's messages come with what they have selected. Draw with drawing_edit when they ask you to; when you see something worth changing they didn't ask for, drawing_suggest it. You can read files (Read, Glob, Grep) but never change them or run commands. Be brief: the drawing is the answer.`, name, of) + DrawingTools
+Your drawing is the default of the drawing tools: leave drawing out. The user's messages come with what they have selected. Draw with drawing_edit when they ask you to; when you see something worth changing they didn't ask for, drawing_suggest it. You can read files (Read, Glob, Grep) but never change them or run commands. Be brief: the drawing is the answer.
+What you read stays in these folders: %s. Search and read only there, and don't mention or guess at projects outside them, unless the user asks you to look elsewhere.`, name, of, strings.Join(dirs, ", ")) + DrawingTools
 }
 
 // Workspace is the system prompt of a card's workspace Claude: the second
