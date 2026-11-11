@@ -1798,6 +1798,33 @@ func TestGMResizeGrip(t *testing.T) {
 	}
 }
 
+// TestGMResizeGripRightAligned: the panel sits at the window's right edge, so
+// its frame moves as it widens; several drags in one frame still follow the
+// pointer, and that frame draws the new width.
+func TestGMResizeGripRightAligned(t *testing.T) {
+	h := newGM(t)
+	u := h.u
+	h.set(&guiState{})
+	w := func(gtx layout.Context) { // as gui.go: panes, then the panel at the right
+		layout.Flex{}.Layout(gtx,
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+			layout.Rigid(u.claudePanel))
+	}
+	h.draw(w)
+	h.press(802, 100, 0)
+	h.drag(752, 100)
+	h.drag(702, 100)
+	h.draw(w)
+	if u.claudeW != 500 || u.grip.drawnW != 500 {
+		t.Errorf("dragged 100 left: width %v, drawn %v", u.claudeW, u.grip.drawnW)
+	}
+	h.drag(652, 100)
+	h.draw(w)
+	if u.claudeW != 550 {
+		t.Errorf("next frame: %v", u.claudeW)
+	}
+}
+
 func TestGMComposer(t *testing.T) {
 	h := newGM(t)
 	u := h.u

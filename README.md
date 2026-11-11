@@ -84,8 +84,10 @@ per-organization Claude profiles (macOS and Windows hand the profile to Claude C
 ### Windows
 
 Download `desk-<version>-windows-amd64.msi` from the [latest release](https://github.com/lfdominguez/desk/releases/latest)
-and run it: it installs to `Program Files\desk`, adds it to `PATH` (sessions run `desk peer`) and
-puts desk in the Start Menu; a newer MSI replaces the old install. Or take the portable
+and run it: a wizard installs desk for you alone (`%LOCALAPPDATA%\Apps\desk`, no administrator
+rights) or, under **Advanced**, for everyone (`Program Files\desk`), adds it to `PATH` (sessions
+run `desk peer`), puts desk in the Start Menu and on the desktop, and can launch it when it's done;
+a newer MSI replaces the old install. Or take the portable
 `desk-<version>-windows-amd64.zip` and run `desk.exe` from anywhere. Neither is code-signed (see
 [Roadmap](#roadmap)), so SmartScreen warns the first time: **More info → Run anyway**.
 

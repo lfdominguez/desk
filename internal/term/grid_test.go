@@ -48,6 +48,24 @@ func rowText(row []Run) string {
 	return strings.TrimRight(b.String(), " ")
 }
 
+// TestGridSynchronized: inside a synchronized update the last screen stays;
+// its end shows the whole new one.
+func TestGridSynchronized(t *testing.T) {
+	tm, _ := bare(6, 2)
+	tm.emu.WriteString("old")
+	tm.Grid(0)
+	tm.emu.WriteString("\x1b[?2026h\x1b[2J\x1b[Hne")
+	tm.ver++
+	if runs, _, _, _ := tm.Grid(0); rowText(runs[0]) != "old" {
+		t.Errorf("mid update: %q", rowText(runs[0]))
+	}
+	tm.emu.WriteString("w\x1b[?2026l")
+	tm.ver++
+	if runs, _, _, _ := tm.Grid(0); rowText(runs[0]) != "new" {
+		t.Errorf("after: %q", rowText(runs[0]))
+	}
+}
+
 // TestGridStyles: a style change opens a new run at its column, and runs
 // carry their text and width.
 func TestGridStyles(t *testing.T) {

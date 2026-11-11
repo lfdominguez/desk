@@ -1047,6 +1047,33 @@ func TestTermStatusAndCwd(t *testing.T) {
 	}
 }
 
+// TestScreenSynchronized: a pane keeps its last screen while the program is
+// mid synchronized update, and shows the whole new one once it ends.
+func TestScreenSynchronized(t *testing.T) {
+	tm, v := &Term{emu: vt.NewEmulator(10, 2)}, &termView{}
+	first := func() string {
+		_, runs, _, _, _, _ := v.screen(tm)
+		var b strings.Builder
+		for _, r := range runs[0] {
+			b.WriteString(r.Text)
+		}
+		return strings.TrimSpace(b.String())
+	}
+	tm.emu.WriteString("old")
+	tm.ver.Add(1)
+	first()
+	tm.emu.WriteString("\x1b[?2026h\x1b[2J\x1b[Hne")
+	tm.ver.Add(1)
+	if s := first(); s != "old" {
+		t.Errorf("mid update: %q", s)
+	}
+	tm.emu.WriteString("w\x1b[?2026l")
+	tm.ver.Add(1)
+	if s := first(); s != "new" {
+		t.Errorf("after: %q", s)
+	}
+}
+
 func TestTermRows(t *testing.T) {
 	tm := &Term{emu: vt.NewEmulator(10, 4)}
 	tm.emu.WriteString("a\r\nb\r\nc")

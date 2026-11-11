@@ -31,9 +31,11 @@ type gripState struct {
 	dragging bool
 	startX   float32
 	startW   unit.Dp
+	drawnW   int // the panel's width in px when the grip was last laid out: its events' frame
 }
 
 func (u *ui) claudePanel(gtx layout.Context) layout.Dimensions {
+	u.gripEvents(gtx) // before reading claudeW, so this frame draws the dragged width
 	w := gtx.Dp(u.claudeW)
 	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))
 	panel(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, cPanel, color.NRGBA{})
@@ -148,8 +150,12 @@ func (u *ui) ctxBar(gtx layout.Context, t *guiTab) layout.Dimensions {
 	})
 }
 
-// resizeGrip lets the panel's left edge be dragged.
-func (u *ui) resizeGrip(gtx layout.Context) {
+// gripEvents handles drags of the panel's left edge. The panel is right
+// aligned, so its frame moves with its width: an event's X minus the width
+// the grip was laid out at (drawnW) is the window's X less its width, which
+// stays put, while claudeW changes under the events of one frame (adding
+// claudeW made the width jump back and forth while dragging).
+func (u *ui) gripEvents(gtx layout.Context) {
 	g := &u.grip
 	for {
 		ev, ok := gtx.Event(pointer.Filter{Target: g, Kinds: pointer.Press | pointer.Drag | pointer.Release | pointer.Cancel})
@@ -163,10 +169,10 @@ func (u *ui) resizeGrip(gtx layout.Context) {
 		switch e.Kind {
 		case pointer.Press:
 			g.dragging, g.startW = true, u.claudeW
-			g.startX = e.Position.X + float32(gtx.Dp(u.claudeW)) // in the panel's frame, which moves
+			g.startX = e.Position.X - float32(g.drawnW)
 		case pointer.Drag:
 			if g.dragging {
-				dx := g.startX - (e.Position.X + float32(gtx.Dp(u.claudeW)))
+				dx := g.startX - (e.Position.X - float32(g.drawnW))
 				u.claudeW = max(300, min(800, g.startW+unit.Dp(dx/gtx.Metric.PxPerDp)))
 			}
 		case pointer.Release, pointer.Cancel:
@@ -176,8 +182,13 @@ func (u *ui) resizeGrip(gtx layout.Context) {
 			g.dragging = false
 		}
 	}
+}
+
+// resizeGrip lays out the panel's left edge as the grip.
+func (u *ui) resizeGrip(gtx layout.Context) {
+	u.grip.drawnW = gtx.Constraints.Max.X
 	st := clip.Rect(image.Rect(0, 0, gtx.Dp(6), gtx.Constraints.Max.Y)).Push(gtx.Ops)
-	event.Op(gtx.Ops, g)
+	event.Op(gtx.Ops, &u.grip)
 	pointer.CursorColResize.Add(gtx.Ops)
 	st.Pop()
 }

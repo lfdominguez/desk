@@ -87,7 +87,9 @@ type Run struct {
 func (t *Term) Grid(scroll int) (runs [][]Run, cx, cy int, cursor bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if l := t.last; l.ok && l.ver == t.ver && l.scroll == scroll {
+	// mid synchronized update (Claude Code's redraws) the last screen stays,
+	// so a half-drawn one never flickers through
+	if l := t.last; l.ok && l.scroll == scroll && (l.ver == t.ver || t.emu.Synchronized()) {
 		return l.runs, l.cx, l.cy, l.cursor
 	}
 	runs, cx, cy, cursor = t.grid(scroll)

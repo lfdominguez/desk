@@ -682,9 +682,10 @@ type cellKey struct {
 
 // screen is the Term's Scrollback and Grid at the view's scroll, read again
 // only when its Version or the scroll moved: frames come far more often than
-// output, and Grid styles every cell.
+// output, and Grid styles every cell. Mid synchronized update the last screen
+// stays, so a half-drawn one never flickers through.
 func (v *termView) screen(t *Term) (sb int, runs [][]Run, meta []Row, cx, cy int, cursor bool) {
-	if ver := t.Version(); v.runs == nil || ver != v.gridVer || v.scroll != v.gridScroll {
+	if ver := t.Version(); v.runs == nil || v.scroll != v.gridScroll || ver != v.gridVer && !t.Synchronized() {
 		v.gridVer, v.gridScroll, v.gridGen = ver, v.scroll, v.gridGen+1
 		v.sb = t.Scrollback()
 		v.runs, v.meta, v.cx, v.cy, v.cursor = t.Grid(v.scroll)

@@ -98,7 +98,7 @@ What stays Linux-only: the infra workspace's virtual camera (sharing a terminal 
 
 Each release has two Windows downloads on the [latest release](https://github.com/lfdominguez/desk/releases/latest), for x64:
 
-- **`desk-<version>-windows-amd64.msi`**, the installer. Run it: it asks for administrator rights once, installs `desk.exe` to `C:\Program Files\desk`, adds that folder to `PATH` and puts **desk** in the Start Menu. A newer MSI replaces the installed version; uninstall it from **Settings → Apps**. Silent install: `msiexec /i desk-<version>-windows-amd64.msi /qn`.
+- **`desk-<version>-windows-amd64.msi`**, the installer. Run it and accept the license: **Install** puts `desk.exe` in `%LOCALAPPDATA%\Apps\desk` for you alone, with no administrator rights; **Advanced** installs it for everyone in `C:\Program Files\desk` (asking for administrator rights once), lets you pick another folder, and leaves out the desktop shortcut if you untick it. Either way the folder goes on your `PATH` (the system's, for everyone), **desk** goes in the Start Menu and on the desktop, and the last page offers to launch it. If desk is already installed for everyone (as every MSI before this wizard did), the wizard picks that again, so the new version replaces it. A newer MSI replaces the installed version; uninstall it from **Settings → Apps**. Silent install, for you: `msiexec /i desk-<version>-windows-amd64.msi /qn`; for everyone: add `ALLUSERS=1`.
 - **`desk-<version>-windows-amd64.zip`**, portable: `desk.exe`, the license and a short README. Unzip it anywhere and run `desk.exe`; nothing is installed.
 
 Neither is code-signed yet, so the first time SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**; after that it opens normally.

@@ -6,6 +6,23 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The Windows installer is a wizard**: the license, then Install for you alone (in
+  `%LOCALAPPDATA%\Apps\desk`, no administrator rights) or Advanced: for everyone in Program Files,
+  another folder, the desktop shortcut. desk goes on your `PATH` (the system's for everyone), in
+  the Start Menu and on the desktop, and the last page can launch it. An install made for everyone
+  by an earlier MSI is replaced in place.
+
+### Fixed
+
+- Home and End work in vim, less and other programs that switch the terminal to application
+  cursor keys, in a card's terminal and in server panes.
+- Dragging the edge of the infra workspace's Claude panel follows the pointer: the panel jumped
+  back to its old width and forth again while it moved.
+- A card's terminal and server panes no longer flicker while Claude Code (or any program using
+  synchronized output) redraws: a screen half redrawn never shows.
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed

@@ -21,10 +21,12 @@ Without the flake, the same through
 Packaging: `.github/workflows/release.yml` builds the `.deb` and the AppImage on every push, from
 `packaging/` (desktop file, icon), and its `macos` job the universal `desk.app` zip
 (`packaging/macos/build-app.sh`; Developer ID signing and notarization only with the `APPLE_*` secrets), and its
-`windows` job, on Ubuntu, the Windows zip and MSI (`packaging/windows/build.sh`: cross-built with
-`-H windowsgui`, icon and version info from a go-winres `.syso`, the MSI by wixl from `desk.wxs`,
-whose `UpgradeCode` never changes; MSI version `YY.MM.(DD*100+N)`; Authenticode signing only with
-the `WINDOWS_CERT_*` secrets). On a release tag its `aur` job also publishes
+`windows` job, on Ubuntu, the Windows zip and the MSI's inputs (`packaging/windows/build.sh`:
+cross-built with `-H windowsgui`, icon and version info from a go-winres `.syso`, the wizard's
+bitmaps), then its `windows-msi` job, on Windows, the MSI (`msi.ps1`, WiX v5 `WixUI_Advanced` from
+`desk.wxs`, per user or machine, whose `UpgradeCode` never changes; installed, checked and
+uninstalled there first); MSI version `YY.MM.(DD*100+N)`; Authenticode signing only with the
+`WINDOWS_CERT_*` secrets). On a release tag its `aur` job also publishes
 `packaging/aur/PKGBUILD` (AUR `desk-kanban`: "desk" is taken there) with that tag's `pkgver` and
 source checksum, given the `AUR_SSH_PRIVATE_KEY` secret. Releases are dated tags, `2026.11.03` then `2026.11.03.1`, `.2`…
 the same day (checked by the workflow, which publishes them); the version reaches the binary as

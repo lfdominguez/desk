@@ -108,17 +108,19 @@ Every push to `main` also replaces the [`nightly` pre-release](https://github.co
 
 ### Windows packages
 
-`packaging/windows/build.sh` cross-builds both from Linux (Gio needs no cgo on Windows), so the release's `windows` job runs on Ubuntu:
+`packaging/windows/build.sh` cross-builds `desk.exe` and the zip from Linux (Gio needs no cgo on Windows), so the release's `windows` job runs on Ubuntu:
 
 ```sh
-VERSION=2026.11.03 packaging/windows/build.sh   # dist/desk-2026.11.03-windows-amd64.{zip,msi}
+VERSION=2026.11.03 packaging/windows/build.sh   # dist/desk-2026.11.03-windows-amd64.zip, dist/windows/msi/
 ```
 
-It needs Go, `rsvg-convert`, ImageMagick, `wixl` (msitools) and `zip`; with Nix, `nix shell nixpkgs#librsvg nixpkgs#imagemagick nixpkgs#zip nixpkgs#msitools` (wixl 0.106 or newer: 0.103, Ubuntu 24.04's, crashes on the `.wxs`'s `PATH` entry, so the release job takes `github:NixOS/nixpkgs/nixos-25.05#msitools`; use that too if nixpkgs' current msitools fails its build). It makes `desk.ico` from `packaging/desk.svg`, links it and the version info into `desk.exe` through a `.syso` from [go-winres](https://github.com/tc-hib/go-winres) (`go run`, not a module dependency), builds with `-H windowsgui`, then the zip and the MSI from `packaging/windows/desk.wxs` (WiX v3 syntax, which wixl reads).
+It needs Go, `rsvg-convert`, ImageMagick and `zip`; with Nix, `nix shell nixpkgs#librsvg nixpkgs#imagemagick nixpkgs#zip`. It makes `desk.ico` from `packaging/desk.svg`, links it and the version info into `desk.exe` through a `.syso` from [go-winres](https://github.com/tc-hib/go-winres) (`go run`, not a module dependency), builds with `-H windowsgui`, then the zip, and puts what the MSI is made of in `dist/windows/msi/`: `desk.exe`, the icon, `desk.wxs`, the license as RTF, the wizard's banner and side pictures (drawn from the icon) and the MSI version.
 
-The MSI installs per machine to `Program Files\desk`, adds it to the system `PATH` and adds a Start Menu shortcut. Its `UpgradeCode` in `desk.wxs` never changes: that's how a newer MSI finds and replaces an older install. MSI versions are three numbers (at most 255.255.65535, a fourth is ignored when comparing), so a release's date maps to `YY.MM.(DD×100+N)`: `2026.11.05` is `26.11.500`, `2026.11.05.1` is `26.11.501`. A nightly gets its day's number, and that day's release, the same version, still replaces it. `desk.exe`'s own file version is the full date, `2026.11.5.1`.
+The MSI is built on Windows, since WiX's wizard dialogs don't build anywhere else: the `windows-msi` job (on `windows-2025`) runs `msi.ps1` from that folder with [WiX v5](https://wixtoolset.org/) and its UI and Util extensions (the commands are at the top of `msi.ps1`), installs the result silently, checks it landed in `%LOCALAPPDATA%\Apps\desk` and on the user's `PATH`, uninstalls it, and only then publishes it.
 
-Neither file is signed. Given `SIGN_PFX` (a `.pfx`) and `SIGN_PASSWORD`, the script Authenticode-signs both with `osslsigncode`; the workflow does that when the `WINDOWS_CERT_PFX` (base64 of the `.pfx`) and `WINDOWS_CERT_PASSWORD` secrets exist. To try the packages without Windows, Wine runs them: `wine desk.exe --version`, `wine msiexec /i desk-….msi /qn`.
+The MSI is a `WixUI_Advanced` wizard over one package for both scopes (`Scope="perUserOrMachine"`): per user by default, for everyone under **Advanced**, or for everyone by default when an earlier per-machine install is found (its `HKLM\Software\desk` value), so upgrades replace it. Components for the system and the user `PATH` are picked by `ALLUSERS`; the shortcuts' registry keys are `HKMU`. The last page's **Launch desk** runs Util's `WixShellExec`. Its `UpgradeCode` in `desk.wxs` never changes: that's how a newer MSI finds and replaces an older install. MSI versions are three numbers (at most 255.255.65535, a fourth is ignored when comparing), so a release's date maps to `YY.MM.(DD×100+N)`: `2026.11.05` is `26.11.500`, `2026.11.05.1` is `26.11.501`. A nightly gets its day's number, and that day's release, the same version, still replaces it. `desk.exe`'s own file version is the full date, `2026.11.5.1`.
+
+Neither file is signed. Given `SIGN_PFX` (a `.pfx`) and `SIGN_PASSWORD`, `build.sh` Authenticode-signs `desk.exe` with `osslsigncode`, and the `windows-msi` job signs the MSI with `signtool`; the workflow does both when the `WINDOWS_CERT_PFX` (base64 of the `.pfx`) and `WINDOWS_CERT_PASSWORD` secrets exist. To try `desk.exe` without Windows, Wine runs it: `wine desk.exe --version`.
 
 ## Vendored dependencies
 

@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  desk's MSI, built by packaging/windows/build.sh with wixl (msitools; WiX v3 syntax):
-  desk.exe in Program Files\desk, on the system PATH (Claude sessions run `desk peer`),
-  and a Start Menu shortcut. Per-machine, so it asks for elevation once.
+  desk's MSI, built on Windows by packaging/windows/msi.ps1 with WiX v5 (UI and Util extensions)
+  from what packaging/windows/build.sh made. A wizard (WixUI_Advanced): the license, Install for
+  the user (no admin rights: %LOCALAPPDATA%\Apps\desk), or Advanced for everyone (Program Files\desk),
+  another folder and the desktop shortcut; then Launch desk. desk.exe goes on the user's or the
+  system PATH (Claude sessions run `desk peer`), with Start Menu and desktop shortcuts.
 
   UpgradeCode is desk's forever: MajorUpgrade finds older installs by it and removes them.
   Never change it. ProductVersion comes from build.sh (msiVersion: 2026.11.05.1 → 26.11.501).
 -->
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="desk" Language="1033" Version="$(var.Version)" Manufacturer="desk"
-           UpgradeCode="0d8bb4a7-0f31-4192-94bd-81a155b9518c">
-    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"
-             Description="desk: a Kanban board where every card is a Claude Code session"
-             Comments="https://github.com/lfdominguez/desk"/>
-    <Media Id="1" Cabinet="desk.cab" EmbedCab="yes"/>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="desk" Language="1033" Version="$(var.Version)" Manufacturer="desk"
+           UpgradeCode="0d8bb4a7-0f31-4192-94bd-81a155b9518c" Scope="perUserOrMachine">
+    <SummaryInformation Description="desk: a Kanban board where every card is a Claude Code session"/>
+    <MediaTemplate EmbedCab="yes"/>
     <!-- AllowSameVersionUpgrades: a nightly and that day's release share a version -->
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="A newer desk is already installed."/>
@@ -22,30 +23,80 @@
     <Property Id="ARPPRODUCTICON" Value="desk.ico"/>
     <Property Id="ARPURLINFOABOUT" Value="https://desk.domivega.com/"/>
 
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLDIR" Name="desk">
-          <Component Id="desk.exe" Guid="7c3d5b0e-4f3a-4d1e-9a52-2b8f6c1e9d40" Win64="yes">
-            <File Id="desk.exe" Name="desk.exe" Source="$(var.Exe)" KeyPath="yes"/>
-            <File Id="LICENSE.txt" Name="LICENSE.txt" Source="$(var.License)"/>
-            <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Action="set" Part="last"
-                         System="yes" Permanent="no"/>
-          </Component>
-        </Directory>
-      </Directory>
-      <Directory Id="ProgramMenuFolder">
-        <Component Id="shortcut" Guid="e1b7a8c2-6d4f-4b39-8f0e-5a9c3d2b7e61" Win64="yes">
-          <Shortcut Id="desk.lnk" Name="desk" Description="A Kanban board of Claude Code sessions"
-                    Target="[INSTALLDIR]desk.exe" WorkingDirectory="INSTALLDIR" Icon="desk.ico"/>
-          <RegistryValue Root="HKLM" Key="Software\desk" Name="shortcut" Type="integer" Value="1"
+    <!-- the wizard: per user by default; for everyone when desk already is (an older MSI was
+         per machine only), so the upgrade replaces it instead of installing beside it -->
+    <ui:WixUI Id="WixUI_Advanced"/>
+    <Property Id="ApplicationFolderName" Value="desk"/>
+    <Property Id="WixAppFolder" Value="WixPerUserFolder"/>
+    <Property Id="MACHINEDESK">
+      <RegistrySearch Id="MachineDesk" Root="HKLM" Key="Software\desk" Name="shortcut" Type="raw"
+                      Bitness="always64"/>
+    </Property>
+    <SetProperty Id="WixAppFolder" Value="WixPerMachineFolder" After="AppSearch" Sequence="ui"
+                 Condition="MACHINEDESK"/>
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)"/>
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.Banner)"/>
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.Dialog)"/>
+
+    <!-- Launch desk, ticked, on the last page -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch desk"/>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
+    <Property Id="WixShellExecTarget" Value="[#desk.exe]"/>
+    <CustomAction Id="LaunchDesk" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes"/>
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchDesk"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed"/>
+    </UI>
+
+    <!-- APPLICATIONFOLDER: WixUI_Advanced points it at Program Files or %LOCALAPPDATA%\Apps -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="APPLICATIONFOLDER" Name="desk">
+        <Component Id="desk.exe">
+          <File Id="desk.exe" Name="desk.exe" Source="$(var.Exe)" KeyPath="yes"/>
+          <File Id="LICENSE.txt" Name="LICENSE.txt" Source="$(var.License)"/>
+        </Component>
+        <!-- PATH: the system's for everyone, the user's otherwise -->
+        <Component Id="PathMachine" Condition="ALLUSERS=1">
+          <Environment Id="PathMachine" Name="PATH" Value="[APPLICATIONFOLDER]" Action="set"
+                       Part="last" System="yes" Permanent="no"/>
+          <RegistryValue Root="HKLM" Key="Software\desk" Name="path" Type="integer" Value="1"
+                         KeyPath="yes"/>
+        </Component>
+        <Component Id="PathUser" Condition="NOT ALLUSERS=1">
+          <Environment Id="PathUser" Name="PATH" Value="[APPLICATIONFOLDER]" Action="set"
+                       Part="last" System="no" Permanent="no"/>
+          <RegistryValue Root="HKCU" Key="Software\desk" Name="path" Type="integer" Value="1"
                          KeyPath="yes"/>
         </Component>
       </Directory>
-    </Directory>
+    </StandardDirectory>
+    <!-- HKMU: HKLM for everyone, HKCU per user -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenu">
+        <Shortcut Id="StartMenu" Name="desk" Description="A Kanban board of Claude Code sessions"
+                  Target="[#desk.exe]" WorkingDirectory="APPLICATIONFOLDER" Icon="desk.ico"/>
+        <RegistryValue Root="HKMU" Key="Software\desk" Name="shortcut" Type="integer" Value="1"
+                       KeyPath="yes"/>
+      </Component>
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="Desktop">
+        <Shortcut Id="Desktop" Name="desk" Description="A Kanban board of Claude Code sessions"
+                  Target="[#desk.exe]" WorkingDirectory="APPLICATIONFOLDER" Icon="desk.ico"/>
+        <RegistryValue Root="HKMU" Key="Software\desk" Name="desktop" Type="integer" Value="1"
+                       KeyPath="yes"/>
+      </Component>
+    </StandardDirectory>
 
-    <Feature Id="desk" Level="1">
+    <Feature Id="desk" Title="desk" Description="desk, on PATH and in the Start Menu."
+             AllowAbsent="no" Display="expand" ConfigurableDirectory="APPLICATIONFOLDER">
       <ComponentRef Id="desk.exe"/>
-      <ComponentRef Id="shortcut"/>
+      <ComponentRef Id="PathMachine"/>
+      <ComponentRef Id="PathUser"/>
+      <ComponentRef Id="StartMenu"/>
+      <Feature Id="DesktopShortcut" Title="Desktop shortcut" Description="desk on the desktop.">
+        <ComponentRef Id="Desktop"/>
+      </Feature>
     </Feature>
-  </Product>
+  </Package>
 </Wix>
