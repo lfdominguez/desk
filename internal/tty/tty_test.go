@@ -3,6 +3,7 @@ package tty
 import (
 	"bufio"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os"
 	"os/exec"
 	"runtime"
@@ -71,7 +72,7 @@ func read(p *PTY) *out {
 
 func (o *out) wait(t *testing.T, s string) {
 	t.Helper()
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
 		o.mu.Lock()
 		got := o.b.String()
 		o.mu.Unlock()
@@ -98,7 +99,7 @@ func TestEchoAndExit(t *testing.T) {
 	}
 	select {
 	case <-o.done: // the output ends with the program
-	case <-time.After(10 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("Read didn't end after the exit")
 	}
 	p.Hangup()
@@ -136,7 +137,7 @@ func TestHangup(t *testing.T) {
 		if runtime.GOOS != "windows" && c != -1 {
 			t.Fatalf("exit %d", c)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("still running after Hangup")
 	}
 }

@@ -1,6 +1,7 @@
 package term
 
 import (
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os"
 	"os/exec"
 	"strings"
@@ -35,7 +36,7 @@ func next(out <-chan string) string {
 	select {
 	case s := <-out:
 		return s
-	case <-time.After(time.Second):
+	case <-time.After(testwait.Long):
 		return ""
 	}
 }
@@ -293,7 +294,7 @@ func TestStartEnv(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for end := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		for end := time.Now().Add(testwait.Long); ; time.Sleep(10 * time.Millisecond) {
 			if done, _ := tm.Exited(); done {
 				break
 			}

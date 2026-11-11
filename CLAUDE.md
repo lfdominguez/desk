@@ -59,7 +59,8 @@ The tests' own checks (`cmd/qa`, Go toolchain only), under the same shell:
   plus uncommitted work) are covered under `-min` (98 by default): what CI runs on a pull request.
   Lines only built on another OS (`runtime.GOOS == "darwin"` branches) can't run on Linux, so keep
   them few.
-- `go run ./cmd/qa mutate [-j N] [-file S] ./internal/fzf …`: mutation testing. One small change
+- `go run ./cmd/qa mutate [-j N] [-file S] ./internal/fzf …`: mutation testing (each mutant's
+  tests with `DESK_TEST_WAIT=20s`, so a wait it breaks ends sooner). One small change
   at a time (`==`↔`!=`, `<`↔`>=`, `&&`↔`||`, `+`↔`-`, a `!` dropped, `true`↔`false`, `++`↔`--`),
   the package's tests run on it through `go test -overlay` (the tree is never touched), then the
   score and every change no test noticed (`file:line: from → to`). A survivor is behavior no test
@@ -209,6 +210,13 @@ go.mod, flake.nix, LICENSE, docs and `cmd/` / `internal/` / `third_party/` / `pl
 - Pointer positions are board coordinates; hit-test against `u.lay` (last frame), don't add per-card handlers.
 - `layout.W/E` keep `Min.Y`: reset it inside, or row children stretch to the row's height.
 - Tests: plain `testing`, one small `TestXxx` per behavior, next to the package they test.
+- **Tests don't depend on the machine's load.** A wait for something that should happen (a prompt,
+  a reply, a toast) polls or selects until it does, with `internal/testwait`'s `Long` as its limit
+  (2 minutes; `qa mutate` shortens it through `DESK_TEST_WAIT`), never a short fixed one. Never
+  assert how long something took, and never sleep and then check: drive the clock instead (a
+  ticker the test ticks: sshc's `aliveTicks`), or check what the code did (its error, its state).
+  Read the clock once when a test builds its data and its expectation from it. Short windows that
+  check something does *not* happen are fine: load only makes them pass.
 - **Every new or changed test is proven by a mutation run.** Coverage only says a line ran; a
   test counts once it fails when the code it covers is wrong. After writing tests, run
   `go run ./cmd/qa mutate -file <file> ./internal/<pkg>` on each source file they exercise, then

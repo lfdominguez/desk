@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"math"
 	"net"
 	"net/http"
@@ -186,7 +187,7 @@ func TestBlockDoneLongNotifiesC(t *testing.T) {
 		if m.tab != tab || m.host != "web1" || m.block.Cmd != "make" {
 			t.Errorf("msg: %+v", m)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("a long command must be dispatched")
 	}
 	select {
@@ -287,7 +288,7 @@ func TestDesktopNotifyC(t *testing.T) {
 		if g != "Approval needed|systemctl restart nginx" {
 			t.Errorf("pushed %q", g)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("nothing pushed")
 	}
 }
@@ -735,7 +736,7 @@ func TestTermHistoryAndTapC(t *testing.T) {
 		if !strings.Contains(s, "tapped") {
 			t.Errorf("tap: %q", s)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("termTap never called")
 	}
 }
@@ -784,7 +785,7 @@ func TestStartAlertsPollsC(t *testing.T) {
 		if a.src != "Acme/mon" || !a.first || len(a.alerts) != 1 || a.alerts[0].Host != "db1" || a.alerts[0].State != "DOWN" || a.alerts[0].Dir != good {
 			t.Errorf("alerts: %+v", a)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("no poll")
 	}
 	select {
@@ -1594,7 +1595,7 @@ func TestWorkspaceAPIC(t *testing.T) {
 	if !w.OpenOrg("Acme") || w.OpenOrg("Globex") {
 		t.Fatal("OpenOrg")
 	}
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end) && !w.Tree()[0].Claude; time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !w.Tree()[0].Claude; time.Sleep(20 * time.Millisecond) {
 	}
 	if tr := w.Tree(); !tr[0].Claude || w.ActiveOrg() != "Acme" {
 		t.Fatalf("org session: %+v %q", tr, w.ActiveOrg())
@@ -1627,7 +1628,7 @@ func TestWorkspaceAPIC(t *testing.T) {
 		if !ok {
 			t.Error("OnInvestigate, SetFocused or Reload didn't reach the model")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("the model loop never ran the actions")
 	}
 	tab := &Tab{org: "Acme"}

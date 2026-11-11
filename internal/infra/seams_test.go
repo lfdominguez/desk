@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -24,7 +25,7 @@ func TestHostCmd(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tm.Close()
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && tm.Cwd() == ""; time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && tm.Cwd() == ""; time.Sleep(50 * time.Millisecond) {
 	}
 	if !slices.Equal(asked, []string{"web-02"}) || tm.Host != "web-02" || tm.Cwd() != dir {
 		t.Fatalf("asked %q, host %q, cwd %q", asked, tm.Host, tm.Cwd())

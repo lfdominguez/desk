@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"reflect"
 	"slices"
@@ -334,7 +335,7 @@ func TestPaletteOpensHost(t *testing.T) {
 	localServer(t, h.u.root, "Acme")
 	h.u.infra = infra.New(h.u.root, func() {})
 	defer h.u.infra.Close()
-	for end := time.Now().Add(5 * time.Second); h.u.infraOrg("Acme") == nil && time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); h.u.infraOrg("Acme") == nil && time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
 		h.frame()
 	}
 	h.send(ctrlK)

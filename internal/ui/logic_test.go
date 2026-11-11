@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"image/color"
 	"os"
@@ -1118,7 +1119,7 @@ func TestMakeTicketFails(t *testing.T) {
 	h.u.makeTicket("gone", "t", "b")
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
 	h.u.makeTicket(c.ID, "Title", "Body")
-	for end := time.Now().Add(2 * time.Second); h.u.b.Card(c.ID).Status != kanban.StatusBlocked && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); h.u.b.Card(c.ID).Status != kanban.StatusBlocked && time.Now().Before(end); {
 		h.frame()
 	}
 	if got := h.u.b.Card(c.ID); calls != 1 || got.Note != "Ticket not created: 403 Forbidden" || !strings.Contains(h.u.toast, "ticket not created") {
@@ -1263,7 +1264,7 @@ func TestTerminalLife(t *testing.T) {
 	if h.u.view != "term:"+id || h.u.terms[id] != tt {
 		t.Fatal("opening again")
 	}
-	for end := time.Now().Add(5 * time.Second); tt.t.Scrollback() < 100; time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); tt.t.Scrollback() < 100; time.Sleep(20 * time.Millisecond) {
 		if time.Now().After(end) {
 			t.Fatalf("scrollback %d", tt.t.Scrollback())
 		}
@@ -1295,7 +1296,7 @@ func TestTerminalLife(t *testing.T) {
 	clipImage = func() ([]byte, string, error) { return []byte("\x89PNG fake"), "image/png", nil }
 	tt.scroll = 3
 	h.send(press("V", key.ModCtrl))
-	for end := time.Now().Add(2 * time.Second); tt.scroll != 0 && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); tt.scroll != 0 && time.Now().Before(end); {
 		h.frame()
 	}
 	if ents, _ := os.ReadDir(h.u.imagesDir()); len(ents) != 1 || tt.scroll != 0 {
@@ -1305,7 +1306,7 @@ func TestTerminalLife(t *testing.T) {
 	script = []string{"exit:3"}
 	d := h.u.b.Add(0, kanban.Card{Title: "y", Org: "Acme"})
 	h.u.terminal(d.ID)
-	for end := time.Now().Add(5 * time.Second); h.u.terms[d.ID] != nil && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); h.u.terms[d.ID] != nil && time.Now().Before(end); {
 		h.frame()
 	}
 	if h.u.terms[d.ID] != nil || h.u.b.Card(d.ID).Note != "Claude exited in its terminal" || h.u.view != "" {

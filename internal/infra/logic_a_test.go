@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"io"
 	"net"
 	"os"
@@ -287,7 +288,7 @@ exit 3
 			if m.exited != nil {
 				goto done
 			}
-		case <-time.After(10 * time.Second):
+		case <-time.After(testwait.Long):
 			t.Fatalf("no exit; got %d messages", len(got))
 		}
 	}
@@ -1086,7 +1087,7 @@ func TestCardToolErrorsA(t *testing.T) {
 		if r.Text != "DESK-9 answered:\n(desk couldn't reach DESK-9: board busy)" {
 			t.Errorf("unreachable card: %+v", r)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("a question the card can't get must not wait")
 	}
 	if r := (&Tab{}).askPeer("", "q"); !r.IsError || !strings.Contains(r.Text, "nobody to ask") {
@@ -1383,7 +1384,7 @@ func TestCompactAndClearContextA(t *testing.T) {
 	var cm claudeMsg
 	select {
 	case cm = <-ch:
-	case <-time.After(10 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("compact never reported")
 	}
 	m.update(cm)
@@ -2077,7 +2078,7 @@ func TestSendStartsClaudeA(t *testing.T) {
 		tab.claude.Close()
 		select {
 		case <-exited:
-		case <-time.After(10 * time.Second):
+		case <-time.After(testwait.Long):
 			t.Error("claude never exited")
 		}
 	}()

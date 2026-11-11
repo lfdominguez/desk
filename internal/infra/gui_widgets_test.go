@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"image/color"
 	"math"
@@ -1231,7 +1232,7 @@ func TestCamLoop(t *testing.T) {
 		}
 		pushed++
 	}, func() { close(done) })
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
 		mu.Lock()
 		n := pushed
 		mu.Unlock()
@@ -1365,7 +1366,7 @@ func TestCameraToggle(t *testing.T) {
 		t.Fatalf("loopback: %q", msg)
 	}
 	dev := filepath.Join(root, "dev", "video2")
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
 		if fi, _ := os.Stat(dev); fi != nil && fi.Size() > 0 {
 			break
 		}
@@ -1412,7 +1413,7 @@ func wWait(t *testing.T, ch chan int, d time.Duration) int {
 	select {
 	case s := <-ch:
 		return s
-	case <-time.After(d):
+	case <-time.After(testwait.Long):
 		t.Fatal("no share window")
 	}
 	return 0

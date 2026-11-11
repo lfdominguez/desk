@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"image/color"
 	"io"
@@ -180,7 +181,7 @@ func (s *gmSink) reset() {
 // wait polls until what was sent contains want.
 func (s *gmSink) wait(t *testing.T, want string) {
 	t.Helper()
-	for end := time.Now().Add(2 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
 		if strings.Contains(s.String(), want) {
 			return
 		}
@@ -302,7 +303,7 @@ func TestGMDeliverAndEmit(t *testing.T) {
 		if x != (redrawMsg{}) {
 			t.Errorf("batch gave %v", x)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("the batch's command never delivered")
 	}
 	d.run(nil) // nothing to run
@@ -331,7 +332,7 @@ func TestGMLoop(t *testing.T) {
 	d.act(func(m *model) { m.flash = "from act" })
 	d.in <- tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl} // a message: Update runs it (no tab: nothing)
 	d.act(func(m *model) { m.errText = "after msg" })
-	for end := time.Now().Add(3 * time.Second); ; {
+	for end := time.Now().Add(testwait.Long); ; {
 		if s := d.state.Load(); s != nil && s.Err == "after msg" {
 			if s.Flash != "" {
 				t.Errorf("the key cleared no flash: %q", s.Flash)

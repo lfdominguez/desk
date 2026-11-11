@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"errors"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"io"
 	"os"
 	"path/filepath"
@@ -24,7 +25,7 @@ func (h *harness) pasted(s string) {
 	clipImage = func() ([]byte, string, error) { return nil, "", errors.New("text") }
 	h.send(press("V", key.ModShortcut))
 	req := false // ClipboardRequested says so once
-	for end := time.Now().Add(2 * time.Second); !req && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); !req && time.Now().Before(end); {
 		h.frame()
 		req = h.r.ClipboardRequested()
 	}

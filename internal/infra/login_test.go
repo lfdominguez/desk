@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -106,7 +107,7 @@ func TestLoginKeptLive(t *testing.T) {
 		sb := term.emu.ScrollbackLen()
 		return strings.TrimRight(term.line(sb), " ") + "|" + strings.TrimRight(term.line(sb+1), " ")
 	}
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end) && shown() != "Welcome to web1|$"; time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && shown() != "Welcome to web1|$"; time.Sleep(20 * time.Millisecond) {
 	}
 	if got := shown(); got != "Welcome to web1|$" {
 		t.Fatalf("screen %q", got)

@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -90,7 +91,7 @@ func TestStart(t *testing.T) {
 		if e.Kind != KindExit || !strings.Contains(e.Text, "exit status 3: boom") {
 			t.Fatalf("%+v", e)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("no exit")
 	}
 

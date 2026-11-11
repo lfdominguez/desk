@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -93,7 +94,7 @@ func TestProcWrites(t *testing.T) {
 		t.Fatal("write failed")
 	}
 	var lines []map[string]any
-	for deadline := time.Now().Add(10 * time.Second); len(lines) < 4 && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+	for deadline := time.Now().Add(testwait.Long); len(lines) < 4 && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		b, _ := os.ReadFile(in)
 		lines = nil
 		for _, l := range strings.Split(strings.TrimSpace(string(b)), "\n") {
@@ -130,7 +131,7 @@ func TestProcWrites(t *testing.T) {
 		if e.Kind != KindExit {
 			t.Errorf("%+v", e)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("no exit after Close")
 	}
 }

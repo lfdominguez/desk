@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"github.com/lfdominguez/desk/internal/sshc/sshtest"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"io"
 	"os"
 	"strings"
@@ -42,7 +43,7 @@ func expect(t *testing.T, r *bufio.Reader, want string) {
 		if !strings.HasSuffix(got, want) {
 			t.Fatalf("want %q, got %q", want, got)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatalf("no %q", want)
 	}
 }

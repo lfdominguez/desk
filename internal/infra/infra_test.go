@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"image/color"
 	"math"
@@ -365,7 +366,7 @@ func TestShellIntegration(t *testing.T) {
 			}
 			defer term.Close()
 			wait := func(what string, ok func() bool) {
-				for end := time.Now().Add(10 * time.Second); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
+				for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
 					if ok() {
 						return
 					}
@@ -411,7 +412,7 @@ func TestPaneStateRestore(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
+				for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
 				}
 				return term
 			}
@@ -523,7 +524,7 @@ func TestRunLeavesProgramRunning(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer term.Close()
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
 	}
 	if r := term.Run("sleep 30", time.Second); !strings.Contains(r.Text, "still running") {
 		t.Fatalf("run: %q", r.Text)
@@ -531,7 +532,7 @@ func TestRunLeavesProgramRunning(t *testing.T) {
 	if r := term.SendKeys("<ctrl-c>"); r.IsError {
 		t.Fatalf("send_keys to a running program: %q", r.Text)
 	}
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
 	}
 	if bs := term.Blocks(); len(bs) != 1 || bs[0].Cmd != "sleep 30" || bs[0].Exit != 130 {
 		t.Errorf("blocks: %+v", bs)
@@ -686,7 +687,7 @@ func TestConnectStatesAndExit(t *testing.T) {
 		return &Tab{term: term, panes: []*Pane{{id: 1, term: term, waitUntil: time.Now().Add(300 * time.Millisecond)}}}
 	}
 	waitFor := func(what string, ok func() bool) {
-		for end := time.Now().Add(10 * time.Second); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
+		for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
 			if ok() {
 				return
 			}
@@ -907,7 +908,7 @@ func TestSudoFill(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer term.Close()
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
 	}
 	pane := &Pane{dir: g, term: term, password: &SecretRef{Vault: "pb", Item: "id9"}}
 	m := &model{}
@@ -916,13 +917,13 @@ func TestSudoFill(t *testing.T) {
 		t.Errorf("copy: %q", m.flash)
 	}
 	go term.Run(`read -rs -p "[sudo] password for deploy: " pw; echo; [ "$pw" = "$(printf hunt%s er2)" ] && echo GO""OD`, 10*time.Second)
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
 		if _, ok := term.SudoPrompt(); ok {
 			break
 		}
 	}
 	m.usePassword(serverPasswordCmd(pane)().(passwordMsg))
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end) && !strings.Contains(term.Screen().Text, "GOOD"); time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !strings.Contains(term.Screen().Text, "GOOD"); time.Sleep(50 * time.Millisecond) {
 	}
 	if s := term.Screen().Text; !strings.Contains(s, "GOOD") || strings.Contains(s, "hunter2") {
 		t.Errorf("password not typed, or echoed:\n%s", s)
@@ -982,7 +983,7 @@ func TestOrgTab(t *testing.T) {
 	if p == nil || tab.term != p.term || len(tab.panes) != 1 {
 		t.Fatal("first pane gets the keyboard")
 	}
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && !p.term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !p.term.AtPrompt(); time.Sleep(50 * time.Millisecond) {
 	}
 	(&driver{}).snapshot(&m)
 	tab.closePane(p)
@@ -1066,7 +1067,7 @@ func TestPeerCards(t *testing.T) {
 	var q string
 	select {
 	case q = <-told:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("the question didn't reach the card")
 	}
 	hub.Lock()
@@ -1749,7 +1750,7 @@ func TestRecordingFlushes(t *testing.T) {
 	}
 	defer r.close()
 	r.event("o", []byte("uptime\r\n"))
-	for end := time.Now().Add(3 * recFlush); ; time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); ; time.Sleep(20 * time.Millisecond) {
 		if b, _ := os.ReadFile(p); strings.Contains(string(b), `"o","uptime\r\n"`) {
 			break
 		}
@@ -1980,7 +1981,7 @@ func TestWorkspace(t *testing.T) {
 	if !w.OpenHost("Acme", "g", "local") || w.OpenHost("Acme", "g", "nope") {
 		t.Fatal("OpenHost")
 	}
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && w.Tree()[0].State != Connected; time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && w.Tree()[0].State != Connected; time.Sleep(50 * time.Millisecond) {
 	}
 	if h := w.Tree()[0].Groups[0].Hosts[0]; h.State != Connected || !h.Open {
 		t.Fatalf("host %+v", h)

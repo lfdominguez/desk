@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,7 +99,7 @@ func TestZoomTerminal(t *testing.T) {
 	h.frame()
 	cols := tt.cols
 	h.send(press("=", key.ModShortcut), press("=", key.ModShortcut))
-	for end := time.Now().Add(time.Second); tt.cols == cols && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); tt.cols == cols && time.Now().Before(end); {
 		h.frame()
 	}
 	if orgs.Zoom() != 120 || tt.cols >= cols || h.u.view != "term:"+c.ID {

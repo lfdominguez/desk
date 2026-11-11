@@ -243,7 +243,7 @@ func (c *Client) start() error {
 			return errors.New("Error: forwarding disabled due to host key check failure")
 		}
 	}
-	if t := time.Duration(cfg.Int("serveraliveinterval")) * aliveUnit; t > 0 {
+	if t := time.Duration(cfg.Int("serveraliveinterval")) * time.Second; t > 0 {
 		go c.keepalive(t, max(cfg.Int("serveralivecountmax"), 1))
 	}
 	if lc := cfg.Get("localcommand"); lc != "" && cfg.Bool("permitlocalcommand") {
@@ -264,15 +264,21 @@ func (c *Client) start() error {
 	return nil
 }
 
-// aliveUnit is ServerAliveInterval's unit; tests shorten it.
-var aliveUnit = time.Second
+// aliveTicks is the keepalive's clock (and its stop); tests tick it by hand.
+var aliveTicks = func(every time.Duration) (<-chan time.Time, func()) {
+	t := time.NewTicker(every)
+	return t.C, t.Stop
+}
+
+// aliveReplied runs once a reply is counted; tests wait on it.
+var aliveReplied = func() {}
 
 // keepalive is ssh's server_alive_check: a keepalive@openssh.com request
 // every interval (any reply will do), the connection lost once count of
 // them go unanswered.
 func (c *Client) keepalive(every time.Duration, count int) {
-	t := time.NewTicker(every)
-	defer t.Stop()
+	ticks, stop := aliveTicks(every)
+	defer stop()
 	replied := make(chan struct{}, 1)
 	inFlight, missed := false, 0
 	for {
@@ -281,7 +287,8 @@ func (c *Client) keepalive(every time.Duration, count int) {
 			return
 		case <-replied:
 			inFlight, missed = false, 0
-		case <-t.C:
+			aliveReplied()
+		case <-ticks:
 			if !inFlight {
 				inFlight = true
 				go func() {

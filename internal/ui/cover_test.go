@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"io"
 	"net/http"
@@ -58,7 +59,7 @@ var (
 // pumpUntil runs frames until ok, failing after 5s.
 func (h *harness) pumpUntil(what string, ok func() bool) {
 	h.t.Helper()
-	for end := time.Now().Add(5 * time.Second); !ok(); time.Sleep(2 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); !ok(); time.Sleep(2 * time.Millisecond) {
 		if time.Now().After(end) {
 			h.t.Fatalf("timed out waiting for %s", what)
 		}
@@ -209,7 +210,7 @@ func TestCoverStartClaude(t *testing.T) {
 	p.Close()
 	select {
 	case <-exits:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("no exit event after Close")
 	}
 }
@@ -219,7 +220,7 @@ func TestCoverOpenURL(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "opened")
 	fakeBin(t, infra.Opener, `echo "$1" > `+out)
 	openURL("https://example.com/x")
-	for end := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); ; time.Sleep(5 * time.Millisecond) {
 		if b, _ := os.ReadFile(out); string(b) == "https://example.com/x\n" {
 			return
 		} else if time.Now().After(end) {
