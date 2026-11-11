@@ -2,6 +2,7 @@ package vt
 
 import (
 	"io"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -90,6 +91,10 @@ func (e *Emulator) setMode(mode ansi.Mode, setting ansi.ModeSetting) {
 			e.saveCursor()
 		}
 		e.setAltScreenMode(setting.IsSet())
+	case ansi.ModeSynchronizedOutput: // desk patch
+		if setting.IsSet() {
+			e.syncFrom = time.Now()
+		}
 	case ansi.ModeInBandResize:
 		if setting.IsSet() {
 			_, _ = io.WriteString(e.pw, ansi.InBandResize(e.Height(), e.Width(), 0, 0))

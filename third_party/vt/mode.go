@@ -1,6 +1,10 @@
 package vt
 
-import "github.com/charmbracelet/x/ansi"
+import (
+	"time"
+
+	"github.com/charmbracelet/x/ansi"
+)
 
 // resetModes resets all modes to their default values.
 func (e *Emulator) resetModes() {
@@ -24,10 +28,23 @@ func (e *Emulator) resetModes() {
 		ansi.ModeSaveCursor:          ansi.ModeReset, // ?1048
 		ansi.ModeAltScreenSaveCursor: ansi.ModeReset, // ?1049
 		ansi.ModeBracketedPaste:      ansi.ModeReset, // ?2004
+		// desk patch: known, so DECRQM reports it and programs use it (Synchronized)
+		ansi.ModeSynchronizedOutput: ansi.ModeReset, // ?2026
 	}
 
 	// Set mode effects.
 	for mode, setting := range e.modes {
 		e.setMode(mode, setting)
 	}
+}
+
+// SyncMax is how long a synchronized update holds the screen at most, as
+// other terminals do: a program that dies inside one doesn't freeze it.
+var SyncMax = 500 * time.Millisecond
+
+// Synchronized reports whether the program is in the middle of a synchronized
+// update (mode 2026 set, for less than SyncMax): a renderer keeps showing the
+// last screen until it ends, so a frame half redrawn never shows. (desk patch)
+func (e *Emulator) Synchronized() bool {
+	return e.isModeSet(ansi.ModeSynchronizedOutput) && time.Since(e.syncFrom) < SyncMax
 }

@@ -82,6 +82,13 @@ type Term struct {
 // Version changes whenever what Grid or SudoPrompt return may have. Lock-free.
 func (t *Term) Version() uint64 { return t.ver.Load() }
 
+// Synchronized: the program is mid synchronized update (vt's Synchronized).
+func (t *Term) Synchronized() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.emu.Synchronized()
+}
+
 // Record starts writing the terminal's output to an asciicast file at p.
 func (t *Term) Record(p string) error {
 	t.mu.Lock()

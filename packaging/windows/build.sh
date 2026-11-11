@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # build.sh: desk for Windows (amd64), cross-built from Linux, into dist/:
 #   desk-<version>-windows-amd64.zip  desk.exe, LICENSE.txt, README.txt (portable)
-#   desk-<version>-windows-amd64.msi  installs to Program Files\desk, PATH, Start Menu shortcut
+#   windows/msi/                      the MSI's inputs; msi.ps1 there builds it on Windows
 #
 #   VERSION=2026.11.03 packaging/windows/build.sh
 #
-# Needs Go, rsvg-convert (librsvg), ImageMagick, wixl (msitools) and zip. Gio needs no cgo on
-# Windows, so this runs anywhere Go does. Without VERSION the binary names its commit
-# (dev-<commit>) and the MSI is 0.0.1. With SIGN_PFX (a .pfx file) and SIGN_PASSWORD, desk.exe
-# and the MSI are Authenticode-signed with osslsigncode; without them they are unsigned and
-# SmartScreen warns on first run.
+# Needs Go, rsvg-convert (librsvg), ImageMagick and zip. Gio needs no cgo on Windows, so this
+# runs anywhere Go does. Without VERSION the binary names its commit (dev-<commit>) and the MSI
+# is 0.0.1. With SIGN_PFX (a .pfx file) and SIGN_PASSWORD, desk.exe is Authenticode-signed with
+# osslsigncode; without them it is unsigned and SmartScreen warns on first run.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -85,10 +84,21 @@ cp packaging/windows/README.txt "$zipdir/README.txt"
 rm -f "dist/$name.zip"
 (cd "$zipdir" && zip -q -9 "../../$name.zip" desk.exe LICENSE.txt README.txt)
 
-# MSI
-wixl -a x64 -D Version="$msiver" -D Exe="$out/desk.exe" -D License="$zipdir/LICENSE.txt" \
-	-D Icon="$out/desk.ico" -o "dist/$name.msi" packaging/windows/desk.wxs
-sign "dist/$name.msi"
+# the MSI's inputs, for msi.ps1 on Windows (WiX's wizard doesn't build elsewhere): its version
+# and the wizard's pictures, desk's icon on its dark tile (banner 493×58, welcome side 164 px
+# of a 493×312 page; WiX wants 24-bit BMPs)
+msi="$out/msi"
+mkdir -p "$msi"
+cp "$out/desk.exe" "$out/desk.ico" "$zipdir/LICENSE.txt" packaging/windows/desk.wxs \
+	packaging/windows/license.rtf packaging/windows/msi.ps1 "$msi/"
+echo "$msiver" >"$msi/version"
+rsvg-convert -w 44 -h 44 packaging/desk.svg -o "$out/icon-44.png"
+rsvg-convert -w 96 -h 96 packaging/desk.svg -o "$out/icon-96.png"
+"$im" -size 493x58 xc:white "$out/icon-44.png" -geometry +441+7 -composite -type TrueColor \
+	"BMP3:$msi/banner.bmp"
+"$im" -size 493x312 xc:white \( -size 164x312 xc:'#16181d' \) -composite \
+	"$out/icon-96.png" -geometry +34+72 -composite -type TrueColor "BMP3:$msi/dialog.bmp"
+rm -f "$out/icon-44.png" "$out/icon-96.png"
 
 echo "dist/$name.zip"
-echo "dist/$name.msi (ProductVersion $msiver)"
+echo "$msi (ProductVersion $msiver): packaging/windows/msi.ps1 makes the MSI on Windows"

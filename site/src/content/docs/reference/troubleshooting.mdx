@@ -48,7 +48,7 @@ On Linux, desk needs a Wayland session (Hyprland, Sway, KDE, GNOME…). It's bui
 ## Windows
 
 - **"Windows protected your PC".** The MSI and `desk.exe` aren't code-signed, so SmartScreen stops them the first time. Click **More info**, then **Run anyway**. A browser may also flag the download as "not commonly downloaded": keep it from the download's menu. If Windows only says the file "was blocked", open its **Properties** and tick **Unblock**, or run `Unblock-File .\desk-*-windows-amd64.zip` in PowerShell before unzipping.
-- **`desk peer` is "not recognized" in your own terminal.** desk puts its own folder first on `PATH` for everything it starts, so its sessions find `desk peer` from the MSI or the portable zip alike. To type `desk` in a terminal of your own, it has to be on your `PATH`: the MSI adds `Program Files\desk` (terminals opened before the install don't see it until they restart); with the zip, add its folder to your user `PATH`.
+- **`desk peer` is "not recognized" in your own terminal.** desk puts its own folder first on `PATH` for everything it starts, so its sessions find `desk peer` from the MSI or the portable zip alike. To type `desk` in a terminal of your own, it has to be on your `PATH`: the MSI adds its folder, `%LOCALAPPDATA%\Apps\desk` or `Program Files\desk` (terminals opened before the install don't see it until they restart); with the zip, add its folder to your user `PATH`.
 - **Sessions fail with `claude` not found.** desk runs `claude` from `PATH`: check `where.exe claude` in a new terminal, and restart desk after installing Claude Code.
 - **The virtual camera is missing.** Sharing a terminal as a webcam needs PipeWire and v4l2loopback, which are Linux-only; the rest of the infra workspace works.
 

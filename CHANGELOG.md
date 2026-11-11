@@ -37,6 +37,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Changed
 
+- **The Windows installer is a wizard**: the license, then Install for you alone (in
+  `%LOCALAPPDATA%\Apps\desk`, no administrator rights) or Advanced: for everyone in Program Files,
+  another folder, the desktop shortcut. desk goes on your `PATH` (the system's for everyone), in
+  the Start Menu and on the desktop, and the last page can launch it. An install made for everyone
+  by an earlier MSI is replaced in place.
 - A card's drawing's Claude works in the card's folder and its workspace's projects, and reads
   nowhere else unless you ask it to.
 - The workspace's tabs scroll sideways when they don't fit, instead of being squeezed out.
@@ -73,6 +78,12 @@ day). A release's section here is its notes on GitHub. The format follows
   single clicks.
 - The infra Claude's commands in a pane wait for the shell's next prompt before reporting, so the
   command it runs right after no longer finds the pane "busy".
+- Home and End work in vim, less and other programs that switch the terminal to application
+  cursor keys, in a card's terminal and in server panes.
+- Dragging the edge of the infra workspace's Claude panel follows the pointer: the panel jumped
+  back to its old width and forth again while it moved.
+- A card's terminal and server panes no longer flicker while Claude Code (or any program using
+  synchronized output) redraws: a screen half redrawn never shows.
 
 ## [2026.11.09.1] - 2026-11-09
 

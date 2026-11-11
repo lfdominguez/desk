@@ -3,6 +3,7 @@ package vt
 import (
 	"image/color"
 	"io"
+	"time"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/ultraviolet/screen"
@@ -38,6 +39,8 @@ type Emulator struct {
 
 	// Terminal modes.
 	modes ansi.Modes
+	// syncFrom is when mode 2026 was last set (desk patch: Synchronized).
+	syncFrom time.Time
 
 	// The last written character.
 	lastChar rune // either ansi.Rune or ansi.Grapheme
