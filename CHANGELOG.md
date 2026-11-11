@@ -8,6 +8,9 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- A message you write to a card's Claude and don't send stays with that card: opening another
+  card's session no longer wipes it, and it comes back when you return, even after closing desk.
+
 - **Each step of a server connection, with its time**: a pane that opens a new SSH connection
   shows, live in its connection box, every step (the config, the name lookup, the TCP connect or
   jump host, the vault's password, key exchange, host key, each authentication method, the

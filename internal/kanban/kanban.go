@@ -64,6 +64,7 @@ type Card struct {
 	Projects  []string  `json:"projects,omitempty"`   // its workspace's folders beyond its own (absolute)
 	Tabs      []string  `json:"tabs,omitempty"`       // the files open in its workspace, in order (absolute)
 	WSSession string    `json:"ws_session,omitempty"` // its workspace Claude's session (claude --resume)
+	Draft     string    `json:"draft,omitempty"`      // a message to its Claude written but not sent
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`

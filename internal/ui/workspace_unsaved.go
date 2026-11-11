@@ -91,6 +91,7 @@ func (u *ui) wsRestore(id string, st *wsState) {
 // quitting writes what must outlive the window: the board, the workspaces'
 // changes not saved.
 func (u *ui) quitting() {
+	u.keepDraft()
 	u.flushPending()
 	u.wsStash()
 }
