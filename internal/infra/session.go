@@ -60,7 +60,7 @@ func sessionPath() string { return filepath.Join(stateDir(), "session.json") }
 
 // sessionSig changes whenever something saveSession writes changes.
 func (m *model) sessionSig() string {
-	s := fmt.Sprint(m.active)
+	s := fmt.Sprint(m.active())
 	for _, t := range m.tabs {
 		s += fmt.Sprintf("|%p:%d:%d:%s:%s:%d", t, len(t.panes), len(t.chat), t.session, t.model, t.ctxTokens)
 		t.mu.Lock()
@@ -84,7 +84,7 @@ func (m *model) saveSession() {
 	force := m.sessionSaved == "" // Close: every pane's last output
 	m.sessionSaved = sig
 	kept := map[*Term]keptPane{}
-	ss := savedSession{Saved: time.Now(), Active: m.active}
+	ss := savedSession{Saved: time.Now(), Active: m.active()}
 	for _, f := range m.forwards {
 		ss.Forwards = append(ss.Forwards, savedFwd{f.host, f.dir, f.name, f.kind, f.spec})
 	}
@@ -180,8 +180,6 @@ func (m *model) restore() {
 	for _, f := range ss.Forwards { // added once a pane on the server is up (keepForwards)
 		m.forwards = append(m.forwards, portFwd{f.Host, movedInfra(f.Dir), f.Name, f.Kind, f.Spec})
 	}
-	if len(m.tabs) > 0 {
-		m.active = max(0, min(ss.Active, len(m.tabs)-1))
-	}
+	m.activate(max(0, min(ss.Active, len(m.tabs)-1)))
 	m.sessionSaved = m.sessionSig()
 }

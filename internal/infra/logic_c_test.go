@@ -616,8 +616,8 @@ func TestRestoreSessionC(t *testing.T) {
 			}
 		}
 	}()
-	if len(m.tabs) != 2 || m.active != 1 || len(m.forwards) != 1 || m.forwards[0].spec != "8080:localhost:80" {
-		t.Fatalf("restored: %d tabs, active %d, forwards %v", len(m.tabs), m.active, m.forwards)
+	if len(m.tabs) != 2 || m.active() != 1 || len(m.forwards) != 1 || m.forwards[0].spec != "8080:localhost:80" {
+		t.Fatalf("restored: %d tabs, active %d, forwards %v", len(m.tabs), m.active(), m.forwards)
 	}
 	t1 := m.tabs[0]
 	if len(t1.chat) != 2 || t1.chat[0].text != "uptime?" || !strings.HasPrefix(t1.chat[1].text, restoredNote+"Jan 2 15:04") {
@@ -1172,8 +1172,8 @@ func TestPanesDialC(t *testing.T) {
 	}
 	r, _ := m.key(keyA("ctrl+t"))
 	*m = r.(model)
-	if len(tab.panes) != 2 || tab.cur != 1 {
-		t.Errorf("ctrl+t: %d panes, cur %d", len(tab.panes), tab.cur)
+	if len(tab.panes) != 2 || tab.focused() != tab.panes[1] {
+		t.Errorf("ctrl+t: %d panes, the new one not focused", len(tab.panes))
 	}
 	mu.Lock()
 	if strings.Join(hosts, ",") != "web1,web1" {

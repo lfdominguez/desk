@@ -150,13 +150,13 @@ func (d *driver) emit(m *model) {
 // health check).
 func (m *model) viewSig() string {
 	var b strings.Builder
-	fmt.Fprint(&b, m.active, len(m.tabs), m.flash, "\x00", m.errText)
+	fmt.Fprint(&b, m.active(), len(m.tabs), m.flash, "\x00", m.errText)
 	for _, t := range m.tabs {
 		fmt.Fprintf(&b, "|%p %d %d %t %t", t, len(t.chat), len(t.pending), t.busy, t.term != nil && t.term.Live())
 		t.mu.Lock()
-		panes, cur := slices.Clone(t.panes), t.cur
+		panes, focus := slices.Clone(t.panes), t.focused()
 		t.mu.Unlock()
-		fmt.Fprint(&b, " ", cur)
+		fmt.Fprintf(&b, " %p", focus)
 		for _, p := range panes {
 			fmt.Fprintf(&b, ",%p %s %d %d %d %d %d", p.term, p.connState(), p.term.Rev(), p.tries, p.retry.UnixNano(), p.lost.UnixNano(), p.waitUntil.UnixNano())
 		}
@@ -243,7 +243,7 @@ type guiState struct {
 }
 
 func (d *driver) snapshot(m *model) *guiState {
-	s := &guiState{Active: m.active, Group: m.group, Flash: m.flash, Err: m.errText, Theme: themeName}
+	s := &guiState{Active: m.active(), Group: m.group, Flash: m.flash, Err: m.errText, Theme: themeName}
 	var cam *Term // the active tab's focused pane, for the camera and share window
 	defer func() { camTerm.Store(cam) }()
 	for _, n := range m.tree {
@@ -254,13 +254,13 @@ func (d *driver) snapshot(m *model) *guiState {
 			Suggest: t.suggest, OrgOnly: t.orgOnly, Card: t.card, Busy: t.busy, PinScreen: t.pinScreen, Broadcast: t.broadcast, Model: t.model, Pinned: map[int]bool{},
 			Compacting: t.compacting, Ctx: t.ctxTokens, CtxWindow: t.ctxWindow}
 		t.mu.Lock()
-		panes, cur := slices.Clone(t.panes), t.cur
+		panes, focus := slices.Clone(t.panes), t.focused()
 		t.mu.Unlock()
-		for i, p := range panes {
-			if i == cur && t == m.tab() {
+		for _, p := range panes {
+			if p == focus && t == m.tab() {
 				cam = p.term
 			}
-			gp := guiPane{Term: p.term, N: p.id, Name: p.name, Addr: p.addr, Dir: p.dir, Claude: p.claude, Focused: i == cur, Conn: p.connState(),
+			gp := guiPane{Term: p.term, N: p.id, Name: p.name, Addr: p.addr, Dir: p.dir, Claude: p.claude, Focused: p == focus, Conn: p.connState(),
 				Blocks: map[int]Block{}, Password: p.password != nil, Since: p.waitUntil.Add(-connectWait), Retry: p.retry, Tries: p.tries}
 			switch gp.Conn {
 			case "reconnecting":
@@ -339,7 +339,8 @@ func (d *driver) open(i int) {
 func (d *driver) activate(i int) {
 	d.act(func(m *model) {
 		if i >= 0 && i < len(m.tabs) {
-			m.active, m.group = i, ""
+			m.activate(i)
+			m.group = ""
 		}
 	})
 }

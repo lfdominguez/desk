@@ -379,7 +379,7 @@ func TestGMSnapshot(t *testing.T) {
 		panes:   []*Pane{{id: 1, term: term, name: "web1", addr: "10.0.0.1", dir: "/d", password: &SecretRef{}}, {id: 2, term: other, name: "db1", claude: true}},
 		pending: []*approval{{cmd: "rm x", reason: "r", why: "w", keys: true, secret: true, blocked: true, pane: 2, explain: []step{{"rm", "removes"}}}}}
 	tb2 := &Tab{org: "Globex", name: "g", pinned: map[int]bool{}}
-	m := &model{active: 0, group: "", flash: "f", errText: "e", tabs: []*Tab{tb, tb2},
+	m := &model{group: "", flash: "f", errText: "e", tabs: []*Tab{tb, tb2},
 		tree: []node{{depth: 2, label: "web1", org: "Acme", group: "web", host: "web1", addr: "10.0.0.1", dir: "/d", desc: "front", tags: "nginx", pin: true}},
 		asks: []*question{{title: "Vault passphrase", masked: true}}}
 	d := &driver{palOpen: true}
@@ -496,16 +496,16 @@ func TestGMDriverActions(t *testing.T) {
 	d.activate(7)
 	d.activate(1)
 	h.runActs(m)
-	if m.cursor != 1 || m.active != 1 || m.group != "" {
-		t.Errorf("cursor %d active %d group %q", m.cursor, m.active, m.group)
+	if m.cursor != 1 || m.active() != 1 || m.group != "" {
+		t.Errorf("cursor %d active %d group %q", m.cursor, m.active(), m.group)
 	}
 	d.open(-1)
 	d.activate(-1)
 	d.closeTab(-1)
 	d.closeTab(2)
 	h.runActs(m)
-	if m.cursor != 1 || m.active != 1 || len(m.tabs) != 2 {
-		t.Errorf("out of range moved: cursor %d active %d tabs %d", m.cursor, m.active, len(m.tabs))
+	if m.cursor != 1 || m.active() != 1 || len(m.tabs) != 2 {
+		t.Errorf("out of range moved: cursor %d active %d tabs %d", m.cursor, m.active(), len(m.tabs))
 	}
 	d.closeTab(0)
 	h.runActs(m)
@@ -529,8 +529,8 @@ func TestGMDriverActions(t *testing.T) {
 	d.focusPane(-1)
 	d.focusPane(1)
 	h.runActs(m)
-	if tb.cur != 1 {
-		t.Errorf("focusPane: cur %d", tb.cur)
+	if tb.focused() != tb.panes[1] {
+		t.Error("focusPane: the second pane isn't focused")
 	}
 	d.closePane(-1)
 	d.closePane(9)
@@ -644,8 +644,8 @@ func TestGMDriverActions(t *testing.T) {
 	}
 	d.palPick(idx)
 	h.runActs(two)
-	if two.active != 1 {
-		t.Errorf("palPick(%d) active %d", idx, two.active)
+	if two.active() != 1 {
+		t.Errorf("palPick(%d) active %d", idx, two.active())
 	}
 }
 
@@ -816,10 +816,10 @@ func TestGMShortcut(t *testing.T) {
 	}
 	u.wantTerm = false
 	sc("3")
-	am := &model{tabs: make([]*Tab, 4)}
+	am := &model{tabs: tabsA(4)}
 	h.runActs(am)
-	if am.active != 2 || !u.wantTerm {
-		t.Errorf("3 activates the org's third tab: %d", am.active)
+	if am.active() != 2 || !u.wantTerm {
+		t.Errorf("3 activates the org's third tab: %d", am.active())
 	}
 	sc("4") // Acme has three
 	if len(h.acts()) != 0 {
@@ -842,9 +842,12 @@ func TestGMCycleTab(t *testing.T) {
 		if !u.shortcut(key.Event{Name: name, Modifiers: shortcutMod, State: key.Press}) || !u.wantTerm {
 			t.Fatalf("%s from %d isn't handled", name, active)
 		}
-		m := &model{tabs: make([]*Tab, len(tabs)), active: -1}
+		m := &model{}
+		for range tabs {
+			m.tabs = append(m.tabs, &Tab{})
+		}
 		h.runActs(m)
-		return m.active
+		return slices.Index(m.tabs, m.focus) // -1: none activated
 	}
 	for _, c := range []struct {
 		from int
@@ -878,17 +881,17 @@ func TestGMFollow(t *testing.T) {
 		t.Error("follow in place")
 	}
 	u.follow("Globex") // no tab used there yet: its first
-	m := &model{tabs: make([]*Tab, 4)}
+	m := &model{tabs: tabsA(4)}
 	h.runActs(m)
-	if m.active != 2 || u.org != "Globex" {
-		t.Errorf("to Globex: active %d", m.active)
+	if m.active() != 2 || u.org != "Globex" {
+		t.Errorf("to Globex: active %d", m.active())
 	}
 	st.Active = 3
 	u.follow("Globex")
 	u.follow("Acme") // back: the tab last used there
 	h.runActs(m)
-	if m.active != 1 || u.lastTab["Globex"] != tabs[3].Key {
-		t.Errorf("back to Acme: active %d", m.active)
+	if m.active() != 1 || u.lastTab["Globex"] != tabs[3].Key {
+		t.Errorf("back to Acme: active %d", m.active())
 	}
 	st.Active = 1
 	u.follow("Initech") // no tabs, a group view: leave it
@@ -1394,7 +1397,7 @@ func TestGMSidebarClicks(t *testing.T) {
 	// a host row opens its session; its tab when it has one
 	u.click("host4").Click() // web3: none
 	h.draw(w)
-	m = &model{tree: make([]node, 10), tabs: make([]*Tab, 2)}
+	m = &model{tree: make([]node, 10), tabs: tabsA(2)}
 	for i := range m.tree {
 		m.tree[i] = node{depth: 1}
 	}
@@ -1405,8 +1408,8 @@ func TestGMSidebarClicks(t *testing.T) {
 	u.click("host3").Click() // web2: in the org tab
 	h.draw(w)
 	h.runActs(m)
-	if m.active != 1 {
-		t.Errorf("web2 activates tab %d", m.active)
+	if m.active() != 1 {
+		t.Errorf("web2 activates tab %d", m.active())
 	}
 	// + on a host with its own tab adds a pane there, else opens it
 	u.click("host2add").Click()
@@ -1443,8 +1446,8 @@ func TestGMSidebarClicks(t *testing.T) {
 	u.click("flathost2").Click()
 	h.draw(w)
 	h.runActs(m)
-	if m.active != 0 {
-		t.Errorf("flat web1 activates %d", m.active)
+	if m.active() != 0 {
+		t.Errorf("flat web1 activates %d", m.active())
 	}
 	// hovering: the org's ✦ and a host's buttons show
 	u.closed["orgopen:Acme"] = true
@@ -1483,12 +1486,12 @@ func TestGMToolbar(t *testing.T) {
 	if ts := u.orgTabs(); len(ts) != 10 || ts[9] != 9 {
 		t.Errorf("orgTabs %v", ts)
 	}
-	m := &model{tabs: make([]*Tab, 10)}
+	m := &model{tabs: tabsA(10)}
 	u.click("tab3").Click()
 	h.draw(w)
 	h.runActs(m)
-	if m.active != 3 || !u.wantTerm {
-		t.Errorf("tab3 activates %d", m.active)
+	if m.active() != 3 || !u.wantTerm {
+		t.Errorf("tab3 activates %d", m.active())
 	}
 	ks := make([]*Tab, 10)
 	for i := range ks {
@@ -2194,7 +2197,7 @@ func TestGMTermMouse(t *testing.T) {
 	h.draw(w)
 	m := &model{tabs: []*Tab{{panes: []*Pane{{term: ts[0]}, {term: ts[1]}}}}}
 	h.runActs(m)
-	if m.tabs[0].cur != 1 {
+	if m.tabs[0].focused() != m.tabs[0].panes[1] {
 		t.Error("the press focused db1")
 	}
 	h.draw(w) // the copy of that click (nothing selected)
@@ -2348,8 +2351,8 @@ func TestGMTermBlocks(t *testing.T) {
 	h.draw(w)
 	m := &model{tabs: []*Tab{{pinned: map[int]bool{}, panes: []*Pane{{term: ts[0]}, {term: ts[1]}}}}}
 	h.runActs(m)
-	if m.tabs[0].cur != 0 || !m.tabs[0].pinned[1] {
-		t.Errorf("pinning in another pane focuses it first: cur %d pinned %v", m.tabs[0].cur, m.tabs[0].pinned)
+	if m.tabs[0].focus != m.tabs[0].panes[0] || !m.tabs[0].pinned[1] {
+		t.Errorf("pinning in another pane focuses it first: pinned %v", m.tabs[0].pinned)
 	}
 	// a block with no decoration known yet (the snapshot lags the term)
 	delete(tb.Panes[0].Blocks, 3)

@@ -713,7 +713,7 @@ func TestConnectStatesAndExit(t *testing.T) {
 	}
 	m.closeTab(0)
 	m.closeTab(0)
-	if len(m.tabs) != 0 || m.active != 0 {
+	if len(m.tabs) != 0 || m.active() != 0 {
 		t.Error("closing every tab leaves none")
 	}
 }
@@ -1118,8 +1118,8 @@ func TestPeerTabPerCard(t *testing.T) {
 	if m.tab() != own {
 		t.Error("the org's own session from the sidebar")
 	}
-	m.active = 0
-	if _, err := m.peerTab("Acme", "DESK-4"); err != nil || m.active != 0 {
+	m.activate(0)
+	if _, err := m.peerTab("Acme", "DESK-4"); err != nil || m.active() != 0 {
 		t.Error("an open card session is found, not shown")
 	}
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
