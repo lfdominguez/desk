@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -38,6 +39,10 @@ import (
 
 type ui struct {
 	w    *app.Window
+	// reopen applies the window's options again before a lost window opens
+	// anew (Gio drops them once used); drew says the window drew since.
+	reopen func()
+	drew   bool
 	k    *kit.Kit
 	b    *kanban.Board
 	path string // where b is saved
@@ -193,6 +198,13 @@ func newUI(b *kanban.Board, path string) *ui {
 	u := &ui{w: new(app.Window), k: kit.New(), b: b, path: path, side: true, root: orgs.Root(), home: home,
 		chats: map[string][]kanban.ChatMsg{}, procs: map[string]session{}, pending: map[string]claude.Directives{}, locked: map[string]*vault.LockedError{}, events: make(chan func(), 256),
 		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, canvas: map[string]bool{}, cv: map[string]*cvView{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}, draws: map[string]*drawState{}, libs: map[string]*drawLib{}, drawList: map[string][]drawItem{}, thumbs: map[string]drawThumb{}}
+	title := "desk"
+	if demo {
+		title = "desk demo" // apart from a real desk's window (and its window rules)
+	}
+	opts := []app.Option{app.Title(title), app.Size(unit.Dp(1600), unit.Dp(950)), app.MinSize(unit.Dp(900), unit.Dp(500))}
+	u.reopen = func() { u.w.Option(opts...) }
+	u.reopen() // the window takes them when it opens
 	u.orgList = orgs.List(u.root)
 	u.unsaved, u.wsEd = loadUnsaved(path), orgs.EditorSettings()
 	u.search.SingleLine, u.search.Submit = true, true
@@ -244,11 +256,6 @@ func (u *ui) startInfra() {
 // Run opens the window on board b and returns when it closes.
 func Run(b *kanban.Board, path string) error {
 	u := newUI(b, path)
-	title := "desk"
-	if demo {
-		title = "desk demo" // apart from a real desk's window (and its window rules)
-	}
-	u.w.Option(app.Title(title), app.Size(unit.Dp(1600), unit.Dp(950)), app.MinSize(unit.Dp(900), unit.Dp(500)))
 	u.startInfra()
 	files := explorer.NewExplorer(u.w)
 	pickFile = func(exts ...string) (io.ReadCloser, error) {
@@ -291,12 +298,64 @@ func Run(b *kanban.Board, path string) error {
 }
 
 // loop handles the window's events, next's one after another, until it closes.
+// A window that closed on an error (the display dropped its connection: a
+// monitor switched off and back) opens again, the board and sessions untouched;
+// after reopenTries reopened windows in a row that never drew, it gives up.
 func (u *ui) loop(next func() event.Event) error {
 	var ops op.Ops
+	failed := 0
 	for {
-		if done, err := u.event(next(), &ops); done {
+		done, err := u.event(next(), &ops)
+		if !done {
+			continue
+		}
+		if u.drew {
+			failed = 0
+		}
+		if err == nil {
+			return nil
+		}
+		if failed >= reopenTries {
+			u.crashNote("window lost for good: %v", err)
 			return err
 		}
+		if failed == 0 { // the retries' own errors (no display yet) would fill the log
+			u.crashNote("window lost, reopening: %v", err)
+		}
+		failed++
+		u.drew = false
+		u.windowLost()
+	}
+}
+
+// crashNote adds a line to crash.log beside the board.
+func (u *ui) crashNote(format string, args ...any) {
+	if f, err := os.OpenFile(filepath.Join(filepath.Dir(u.path), "crash.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
+		fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.RFC3339), fmt.Sprintf(format, args...))
+		f.Close()
+	}
+}
+
+// reopenWait is the pause before a lost window opens again (a display without
+// outputs refuses a window: the wait lets the monitor come back); tests end it.
+var reopenWait = func() <-chan time.Time { return time.After(time.Second) }
+
+const reopenTries = 600 // ten minutes of reopenWait
+
+// windowLost waits reopenWait running the work queued meanwhile (Claude's
+// events wait on it), then asks for the window again.
+func (u *ui) windowLost() {
+	for wait := reopenWait(); ; {
+		select {
+		case f := <-u.events:
+			f()
+			continue
+		case <-wait:
+		}
+		break
+	}
+	if u.reopen != nil {
+		u.reopen()
 	}
 }
 
@@ -308,6 +367,7 @@ func (u *ui) event(ev event.Event, ops *op.Ops) (done bool, err error) {
 	case app.ConfigEvent:
 		u.focused = e.Config.Focused
 	case app.FrameEvent:
+		u.drew = true
 		gtx := app.NewContext(ops, e)
 		tg, ig := u.termGen.Load(), u.infraGen()
 		u.frame(gtx)

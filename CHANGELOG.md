@@ -42,6 +42,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Fixed
 
+- desk's window comes back when the compositor drops it (on Wayland, a monitor that powers off to
+  save energy and back on can do that), with the board and running sessions as they were. Before,
+  desk went on running without a window, one CPU core at full use. Each loss is noted in
+  `crash.log`, and desk exits only after ten minutes without being able to open a window.
 - desk no longer crashes when a server pane to the left of the focused one closes (its shell
   ended, or Ctrl+W), nor can the infra workspace's active tab go astray when another tab closes.
 - Opening a card in its Claude Code terminal no longer leaves "signal: killed" as an error in its
