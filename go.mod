@@ -18,6 +18,7 @@ require (
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/charmbracelet/x/vt v0.1.0
 	github.com/creack/pty v1.1.24
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/junegunn/fzf v0.74.5
 	github.com/nyactl/go-adf v0.2.0
 	github.com/oligo/gvcode v0.8.2
@@ -50,7 +51,6 @@ require (
 	github.com/esiqveland/notify v0.11.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-text/typesetting v0.3.5 // indirect
-	github.com/godbus/dbus/v5 v5.2.4 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gookit/color v1.5.4 // indirect

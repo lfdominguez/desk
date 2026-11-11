@@ -29,6 +29,7 @@ import (
 // one. Every card is created here, since its session needs a place to start:
 // an organization, and optionally a folder inside it.
 type sheet struct {
+	in                        *pane  // the window it was opened in: drawn and closed there
 	id                        string // "" a new card
 	col, prio                 int    // where it goes and its priority on save
 	title, notes, labels, due widget.Editor
@@ -78,7 +79,7 @@ func (s *sheet) singles() []*widget.Editor {
 
 func (u *ui) newSheet(id string, col int) *sheet {
 	u.orgList = orgs.List(u.root) // folders made in ~/Work since start show up
-	s := &sheet{id: id, col: col, opened: true, list: layout.List{Axis: layout.Vertical}, plain: map[string]bool{}}
+	s := &sheet{in: u.pane, id: id, col: col, opened: true, list: layout.List{Axis: layout.Vertical}, plain: map[string]bool{}}
 	for _, e := range s.singles() {
 		e.SingleLine, e.Submit = true, true
 	}
@@ -282,7 +283,7 @@ func (u *ui) remove() {
 
 func (u *ui) sheet(gtx layout.Context) {
 	s := u.edit
-	if s == nil {
+	if s == nil || s.in != u.pane { // another window's
 		return
 	}
 	if s.optStop == nil { // while Claude works the request stays as sent

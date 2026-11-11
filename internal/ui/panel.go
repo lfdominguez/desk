@@ -43,36 +43,27 @@ func (u *ui) openSession(id string) {
 
 // sessionView is the card's session over the whole main area.
 func (u *ui) sessionView(gtx layout.Context) layout.Dimensions {
-	id := strings.TrimPrefix(u.view, "sess:")
-	gtx.Constraints.Min = gtx.Constraints.Max
-	kit.Fill(gtx, kit.CColumn)
-	if u.b.Card(id) == nil {
-		return layout.Center.Layout(gtx, u.k.Lbl("This card is gone.", 13, kit.CText3, kit.Sans))
-	}
-	vline := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, kit.CLine, clip.Rect(image.Rect(0, 0, gtx.Dp(1), gtx.Constraints.Max.Y)).Op())
-		return layout.Dimensions{Size: image.Pt(gtx.Dp(1), gtx.Constraints.Max.Y)}
-	})
-	chat := func(gtx layout.Context) layout.Dimensions {
-		if !u.rail || len(u.tasks[id]) == 0 {
-			return u.chatPane(gtx, id, gtx.Constraints.Max.X, true)
-		}
-		var act func() // the rail's clicks: run once both are drawn
-		defer func() {
-			if act != nil {
-				act()
-			}
-		}()
-		return layout.Flex{}.Layout(gtx,
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return u.chatPane(gtx, id, gtx.Constraints.Max.X, true)
-			}),
-			vline,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.taskRail(gtx, id, &act) }))
-	}
+	return u.sessionSplit(gtx, strings.TrimPrefix(u.view, "sess:"))
+}
+
+// sessionSplit is card id's session, its infra session beside it when its
+// Claude handed server work there. That workspace is one, drawn in one
+// window at a time: a detached window takes it (u.infraBy) unless another
+// detached one has it; the main window then shows the chat alone.
+func (u *ui) sessionSplit(gtx layout.Context, id string) layout.Dimensions {
 	org := u.splitOrg(id)
-	if org == "" {
-		return chat(gtx)
+	if org == "" || u.detached[id] != nil && u.win == nil || u.b.Card(id) == nil {
+		return u.sessionBody(gtx, id)
+	}
+	if u.win != nil {
+		if u.infraBy != "" && u.infraBy != id {
+			return u.sessionBody(gtx, id)
+		}
+		u.infraBy = id
+		u.win.drewInfra = true
+		u.infraWin.Store(u.win.w)
+	} else if u.infraBy != "" {
+		return u.sessionBody(gtx, id)
 	}
 	// its server work beside it, in the card's own infra session: the whole
 	// investigation in one view. Asked once per card and org: OpenCard is
@@ -88,9 +79,40 @@ func (u *ui) sessionView(gtx layout.Context) layout.Dimensions {
 	u.splitShown = true
 	u.infra.SetShown(true) // now, not at the next frame's infraFrame: its output must redraw this one
 	return layout.Flex{}.Layout(gtx,
-		layout.Flexed(.42, chat),
+		layout.Flexed(.42, func(gtx layout.Context) layout.Dimensions { return u.sessionBody(gtx, id) }),
 		vline,
 		layout.Flexed(.58, func(gtx layout.Context) layout.Dimensions { return u.infra.Layout(gtx, org) }))
+}
+
+// vline is a 1dp divider down the whole height.
+var vline = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, kit.CLine, clip.Rect(image.Rect(0, 0, gtx.Dp(1), gtx.Constraints.Max.Y)).Op())
+	return layout.Dimensions{Size: image.Pt(gtx.Dp(1), gtx.Constraints.Max.Y)}
+})
+
+// sessionBody is card id's session filling gtx: the chat, its rail beside
+// it when open. The session view and a detached window draw it.
+func (u *ui) sessionBody(gtx layout.Context, id string) layout.Dimensions {
+	gtx.Constraints.Min = gtx.Constraints.Max
+	kit.Fill(gtx, kit.CColumn)
+	if u.b.Card(id) == nil {
+		return layout.Center.Layout(gtx, u.k.Lbl("This card is gone.", 13, kit.CText3, kit.Sans))
+	}
+	if !u.rail || len(u.tasks[id]) == 0 || u.detached[id] != nil && u.win == nil {
+		return u.chatPane(gtx, id, gtx.Constraints.Max.X, true)
+	}
+	var act func() // the rail's clicks: run once both are drawn
+	defer func() {
+		if act != nil {
+			act()
+		}
+	}()
+	return layout.Flex{}.Layout(gtx,
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return u.chatPane(gtx, id, gtx.Constraints.Max.X, true)
+		}),
+		vline,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.taskRail(gtx, id, &act) }))
 }
 
 // splitOrg is the org whose infra session the card's session view shows
@@ -127,6 +149,12 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 			act()
 		}
 	}()
+	if d := u.detached[id]; d != nil && u.win != d { // its session is in its own window
+		return u.detachedHere(gtx, id, &act)
+	}
+	if u.chatFor != id { // the box holds this card's draft, whichever way the pane came up
+		u.chatSwitch(id)
+	}
 	archived := !c.Archived.IsZero()
 	if !archived { // the keyboard stays in the message box: a press anywhere in the pane brings it back, a field's own press then takes it
 		for {
@@ -234,6 +262,9 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 				if !full {
 					top = append(top, ib("pnFull", kit.IcoChat, "Open full window (Agent Sessions)", func() { u.openSession(id) }))
 				}
+				if u.win == nil {
+					top = append(top, ib("pnDetach", kit.IcoPopOut, "Open in its own window (Ctrl+Shift+O)", func() { u.detach(id) }))
+				}
 				top = append(top,
 					ib("pnWS", kit.IcoCode, "Open the workspace: its files and a Claude that reads them", func() { u.openWS(id) }),
 					ib("pnDraw", kit.IcoShapes, "The card's drawings", func() { u.view = "drc:" + id }),
@@ -241,7 +272,9 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 					ib("pnTerm", kit.IcoTerminal, "Open in the Claude Code terminal (T)", func() { u.terminal(id) }),
 					ib("pnArchive", kit.IcoArchive, "Archive the card", func() { u.archiveCard(id) }))
 			}
-			if full {
+			if u.win != nil {
+				top = append(top, ib("pnClose", kit.IcoX, "Back into the main window (Ctrl+Shift+O)", func() { u.reattach(id) }))
+			} else if full {
 				top = append(top, ib("pnClose", kit.IcoX, "Back to the board (Esc)", func() { u.view, u.blur = "", true }))
 			} else {
 				top = append(top, ib("pnClose", kit.IcoX, "Close the panel (Esc)", func() { u.panel, u.blur = "", true }))

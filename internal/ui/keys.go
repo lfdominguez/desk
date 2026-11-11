@@ -26,8 +26,9 @@ func (u *ui) keys(gtx layout.Context) {
 	}
 	filters = append(filters, key.Filter{Name: key.NameEscape}) // esc always: it backs out of everything
 	if u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" && u.pal == nil {
-		// the palette also over the message box: no editor uses Ctrl+K
-		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut})
+		// the palette also over the message box: no editor uses Ctrl+K; nor
+		// Ctrl+Shift+O, the session in its own window
+		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut}, key.Filter{Name: "O", Required: key.ModShortcut | key.ModShift})
 		if strings.HasPrefix(u.view, "ws:") { // quick open, from the editor too
 			filters = append(filters, key.Filter{Name: "P", Required: key.ModShortcut})
 		}
@@ -69,6 +70,12 @@ func (u *ui) keys(gtx layout.Context) {
 		}
 		if e.Name == "K" && e.Modifiers.Contain(key.ModShortcut) {
 			u.openPalette()
+			continue
+		}
+		if e.Name == "O" && e.Modifiers.Contain(key.ModShortcut|key.ModShift) {
+			if id := u.sessionCard(); id != "" {
+				u.detach(id)
+			}
 			continue
 		}
 		if e.Name == "P" && e.Modifiers.Contain(key.ModShortcut) {
@@ -153,9 +160,9 @@ func (u *ui) escape(gtx layout.Context) {
 		u.pick = ""
 	case u.cfg != nil:
 		u.closeConfig()
-	case u.edit != nil && u.edit.id != "": // the drawer saves as it closes
+	case u.edit != nil && u.edit.in == u.pane && u.edit.id != "": // the drawer saves as it closes
 		u.commit()
-	case u.edit != nil:
+	case u.edit != nil && u.edit.in == u.pane:
 		u.closeSheet()
 	case u.menu != nil:
 		u.menu = nil

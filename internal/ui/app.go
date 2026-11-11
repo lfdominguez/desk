@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -38,7 +39,15 @@ import (
 )
 
 type ui struct {
-	w *app.Window
+	*pane    // the window being laid out's own state: mainPane, or a detached session's (detach.go)
+	mainPane pane
+	detached map[string]*detached        // cards whose session has its own window, by card
+	mu       sync.Mutex                  // held by each window's event loop while it handles an event: they share u
+	closing  bool                        // desk is quitting: its detached windows close without reattaching
+	wins     atomic.Pointer[[]*detached] // the detached windows, for other goroutines (listWins)
+	infraBy  string                      // the detached card whose window draws the infra workspace, "" the main one's
+	infraWin atomic.Pointer[app.Window]  // that window, for infra's redraws
+	w        *app.Window
 	// reopen applies the window's options again before a lost window opens
 	// anew (Gio drops them once used); drew says the window drew since.
 	reopen func()
@@ -50,8 +59,7 @@ type ui struct {
 	root, home string   // the organizations' folder; the user's home (Claude profiles)
 	orgList    []string // the organizations, read at start
 
-	view       string // the sidebar's pick (see views.go); "" all cards
-	side       bool   // the sidebar shows
+	side       bool // the sidebar shows
 	search     widget.Editor
 	sel, hover string      // the keyboard's card; the one under the pointer
 	lastOrg    string      // the organization of the last card saved: new cards start there
@@ -62,17 +70,12 @@ type ui struct {
 	edit       *sheet // the card sheet, nil when closed
 
 	panel      string // the card whose chat panel is open, "" none
-	chatIn     widget.Editor
-	chatList   layout.List
 	sideList   layout.List
 	archList   layout.List
 	arch       archState                     // the archive's grouping and filter chips
-	chatFocus  bool                          // focus chatIn on the next frame
 	shellOut   map[string]string             // by card: its "!" commands and what they printed, for Claude's next message
 	peerOut    map[string]string             // by card: the infra Claude's events it couldn't take yet (cardTell)
 	shellStop  map[string]context.CancelFunc // by card: its "!" command running, stopped by this
-	chatPaste  bool                          // Ctrl+V in chatIn found text: the editor pastes it
-	chatFor    string                        // the card chatIn's text is for (drafts.go)
 	chats      map[string][]kanban.ChatMsg   // conversations read so far, by card
 	procs      map[string]session            // running sessions, by card
 	pending    map[string]claude.Directives  // DESK- lines seen in a turn, applied when it ends
@@ -91,85 +94,73 @@ type ui struct {
 	ci         map[string][]ciItem // the CI of its cards' requests and commits, by org (with any); tkGen bumps
 	cardSock   string              // where card sessions' desk tools call (cardtools.go); "" in tests
 	ciList     layout.List
-	infra      *infra.Workspace           // the servers; nil in tests
-	tree       []infra.Org                // its host tree, read once a frame
-	infraTasks []infra.Task               // and the server tasks cards handed it
-	infraOn    bool                       // the workspace is what the user looks at
-	pick       string                     // the org whose server picker is open, "" none
-	pickQ      widget.Editor              // its search
-	pickList   widget.List                // its rows, with a scrollbar
-	pickSel    int                        // the row up/down moved to, enter opens
-	pickLast   string                     // the search pickSel was moved under: a new one starts at the top
-	pickFocus  bool                       // focus its search next frame
-	srvClickOf string                     // the org whose Servers row was clicked last, and when: a second click soon opens the picker
-	srvClickAt time.Time                  //
-	terms      map[string]*termTab        // cards' Claude Code TUIs, by card
-	login      *signIn                    // an account signing in again, in its dialog
-	asks       map[string]*askState       // Claude's open questions and permission requests, by card
-	allowed    map[string]map[string]bool // per card, the tools allowed until desk quits (the ask's S)
-	rsels      map[string]*richSel        // chat markdown blocks the mouse selects, by block
-	chatSel    *richSel                   // the one with a selection
-	selGl      []text.Glyph               // scratch for shaping them
-	termGen    atomic.Int64               // bumps on terminal output, from its reader
-	shownTerm  atomic.Value               // the card whose terminal the view shows (string), for its reader
-	limits     map[string]*planUsage      // plan limits, by Claude account
-	limGen     int                        // bumps when limits arrive, for sig
-	accts      map[string]string          // which Claude account and login, by account (accountName)
-	snoozed    map[string]time.Time       // alerts hidden until then, by alertKey (saved next to the board)
-	cardInfra  map[string]string          // cards whose Claude handed server work to an org's infra session: that org
-	noSplit    map[string]bool            // cards whose session view shows the chat alone, not beside the infra session
-	splitShown bool                       // a session view drew the infra session beside it this frame
-	splitFor   string                     // the card and org the split last asked infra to open
-	visKey     string                     // what vis was worked out for (board.go visible)
-	vis        map[int][]int              // each column's visible card indices
-	cardHs     map[string]cardH           // each card's height as last laid out, to skip the ones scrolled out
-	selSeen    map[string]time.Time       // when each selectable text (sels, rsels) was last drawn
-	selSwept   time.Time                  // when sweepSels last looked
-	selFocus   *widget.Selectable         // the selectable text that last had the keyboard
-	selLast    *widget.Selectable         // the selectable text last pressed: the one with a selection
-	chatTap    int                        // the session pane's press area: its tag
-	selBack    *widget.Editor             // while a message box is laid out: where a press on text hands the keyboard back
-	countKey   string                     // what counts were worked out for (views.go count)
-	counts     map[string]int             // board views' card counts
-	snoozeAsk  map[string]string          // cards whose Claude suggests snoozing their alert: why
-	snoozing   string                     // the alert whose snooze picker is open in Alerts
-	snoozeEd   widget.Editor              // the pickers' custom duration
-	snoozeSel  int                        // the duration Snooze takes when nothing is typed
-	tasks      map[string][]*task         // sessions' subagents and background shells, by card
-	toolLines  map[string]string          // tool uses' lines, by id: a background shell's command
-	toolBy     map[string]string          // the subagent (its tool use) that made a tool use, by id; none: the session
-	toolCmds   map[string]string          // Bash tool uses' whole commands, by id
-	explains   map[string]*explained      // Haiku's explanations of shell commands, by command
-	exGen      int                        // bumps when one is asked or arrives, for sig
-	diffs      map[string][]diffLine      // Edits' changes as lines, by message
-	diffRowsOf map[string][]diffRow       // their rows, by message, view and width class
-	cellsOf    map[cellKey][]cell         // those rows' sides as highlighted characters
-	tableNat   map[string][]int           // markdown tables' natural column widths, by block
-	diffOpen   map[string]bool            // long changes shown whole, by message
-	diffMode   map[string]int             // the view picked for a change (diffUnified…), by message; none Auto
-	diffGl     []text.Glyph               // diffs' glyph buffer
-	pushing    map[string]bool            // cards whose tickets are being moved to match them
-	loading    map[string]int             // background fetches running, by org: its icon spins
-	canvas     map[string]bool            // cards whose full window was switched to Canvas (true) or Conversation (false): canvasOn
-	cv         map[string]*cvView         // each card's canvas pan, zoom and pointer
-	handoffsOn bool                       // the canvas shows the handoffs beside it
-	earlier    map[string]bool            // cards whose canvas shows its long-done agents again
-	pushErr    map[string]string          // the last error moving a card's tickets: said once, not every check
-	teamList   layout.List                // the canvas's handoffs
-	sub        string                     // the task the session's pane shows instead of the conversation
-	subList    layout.List
-	rail       bool                          // the session view shows its rail of subagents and shells
-	focused    bool                          // the window has the keyboard: notifications skip the card in view
+	infra      *infra.Workspace              // the servers; nil in tests
+	tree       []infra.Org                   // its host tree, read once a frame
+	infraTasks []infra.Task                  // and the server tasks cards handed it
+	infraOn    bool                          // the workspace is what the user looks at
+	pick       string                        // the org whose server picker is open, "" none
+	pickQ      widget.Editor                 // its search
+	pickList   widget.List                   // its rows, with a scrollbar
+	pickSel    int                           // the row up/down moved to, enter opens
+	pickLast   string                        // the search pickSel was moved under: a new one starts at the top
+	pickFocus  bool                          // focus its search next frame
+	srvClickOf string                        // the org whose Servers row was clicked last, and when: a second click soon opens the picker
+	srvClickAt time.Time                     //
+	terms      map[string]*termTab           // cards' Claude Code TUIs, by card
+	login      *signIn                       // an account signing in again, in its dialog
+	asks       map[string]*askState          // Claude's open questions and permission requests, by card
+	allowed    map[string]map[string]bool    // per card, the tools allowed until desk quits (the ask's S)
+	rsels      map[string]*richSel           // chat markdown blocks the mouse selects, by block
+	chatSel    *richSel                      // the one with a selection
+	selGl      []text.Glyph                  // scratch for shaping them
+	termGen    atomic.Int64                  // bumps on terminal output, from its reader
+	shownTerm  atomic.Value                  // the card whose terminal the view shows (string), for its reader
+	limits     map[string]*planUsage         // plan limits, by Claude account
+	limGen     int                           // bumps when limits arrive, for sig
+	accts      map[string]string             // which Claude account and login, by account (accountName)
+	snoozed    map[string]time.Time          // alerts hidden until then, by alertKey (saved next to the board)
+	cardInfra  map[string]string             // cards whose Claude handed server work to an org's infra session: that org
+	noSplit    map[string]bool               // cards whose session view shows the chat alone, not beside the infra session
+	splitShown bool                          // a session view drew the infra session beside it this frame
+	splitFor   string                        // the card and org the split last asked infra to open
+	visKey     string                        // what vis was worked out for (board.go visible)
+	vis        map[int][]int                 // each column's visible card indices
+	cardHs     map[string]cardH              // each card's height as last laid out, to skip the ones scrolled out
+	selSeen    map[string]time.Time          // when each selectable text (sels, rsels) was last drawn
+	selSwept   time.Time                     // when sweepSels last looked
+	countKey   string                        // what counts were worked out for (views.go count)
+	counts     map[string]int                // board views' card counts
+	snoozeAsk  map[string]string             // cards whose Claude suggests snoozing their alert: why
+	snoozing   string                        // the alert whose snooze picker is open in Alerts
+	snoozeEd   widget.Editor                 // the pickers' custom duration
+	snoozeSel  int                           // the duration Snooze takes when nothing is typed
+	tasks      map[string][]*task            // sessions' subagents and background shells, by card
+	toolLines  map[string]string             // tool uses' lines, by id: a background shell's command
+	toolBy     map[string]string             // the subagent (its tool use) that made a tool use, by id; none: the session
+	toolCmds   map[string]string             // Bash tool uses' whole commands, by id
+	explains   map[string]*explained         // Haiku's explanations of shell commands, by command
+	exGen      int                           // bumps when one is asked or arrives, for sig
+	diffs      map[string][]diffLine         // Edits' changes as lines, by message
+	diffRowsOf map[string][]diffRow          // their rows, by message, view and width class
+	cellsOf    map[cellKey][]cell            // those rows' sides as highlighted characters
+	tableNat   map[string][]int              // markdown tables' natural column widths, by block
+	diffOpen   map[string]bool               // long changes shown whole, by message
+	diffMode   map[string]int                // the view picked for a change (diffUnified…), by message; none Auto
+	diffGl     []text.Glyph                  // diffs' glyph buffer
+	pushing    map[string]bool               // cards whose tickets are being moved to match them
+	loading    map[string]int                // background fetches running, by org: its icon spins
+	canvas     map[string]bool               // cards whose full window was switched to Canvas (true) or Conversation (false): canvasOn
+	cv         map[string]*cvView            // each card's canvas pan, zoom and pointer
+	handoffsOn bool                          // the canvas shows the handoffs beside it
+	earlier    map[string]bool               // cards whose canvas shows its long-done agents again
+	pushErr    map[string]string             // the last error moving a card's tickets: said once, not every check
 	sels       map[string]*widget.Selectable // chat text the mouse selects, by message
 	menu       *cardMenu                     // a card's right-click menu, nil when closed
-	railList   layout.List
-	histList   layout.List
 
 	gen        int           // bumps on every board change (save), for sig
 	saveAfter  time.Duration // how long save waits to write: 0 at once (tests)
 	dirty      bool          // a change waits to be written (flush)
 	scanWait   time.Duration // how long the folders page waits before scanning them, off the UI goroutine: 0 at once (tests)
-	blur       bool          // drop the key focus on the next frame
 	toast      string
 	toastBad   bool
 	toastUntil time.Time
@@ -213,12 +204,11 @@ func newUI(b *kanban.Board, path string) *ui {
 	u.unsaved, u.wsEd = loadUnsaved(path), orgs.EditorSettings()
 	u.search.SingleLine, u.search.Submit = true, true
 	u.pickQ.SingleLine, u.pickQ.Submit, u.pickList.Axis = true, true, layout.Vertical
-	u.chatIn.Submit = true
+	u.pane = &u.mainPane
+	u.pane.init()
+	u.detached = map[string]*detached{}
 	u.snoozeEd.SingleLine, u.snoozeEd.Submit = true, true
 	u.loadSnoozed()
-	u.chatList.Axis, u.chatList.ScrollToEnd = layout.Vertical, true
-	u.teamList.Axis, u.teamList.ScrollToEnd = layout.Vertical, true
-	u.subList.Axis, u.subList.ScrollToEnd, u.railList.Axis, u.histList.Axis = layout.Vertical, true, layout.Vertical, layout.Vertical
 	u.drList.Axis = layout.Vertical
 	u.sideList.Axis, u.archList.Axis, u.tkList.Axis, u.alList.Axis, u.ciList.Axis = layout.Vertical, layout.Vertical, layout.Vertical, layout.Vertical, layout.Vertical
 	for c := range b.Columns { // a session that was on a turn when desk last closed is no longer
@@ -228,6 +218,7 @@ func newUI(b *kanban.Board, path string) *ui {
 			}
 		}
 	}
+	u.reopenDetached() // the sessions detached when desk last closed, in their windows again
 	return u
 }
 
@@ -237,7 +228,7 @@ var Version = "dev"
 
 // startInfra starts the infra workspace and the card tools' socket.
 func (u *ui) startInfra() {
-	u.infra = infra.New(u.root, u.w.Invalidate)
+	u.infra = infra.New(u.root, u.infraWake)
 	u.infra.OnInvestigate(func(org, host, service, state, output string, since time.Time) {
 		u.later(func() { u.investigate(org, host, service, state, output, "", since) })
 	})
@@ -305,12 +296,16 @@ func Run(b *kanban.Board, path string) error {
 // A window that closed on an error (the display dropped its connection: a
 // monitor switched off and back) opens again, the board and sessions untouched;
 // after reopenTries reopened windows in a row that never drew, it gives up.
+// It returns holding u.mu: the detached windows' loops wait while desk quits.
 func (u *ui) loop(next func() event.Event) error {
 	var ops op.Ops
 	failed := 0
 	for {
-		done, err := u.event(next(), &ops)
+		ev := next()
+		u.mu.Lock() // a detached window's loop shares u; held on return, so desk's cleanup doesn't race it
+		done, err := u.event(ev, &ops)
 		if !done {
+			u.mu.Unlock()
 			continue
 		}
 		if u.drew {
@@ -328,6 +323,7 @@ func (u *ui) loop(next func() event.Event) error {
 		}
 		failed++
 		u.drew = false
+		u.mu.Unlock()
 		u.windowLost()
 	}
 }
@@ -352,7 +348,9 @@ func (u *ui) windowLost() {
 	for wait := reopenWait(); ; {
 		select {
 		case f := <-u.events:
+			u.mu.Lock()
 			f()
+			u.mu.Unlock()
 			continue
 		case <-wait:
 		}
@@ -396,8 +394,12 @@ func (u *ui) later(f func()) {
 
 // drain runs the work later queued.
 func (u *ui) drain() {
+	ran := len(u.events) > 0
 	for len(u.events) > 0 {
 		(<-u.events)()
+	}
+	if ran {
+		u.wakeDetached()
 	}
 }
 
@@ -455,28 +457,7 @@ func (u *ui) frame(gtx layout.Context) {
 			if u.side {
 				kids = append(kids, layout.Rigid(u.sidebar), layout.Rigid(kit.HGap(1)))
 			}
-			main := u.board
-			if u.view == viewArchive {
-				main = u.archive
-			} else if strings.HasPrefix(u.view, "tk:") {
-				main = u.ticketsView
-			} else if strings.HasPrefix(u.view, "al:") {
-				main = u.alertsView
-			} else if strings.HasPrefix(u.view, "ci:") {
-				main = u.ciView
-			} else if strings.HasPrefix(u.view, "srv:") {
-				main = u.serversView
-			} else if strings.HasPrefix(u.view, "term:") {
-				main = u.termView
-			} else if strings.HasPrefix(u.view, "sess:") {
-				main = u.sessionView
-			} else if strings.HasPrefix(u.view, "ws:") {
-				main = u.wsView
-			} else if strings.HasPrefix(u.view, "dr:") || strings.HasPrefix(u.view, "drc:") {
-				main = u.drawingsView
-			} else if strings.HasPrefix(u.view, "draw:") {
-				main = u.drawView
-			}
+			main := u.mainView()
 			kids = append(kids, layout.Flexed(1, main))
 			if u.panel != "" && !strings.HasPrefix(u.view, "term:") && !strings.HasPrefix(u.view, "sess:") && !strings.HasPrefix(u.view, "ws:") && !strings.HasPrefix(u.view, "draw:") {
 				kids = append(kids, layout.Rigid(kit.HGap(1)), layout.Rigid(u.chatPanel))
@@ -493,6 +474,33 @@ func (u *ui) frame(gtx layout.Context) {
 		u.post = nil
 		f()
 	}
+}
+
+// mainView is what the window's main area shows for u.view.
+func (u *ui) mainView() layout.Widget {
+	main := u.board
+	if u.view == viewArchive {
+		main = u.archive
+	} else if strings.HasPrefix(u.view, "tk:") {
+		main = u.ticketsView
+	} else if strings.HasPrefix(u.view, "al:") {
+		main = u.alertsView
+	} else if strings.HasPrefix(u.view, "ci:") {
+		main = u.ciView
+	} else if strings.HasPrefix(u.view, "srv:") {
+		main = u.serversView
+	} else if strings.HasPrefix(u.view, "term:") {
+		main = u.termView
+	} else if strings.HasPrefix(u.view, "sess:") {
+		main = u.sessionView
+	} else if strings.HasPrefix(u.view, "ws:") {
+		main = u.wsView
+	} else if strings.HasPrefix(u.view, "dr:") || strings.HasPrefix(u.view, "drc:") {
+		main = u.drawingsView
+	} else if strings.HasPrefix(u.view, "draw:") {
+		main = u.drawView
+	}
+	return main
 }
 
 // save writes the board; a failure shows rather than losing the change

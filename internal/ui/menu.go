@@ -131,6 +131,7 @@ func (u *ui) drawCardMenu(gtx layout.Context) {
 	items := []menuItem{
 		{id: "Open session", label: "Open session", key: key.NameReturn, cap: "↵", ico: kit.IcoChat, f: func() { u.openPanel(id) }},
 		{id: "Open full window", label: "Open full window", ico: kit.IcoSide, f: func() { u.openSession(id) }},
+		{id: "Open in new window", label: "Open in new window", key: "O", cap: "O", ico: kit.IcoPopOut, f: func() { u.detach(id) }},
 		{id: "Claude Code terminal", label: "Claude Code terminal", key: "T", cap: "T", ico: kit.IcoTerminal, f: func() { u.terminal(id) }},
 		{id: "Remote Control", label: remote, key: "R", cap: "R", ico: kit.IcoSend, f: func() { u.remoteControl(id) }},
 		{id: "Workspace", label: "Workspace", key: "W", cap: "W", ico: kit.IcoCode, f: func() { u.openWS(id) }},

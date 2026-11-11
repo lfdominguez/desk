@@ -65,6 +65,7 @@ type Card struct {
 	Tabs      []string  `json:"tabs,omitempty"`       // the files open in its workspace, in order (absolute)
 	WSSession string    `json:"ws_session,omitempty"` // its workspace Claude's session (claude --resume)
 	Draft     string    `json:"draft,omitempty"`      // a message to its Claude written but not sent
+	Detached  bool      `json:"detached,omitempty"`   // its session has a window of its own (ui's detach.go)
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`
