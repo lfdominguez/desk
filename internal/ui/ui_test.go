@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"io"
 	"os"
@@ -303,7 +304,7 @@ func TestUnlockDialog(t *testing.T) {
 	}
 	h.send(key.EditEvent{Text: "hunter2"})
 	h.send(press(key.NameReturn, 0))
-	for end := time.Now().Add(5 * time.Second); d.busy && time.Now().Before(end); { // the unlock runs off the UI goroutine
+	for end := time.Now().Add(testwait.Long); d.busy && time.Now().Before(end); { // the unlock runs off the UI goroutine
 		time.Sleep(5 * time.Millisecond)
 		h.frame()
 	}
@@ -555,7 +556,7 @@ func TestTicketFirst(t *testing.T) {
 	turn := func(text string) {
 		fake.on(claude.Event{Kind: claude.KindText, Text: text})
 		fake.on(claude.Event{Kind: claude.KindResult})
-		for end := time.Now().Add(2 * time.Second); len(fake.prompts) < 2 && time.Now().Before(end); {
+		for end := time.Now().Add(testwait.Long); len(fake.prompts) < 2 && time.Now().Before(end); {
 			h.frame()
 		}
 	}
@@ -707,7 +708,7 @@ func TestCardTell(t *testing.T) {
 		t.Fatal("a permission question is up: it waits")
 	}
 	fake.on(claude.Event{Kind: claude.KindResult})
-	for end := time.Now().Add(2 * time.Second); len(fake.prompts) < 2 && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); len(fake.prompts) < 2 && time.Now().Before(end); {
 		h.frame()
 	}
 	if len(fake.prompts) != 2 || !strings.Contains(fake.prompts[1], "result of task 2") || h.u.peerOut[c.ID] != "" {
@@ -910,7 +911,7 @@ func TestQuitOn(t *testing.T) {
 	c <- os.Interrupt
 	select { // no frames: the UI goroutine never answers
 	case <-code:
-	case <-time.After(time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("waited forever for the UI goroutine")
 	}
 	h.frame()        // the queued write runs; nothing waits on it now
@@ -1025,7 +1026,7 @@ func TestServers(t *testing.T) {
 	if h.u.pick != "" || h.u.view != "srv:Acme" {
 		t.Fatalf("picking a server: picker %q, view %q", h.u.pick, h.u.view)
 	}
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && h.u.count("srv:Acme") == 0; time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && h.u.count("srv:Acme") == 0; time.Sleep(50 * time.Millisecond) {
 		h.frame()
 	}
 	if h.u.count("srv:Acme") != 1 || !strings.Contains(h.u.sentence(), "1 server") {
@@ -1078,7 +1079,7 @@ func TestPromptOptimization(t *testing.T) {
 	s.notes.SetText("login is broken in the api, PR https://github.com/acme/api/pull/3")
 	s.labels.SetText("dev")
 	h.clickButton("shOpt") // Improve with Claude: suggestions, not a card yet
-	for end := time.Now().Add(2 * time.Second); s.optStop != nil && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); s.optStop != nil && time.Now().Before(end); {
 		h.frame()
 	}
 	if h.u.edit == nil || !s.optimized || h.cards() != 0 {
@@ -1189,7 +1190,7 @@ func TestTerminal(t *testing.T) {
 		return b.String()
 	}
 	waitFor := func(s string) {
-		for end := time.Now().Add(5 * time.Second); !strings.Contains(screen(), s); time.Sleep(20 * time.Millisecond) {
+		for end := time.Now().Add(testwait.Long); !strings.Contains(screen(), s); time.Sleep(20 * time.Millisecond) {
 			if time.Now().After(end) {
 				t.Fatalf("no %q on the terminal: %q", s, screen())
 			}
@@ -1591,7 +1592,7 @@ func TestShellBang(t *testing.T) {
 	h.frame() // the box warns: draws with the warning row
 	h.send(press(key.NameReturn, 0))
 	last := func() kanban.ChatMsg { ms := h.u.chat(c.ID); return ms[len(ms)-1] }
-	for end := time.Now().Add(2 * time.Second); last().Text == "" && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); last().Text == "" && time.Now().Before(end); {
 		h.frame()
 	}
 	if len(ran) != 1 || ran[0] != filepath.Join(h.u.root, "Acme")+"|ls" || last().Text != "main.go" || last().Detail != "running…" {
@@ -1609,7 +1610,7 @@ func TestShellBang(t *testing.T) {
 		t.Fatalf("sent while the command ran: %q", fake.prompts)
 	}
 	close(gate)
-	for end := time.Now().Add(2 * time.Second); len(fake.prompts) == 0 && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); len(fake.prompts) == 0 && time.Now().Before(end); {
 		h.frame()
 	}
 	if len(fake.prompts) != 1 || !strings.Contains(fake.prompts[0], "<bash-input>ls</bash-input>\n<bash-stdout>main.go\nREADME.md</bash-stdout>") ||
@@ -1627,7 +1628,7 @@ func TestShellBang(t *testing.T) {
 	gate = make(chan struct{}) // a long one, stopped
 	h.u.send(c.ID, "! sleep 600")
 	h.u.shellStop[c.ID]()
-	for end := time.Now().Add(2 * time.Second); len(fake.prompts) < 2 && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); len(fake.prompts) < 2 && time.Now().Before(end); {
 		h.frame()
 	}
 	if m := last(); !strings.HasPrefix(m.Detail, "stopped") || m.Path != toClaudeSent || len(fake.prompts) != 2 ||
@@ -1651,11 +1652,11 @@ func TestChatPasteText(t *testing.T) {
 	h.send(press("V", key.ModShortcut))
 	select {
 	case <-asked:
-	case <-time.After(2 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("Ctrl+V never looked for an image")
 	}
 	req := false // ClipboardRequested says so once
-	for end := time.Now().Add(2 * time.Second); !req && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); !req && time.Now().Before(end); {
 		h.frame()
 		req = h.r.ClipboardRequested()
 	}
@@ -1935,7 +1936,7 @@ func TestPasteImage(t *testing.T) {
 	h.r.Source().Execute(key.FocusCmd{Tag: &s.notes})
 	h.frame()
 	h.send(press("V", key.ModShortcut), key.Event{Name: "V", Modifiers: key.ModShortcut, State: key.Release})
-	for end := time.Now().Add(2 * time.Second); !strings.Contains(s.notes.Text(), "![image]") && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); !strings.Contains(s.notes.Text(), "![image]") && time.Now().Before(end); {
 		h.frame()
 	}
 	h.frame()
@@ -1947,7 +1948,7 @@ func TestPasteImage(t *testing.T) {
 		t.Fatalf("image at %s: %q %v", m[1], b, err)
 	}
 	h.clickButton("shOpt") // improves: the rewritten notes keep the image
-	for end := time.Now().Add(2 * time.Second); !s.optimized && time.Now().Before(end); {
+	for end := time.Now().Add(testwait.Long); !s.optimized && time.Now().Before(end); {
 		h.frame()
 	}
 	if n := s.notes.Text(); !strings.HasPrefix(n, "Goal:") || !strings.Contains(n, m[0]) {

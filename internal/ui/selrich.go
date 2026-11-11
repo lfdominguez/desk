@@ -130,7 +130,7 @@ func (u *ui) rich(gtx layout.Context, id string, spans ...span) layout.Dimension
 			u.chatSel, st.down = st, p
 			i := st.hit(p)
 			st.sel, st.selecting = [2]int{i, i}, true
-			switch st.clicks.press(p) {
+			switch st.clicks.press(p, e.Time) {
 			case 2:
 				if i > 0 && (i == len(st.src) || st.src[i] == ' ' || st.src[i] == '\n') { // hit is the nearest edge: the word may end here
 					i--
@@ -325,19 +325,21 @@ func (st *richSel) selected() string {
 }
 
 // clicks counts quick presses at one spot: 2 selects a word, 3 a block.
+// at is the press event's Time (as gesture.Click counts), not the wall
+// clock: how late a frame handles the events doesn't split a double click.
 type clicks struct {
-	at  time.Time
+	at  time.Duration
 	pos image.Point
 	n   int
 }
 
-func (c *clicks) press(p image.Point) int {
-	if d := p.Sub(c.pos); time.Since(c.at) < 400*time.Millisecond && d.X*d.X+d.Y*d.Y < 25 {
+func (c *clicks) press(p image.Point, at time.Duration) int {
+	if d := p.Sub(c.pos); c.n > 0 && at-c.at < 400*time.Millisecond && d.X*d.X+d.Y*d.Y < 25 {
 		c.n++
 	} else {
 		c.n = 1
 	}
-	c.at, c.pos = time.Now(), p
+	c.at, c.pos = at, p
 	return c.n
 }
 

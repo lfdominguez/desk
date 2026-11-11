@@ -4,43 +4,86 @@ import (
 	"context"
 	"errors"
 	"github.com/lfdominguez/desk/internal/sshc/sshtest"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
-func fastAlive(t *testing.T) {
-	aliveUnit = 20 * time.Millisecond
-	t.Cleanup(func() { aliveUnit = time.Second })
+// handTicks gives the keepalive a clock the test ticks, and tells it each
+// reply counted; every is the interval it was set for.
+func handTicks(t *testing.T) (ticks chan time.Time, replies chan struct{}, every *atomic.Int64) {
+	ticks, replies, every = make(chan time.Time), make(chan struct{}, 16), new(atomic.Int64)
+	oldT, oldR := aliveTicks, aliveReplied
+	aliveTicks = func(d time.Duration) (<-chan time.Time, func()) { every.Store(int64(d)); return ticks, func() {} }
+	aliveReplied = func() { replies <- struct{}{} }
+	t.Cleanup(func() { aliveTicks, aliveReplied = oldT, oldR })
+	return ticks, replies, every
+}
+
+// TestAliveDefaults: outside tests the keepalive's clock is a real ticker,
+// and a counted reply tells nobody.
+func TestAliveDefaults(t *testing.T) {
+	ticks, stop := aliveTicks(time.Millisecond)
+	defer stop()
+	select {
+	case <-ticks:
+	case <-time.After(testwait.Long):
+		t.Fatal("the ticker never ticked")
+	}
+	aliveReplied()
+}
+
+// tick ticks the keepalive's clock, or fails when nothing takes the tick.
+func tick(t *testing.T, ticks chan time.Time) {
+	t.Helper()
+	select {
+	case ticks <- time.Now():
+	case <-time.After(testwait.Long):
+		t.Fatal("the keepalive took no tick")
+	}
 }
 
 func waitDone(t *testing.T, c *Client) {
 	t.Helper()
 	select {
 	case <-c.Done():
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("still alive")
 	}
 }
 
 func TestKeepaliveLost(t *testing.T) {
-	fastAlive(t)
-	c, _, w := pwClient(t, "  ServerAliveInterval 1\n  ServerAliveCountMax 3\n", sshtest.Opts{NoKeepalive: true})
-	start := time.Now()
+	ticks, _, every := handTicks(t)
+	c, _, w := pwClient(t, "  ServerAliveInterval 2\n  ServerAliveCountMax 3\n", sshtest.Opts{NoKeepalive: true})
+	// The first tick sends the request; each later one with it unanswered
+	// is a miss, and the third miss loses the connection.
+	for range 3 {
+		tick(t, ticks)
+	}
+	if c.Err() != nil || time.Duration(every.Load()) != 2*time.Second {
+		t.Fatalf("lost early: %v, every %v", c.Err(), time.Duration(every.Load()))
+	}
+	tick(t, ticks)
 	waitDone(t, c)
 	if !errors.Is(c.Err(), ErrLost) || !w.logged("Timeout, server 127.0.0.1 not responding.") {
 		t.Fatalf("err %v, logs %q", c.Err(), w.logs)
 	}
-	if d := time.Since(start); d < 60*time.Millisecond {
-		t.Fatalf("lost after %v", d)
-	}
 }
 
 func TestKeepaliveAnswered(t *testing.T) {
-	fastAlive(t)
+	ticks, replies, _ := handTicks(t)
 	c, _, _ := pwClient(t, "  ServerAliveInterval 1\n  ServerAliveCountMax 1\n", sshtest.Opts{})
-	time.Sleep(200 * time.Millisecond)
+	for range 3 { // a request, its reply, the next: never a miss
+		tick(t, ticks)
+		select {
+		case <-replies:
+		case <-time.After(testwait.Long):
+			t.Fatal("no reply")
+		}
+	}
 	if c.Err() != nil {
 		t.Fatalf("lost: %v", c.Err())
 	}
@@ -303,6 +346,38 @@ func TestPoolFirstCallerCancelled(t *testing.T) {
 	close(answer)
 	if err := <-second; err != nil {
 		t.Fatalf("second failed with the first: %v", err)
+	}
+}
+
+// lateCtx is cancelled with nothing to tell AfterFunc: its Done never
+// closes, as when the closing goroutine hasn't run yet.
+type lateCtx struct {
+	context.Context
+	gone *atomic.Bool
+}
+
+func (c lateCtx) Done() <-chan struct{} { return nil }
+func (c lateCtx) Err() error {
+	if c.gone.Load() {
+		return context.Canceled
+	}
+	return nil
+}
+
+// TestDialCancelledDuringAuth: a dial cancelled while it authenticates
+// fails, even when the handshake then goes through.
+func TestDialCancelledDuringAuth(t *testing.T) {
+	w := newWorld(t)
+	s := pwServer(t, w, sshtest.Opts{})
+	o := w.opts(base(""), s)
+	var gone atomic.Bool
+	o.Prompt = func(string, bool) (string, error) { gone.Store(true); return "pw", nil }
+	c, err := Dial(lateCtx{context.Background(), &gone}, "srv", o)
+	if c != nil {
+		c.Close()
+	}
+	if !errors.Is(err, context.Canceled) || s.Count() != 1 {
+		t.Fatalf("err %v, %d connections", err, s.Count())
 	}
 }
 

@@ -8,6 +8,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Each step of a server connection, with its time**: a pane that opens a new SSH connection
+  shows, live in its connection box, every step (the config, the name lookup, the TCP connect or
+  jump host, the vault's password, key exchange, host key, each authentication method, the
+  shell) and how long it took, a wait on you apart from network time. A failed step stays with
+  its error; once connected, the pane's header says "connected in …" and lists the steps on hover.
+  A pane that reuses an open connection shows none.
 - **Remote Control for a card's session**: **Remote** in its terminal's header, or **R** in the
   card menu, restarts the card's Claude Code terminal with Remote Control, to go on from
   claude.ai/code or the Claude app (its link and QR code show in the terminal). It stays on for the
@@ -30,6 +36,9 @@ day). A release's section here is its notes on GitHub. The format follows
 - The workspace's tabs scroll sideways when they don't fit, instead of being squeezed out.
 - The workspace's tree shows a file the card's Claude creates, and reads open folders again when
   you open the workspace; it leaves out `.worktrees`, `__pycache__` and `.venv` too.
+- A server with a `#@ password` no longer has it read from the vault on every connection: desk
+  looks it up only when the server asks for a password, so a server your key logs into connects
+  without waiting on the vault (or on unlocking it).
 
 ### Fixed
 
@@ -49,6 +58,11 @@ day). A release's section here is its notes on GitHub. The format follows
   unsaved, when you open that card's workspace again.
 - Typing in the workspace editor no longer stalls on big files: the highlighting runs in the
   background (a 100 KB file stalled each key for about 0.2 s, a 4 MB one for seconds).
+- A double or triple click in Claude's replies (a word, a block) counts by when the clicks
+  happened, not by when desk got round to them: on a busy machine it no longer turns into two
+  single clicks.
+- The infra Claude's commands in a pane wait for the shell's next prompt before reporting, so the
+  command it runs right after no longer finds the pane "busy".
 
 ## [2026.11.09.1] - 2026-11-09
 

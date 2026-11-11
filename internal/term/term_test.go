@@ -3,6 +3,7 @@ package term
 import (
 	"bufio"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os"
 	"os/exec"
 	"strings"
@@ -72,7 +73,7 @@ func TestEcho(t *testing.T) {
 		return b.String()
 	}
 	wait := func(what string) {
-		for end := time.Now().Add(5 * time.Second); !strings.Contains(screen(), what); {
+		for end := time.Now().Add(testwait.Long); !strings.Contains(screen(), what); {
 			if time.Now().After(end) {
 				t.Fatalf("no %q on screen:\n%s", what, screen())
 			}
@@ -88,7 +89,7 @@ func TestEcho(t *testing.T) {
 	}
 	tm.SendKey(uv.KeyPressEvent{Code: uv.KeyEnter})
 	wait("got:ok")
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
 		if done, code := tm.Exited(); done {
 			if code != 0 {
 				t.Fatalf("exit %d", code)

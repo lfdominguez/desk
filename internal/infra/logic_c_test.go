@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"math"
 	"net"
 	"net/http"
@@ -186,7 +187,7 @@ func TestBlockDoneLongNotifiesC(t *testing.T) {
 		if m.tab != tab || m.host != "web1" || m.block.Cmd != "make" {
 			t.Errorf("msg: %+v", m)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("a long command must be dispatched")
 	}
 	select {
@@ -287,7 +288,7 @@ func TestDesktopNotifyC(t *testing.T) {
 		if g != "Approval needed|systemctl restart nginx" {
 			t.Errorf("pushed %q", g)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("nothing pushed")
 	}
 }
@@ -735,7 +736,7 @@ func TestTermHistoryAndTapC(t *testing.T) {
 		if !strings.Contains(s, "tapped") {
 			t.Errorf("tap: %q", s)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("termTap never called")
 	}
 }
@@ -784,7 +785,7 @@ func TestStartAlertsPollsC(t *testing.T) {
 		if a.src != "Acme/mon" || !a.first || len(a.alerts) != 1 || a.alerts[0].Host != "db1" || a.alerts[0].State != "DOWN" || a.alerts[0].Dir != good {
 			t.Errorf("alerts: %+v", a)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("no poll")
 	}
 	select {
@@ -1594,7 +1595,7 @@ func TestWorkspaceAPIC(t *testing.T) {
 	if !w.OpenOrg("Acme") || w.OpenOrg("Globex") {
 		t.Fatal("OpenOrg")
 	}
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end) && !w.Tree()[0].Claude; time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !w.Tree()[0].Claude; time.Sleep(20 * time.Millisecond) {
 	}
 	if tr := w.Tree(); !tr[0].Claude || w.ActiveOrg() != "Acme" {
 		t.Fatalf("org session: %+v %q", tr, w.ActiveOrg())
@@ -1627,7 +1628,7 @@ func TestWorkspaceAPIC(t *testing.T) {
 		if !ok {
 			t.Error("OnInvestigate, SetFocused or Reload didn't reach the model")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("the model loop never ran the actions")
 	}
 	tab := &Tab{org: "Acme"}
@@ -1711,5 +1712,34 @@ func TestDeskVaultUnlockedC(t *testing.T) {
 	s = SourceCfg{Name: "n2", secret: &deskorgs.Secret{Vault: "bw", Item: "nope"}}
 	if _, _, err := o.login(ctx, s); err == nil || !strings.HasPrefix(err.Error(), "login for n2: ") {
 		t.Errorf("a missing item: %v", err)
+	}
+}
+
+// TestTermRunWaitsForPromptC: run returns once the next prompt is up, not at
+// the block's end, so the next run doesn't find the pane busy; a shell gone
+// after the block gives the block too.
+func TestTermRunWaitsForPromptC(t *testing.T) {
+	term, r := fakeTermA(t, "web1")
+	go func() {
+		readPipeA(r)
+		term.mu.Lock()
+		term.blocks, term.b = append(term.blocks, Block{N: 1}), nil // D: the prompt not back yet
+		term.mu.Unlock()
+		time.Sleep(300 * time.Millisecond) // the gap before B; Run must outwait it
+		term.mu.Lock()
+		term.b = &pos{} // B
+		term.mu.Unlock()
+	}()
+	if res := term.Run("true", testwait.Long); res.Text != "block #1 exit=0\n" || !term.AtPrompt() {
+		t.Errorf("run: %q, at prompt %v", res.Text, term.AtPrompt())
+	}
+	go func() {
+		readPipeA(r)
+		term.mu.Lock()
+		term.blocks, term.b, term.exited = append(term.blocks, Block{N: 2, Exit: 3}), nil, true // "exit 3" after a block
+		term.mu.Unlock()
+	}()
+	if res := term.Run("false; exit 3", testwait.Long); res.Text != "block #2 exit=3\n" || !res.IsError {
+		t.Errorf("run before an exit: %q", res.Text)
 	}
 }

@@ -32,6 +32,13 @@ type Options struct {
 	Password func() (string, bool)
 	// Logf gets the lines ssh prints or logs: warnings, banners, debug.
 	Logf func(format string, args ...any)
+	// Step hears each step of the dial as it starts (a step ends when the
+	// next one starts or Dial returns); user marks a wait on the user's
+	// answer rather than on the network. nil hears nothing.
+	Step func(name string, user bool)
+
+	stepped    bool // Step, Prompt and Password already report steps (a jump host's dial)
+	noPassword bool // Password was nil: no spare try for it
 }
 
 // ErrLost is a connection whose server stopped answering keepalives
@@ -65,6 +72,9 @@ type Client struct {
 // failure is a *NegotiationError, a *HostKeyChangedError, wraps ErrHostKey,
 // or says what ssh would.
 func Dial(ctx context.Context, host string, o Options) (*Client, error) {
+	if o.Step != nil {
+		o.Step("Reading the config", false) // Match exec runs commands
+	}
 	cfg, err := sshconfig.Resolve(host, o.Options)
 	if err != nil {
 		return nil, err
@@ -73,6 +83,12 @@ func Dial(ctx context.Context, host string, o Options) (*Client, error) {
 }
 
 func (o Options) withDefaults(cfg *sshconfig.Config) Options {
+	if o.Step == nil {
+		o.Step = func(string, bool) {}
+	} else if !o.stepped {
+		o = o.stepping() // before BatchMode's Prompt below, which asks nobody
+
+	}
 	if o.Logf == nil {
 		o.Logf = func(string, ...any) {}
 	}
@@ -80,8 +96,46 @@ func (o Options) withDefaults(cfg *sshconfig.Config) Options {
 		o.Prompt = func(string, bool) (string, error) { return "", errNoPrompt }
 	}
 	if o.Password == nil {
+		o.noPassword = true
 		o.Password = func() (string, bool) { return "", false }
 	}
+	return o
+}
+
+// stepping makes Prompt and Password steps of their own: a question is the
+// user's time, a password lookup (a vault, maybe unlocked first) its own;
+// the step they interrupt resumes after them.
+func (o Options) stepping() Options {
+	step, cur := o.Step, ""
+	var mu sync.Mutex
+	o.Step = func(name string, user bool) {
+		if !user {
+			mu.Lock()
+			cur = name
+			mu.Unlock()
+		}
+		step(name, user)
+	}
+	around := func(name string, user bool) func() {
+		mu.Lock()
+		was := cur
+		mu.Unlock()
+		step(name, user)
+		return func() { o.Step(was, false) }
+	}
+	if ask := o.Prompt; ask != nil {
+		o.Prompt = func(prompt string, echo bool) (string, error) {
+			defer around("Waiting for your answer", true)()
+			return ask(prompt, echo)
+		}
+	}
+	if pw := o.Password; pw != nil {
+		o.Password = func() (string, bool) {
+			defer around("Looking up the password", false)()
+			return pw()
+		}
+	}
+	o.stepped = true
 	return o
 }
 
@@ -113,6 +167,7 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	if err != nil {
 		return fail(err)
 	}
+	o.Step("Preparing authentication", false) // the agent
 	au := newAuth(cfg, o, hc)
 	defer au.close()
 	conf.Auth = au.methods()
@@ -125,12 +180,24 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	hc.clear = func() { conn.SetDeadline(time.Time{}) }
 	conf.HostKeyCallback = func(_ string, _ net.Addr, key ssh.PublicKey) error {
 		hc.clear()
-		return hc.check(key)
+		o.Step("Checking the host key", false)
+		if err := hc.check(key); err != nil {
+			return err
+		}
+		o.Step("Authenticating", false)
+		return nil
 	}
 	addr := net.JoinHostPort(cfg.HostName(), strconv.Itoa(cfg.Port()))
+	o.Step("Exchanging keys", false)
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	sc, chans, reqs, err := ssh.NewClientConn(conn, addr, conf)
 	stop()
+	if err == nil && ctx.Err() != nil {
+		// AfterFunc closes conn on a goroutine of its own: the handshake
+		// can finish first. Cancelled is cancelled.
+		sc.Close()
+		err = ctx.Err()
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			err = ctx.Err()
@@ -139,6 +206,7 @@ func dial(ctx context.Context, cfg *sshconfig.Config, o Options) (*Client, error
 	}
 	c := &Client{Client: ssh.NewClient(sc, chans, reqs), cfg: cfg, opt: o, hc: hc, jump: jump, done: make(chan struct{})}
 	go func() { c.end(c.Client.Wait()) }()
+	o.Step("Starting forwards", false)
 	if err := c.start(); err != nil {
 		c.Close()
 		return nil, err
@@ -175,7 +243,7 @@ func (c *Client) start() error {
 			return errors.New("Error: forwarding disabled due to host key check failure")
 		}
 	}
-	if t := time.Duration(cfg.Int("serveraliveinterval")) * aliveUnit; t > 0 {
+	if t := time.Duration(cfg.Int("serveraliveinterval")) * time.Second; t > 0 {
 		go c.keepalive(t, max(cfg.Int("serveralivecountmax"), 1))
 	}
 	if lc := cfg.Get("localcommand"); lc != "" && cfg.Bool("permitlocalcommand") {
@@ -196,15 +264,21 @@ func (c *Client) start() error {
 	return nil
 }
 
-// aliveUnit is ServerAliveInterval's unit; tests shorten it.
-var aliveUnit = time.Second
+// aliveTicks is the keepalive's clock (and its stop); tests tick it by hand.
+var aliveTicks = func(every time.Duration) (<-chan time.Time, func()) {
+	t := time.NewTicker(every)
+	return t.C, t.Stop
+}
+
+// aliveReplied runs once a reply is counted; tests wait on it.
+var aliveReplied = func() {}
 
 // keepalive is ssh's server_alive_check: a keepalive@openssh.com request
 // every interval (any reply will do), the connection lost once count of
 // them go unanswered.
 func (c *Client) keepalive(every time.Duration, count int) {
-	t := time.NewTicker(every)
-	defer t.Stop()
+	ticks, stop := aliveTicks(every)
+	defer stop()
 	replied := make(chan struct{}, 1)
 	inFlight, missed := false, 0
 	for {
@@ -213,7 +287,8 @@ func (c *Client) keepalive(every time.Duration, count int) {
 			return
 		case <-replied:
 			inFlight, missed = false, 0
-		case <-t.C:
+			aliveReplied()
+		case <-ticks:
 			if !inFlight {
 				inFlight = true
 				go func() {

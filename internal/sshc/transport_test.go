@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/lfdominguez/desk/internal/sshc/sshtest"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"net"
 	"os"
 	"strconv"
@@ -35,7 +36,7 @@ func TestProxyJumpOneHop(t *testing.T) {
 	c.Close()
 	select {
 	case <-c.jump.Done():
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("jump host left open")
 	}
 }
@@ -280,10 +281,16 @@ func TestConnectTimeout(t *testing.T) {
 		}
 	}()
 	w := newWorld(t)
-	start := time.Now()
-	_, err = dialT(t, w.opts("Host srv\n  HostName 127.0.0.1\n  Port "+strings.Split(ln.Addr().String(), ":")[1]+"\n  ConnectTimeout 1\n"))
-	if err == nil || time.Since(start) > 4*time.Second {
-		t.Fatalf("err %v after %v", err, time.Since(start))
+	// The silent server would hold the dial forever: ConnectTimeout's
+	// deadline ends it, not the test's own context.
+	ctx, cancel := context.WithTimeout(context.Background(), testwait.Long)
+	defer cancel()
+	c, err := Dial(ctx, "srv", w.opts("Host srv\n  HostName 127.0.0.1\n  Port "+strings.Split(ln.Addr().String(), ":")[1]+"\n  ConnectTimeout 1\n"))
+	if c != nil {
+		c.Close()
+	}
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("err %v", err)
 	}
 }
 

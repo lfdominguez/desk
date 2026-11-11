@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"io"
 	"net/http"
@@ -58,7 +59,7 @@ var (
 // pumpUntil runs frames until ok, failing after 5s.
 func (h *harness) pumpUntil(what string, ok func() bool) {
 	h.t.Helper()
-	for end := time.Now().Add(5 * time.Second); !ok(); time.Sleep(2 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); !ok(); time.Sleep(2 * time.Millisecond) {
 		if time.Now().After(end) {
 			h.t.Fatalf("timed out waiting for %s", what)
 		}
@@ -209,7 +210,7 @@ func TestCoverStartClaude(t *testing.T) {
 	p.Close()
 	select {
 	case <-exits:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("no exit event after Close")
 	}
 }
@@ -219,7 +220,7 @@ func TestCoverOpenURL(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "opened")
 	fakeBin(t, infra.Opener, `echo "$1" > `+out)
 	openURL("https://example.com/x")
-	for end := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); ; time.Sleep(5 * time.Millisecond) {
 		if b, _ := os.ReadFile(out); string(b) == "https://example.com/x\n" {
 			return
 		} else if time.Now().After(end) {
@@ -2507,8 +2508,10 @@ func TestCoverRichClicks(t *testing.T) {
 	h.draw(sz, w)
 	st := h.u.rsels["l"]
 	y := float32(st.lines[0].top + st.lines[0].h/2)
+	var clock time.Duration // the events' own times: double clicks count by them
 	at := func(k pointer.Kind, x float32) pointer.Event {
-		e := pointer.Event{Kind: k, Source: pointer.Mouse, Position: f32.Pt(x, y)}
+		clock += 10 * time.Millisecond
+		e := pointer.Event{Kind: k, Source: pointer.Mouse, Position: f32.Pt(x, y), Time: clock}
 		if k == pointer.Press {
 			e.Buttons = pointer.ButtonPrimary
 		}
@@ -2517,8 +2520,8 @@ func TestCoverRichClicks(t *testing.T) {
 	h.r.Queue(at(pointer.Press, 3), at(pointer.Release, 3))
 	h.draw(sz, w)
 	h.pumpUntil("xdg-open", func() bool { b, _ := os.ReadFile(opened); return string(b) == sp.url+"\n" })
-	time.Sleep(450 * time.Millisecond)
-	h.draw(sz, w) // the router hit-tests against the last frame: this one, not the window's
+	clock += time.Second // not a double click of the link's click
+	h.draw(sz, w)        // the router hit-tests against the last frame: this one, not the window's
 	last := st.pieces[len(st.pieces)-1]
 	n := len(last.xs)
 	end := float32(last.x + (last.xs[n-2]+last.xs[n-1])/2 + 1) // the right half of the last letter: nearest the text's end

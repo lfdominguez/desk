@@ -28,10 +28,23 @@ type auth struct {
 	unsupported []string                       // what the config wants that desk can't do
 	loaded      map[string]ssh.AlgorithmSigner // private keys read, by file
 	pwTried     bool                           // Options.Password had its try
+	asked       map[string]int                 // questions put to the user, per method
+}
+
+// errNoTries ends a method whose questions ran out: the vault's spare try
+// (methods) went unused, so the user isn't asked one time more.
+var errNoTries = errors.New("ssh: unable to authenticate: no more password prompts")
+
+// ask counts a question for method against NumberOfPasswordPrompts.
+func (a *auth) ask(method string) error {
+	if a.asked[method]++; a.asked[method] > a.cfg.Int("numberofpasswordprompts") {
+		return errNoTries
+	}
+	return nil
 }
 
 func newAuth(cfg *sshconfig.Config, o Options, hc *hostCheck) *auth {
-	a := &auth{cfg: cfg, o: o, hc: hc, loaded: map[string]ssh.AlgorithmSigner{}}
+	a := &auth{cfg: cfg, o: o, hc: hc, loaded: map[string]ssh.AlgorithmSigner{}, asked: map[string]int{}}
 	if conn := openAgent(cfg, o.Logf); conn != nil {
 		a.ag, a.agc = agent.NewClient(conn), conn
 	}
@@ -79,8 +92,10 @@ func (a *auth) methods() []ssh.AuthMethod {
 	if prefs == "" {
 		prefs = "gssapi-with-mic,hostbased,publickey,keyboard-interactive,password"
 	}
+	// A spare try for the Password hook's, which isn't looked up (a vault)
+	// until a method wants it: a key that works never needs it.
 	tries := cfg.Int("numberofpasswordprompts")
-	if _, ok := a.o.Password(); ok {
+	if !a.o.noPassword {
 		tries++
 	}
 	var out []ssh.AuthMethod
@@ -137,11 +152,15 @@ func (a *auth) first() (string, bool) {
 }
 
 func (a *auth) password() (string, error) {
+	a.o.Step("Authenticating: password", false)
 	if a.hc.unsafe {
 		return "", errors.New("Password authentication is disabled to avoid man-in-the-middle attacks.")
 	}
 	if p, ok := a.first(); ok {
 		return p, nil
+	}
+	if err := a.ask("password"); err != nil {
+		return "", err
 	}
 	return a.o.Prompt(fmt.Sprintf("%s@%s's password: ", a.cfg.User(), a.cfg.HostName()), false)
 }
@@ -149,12 +168,18 @@ func (a *auth) password() (string, error) {
 // challenge answers keyboard-interactive: a lone hidden question takes
 // Options.Password first (it is the password, on most servers).
 func (a *auth) challenge(name, instruction string, qs []string, echos []bool) ([]string, error) {
+	a.o.Step("Authenticating: keyboard-interactive", false)
 	if a.hc.unsafe {
 		return nil, errors.New("Keyboard-interactive authentication is disabled to avoid man-in-the-middle attacks.")
 	}
 	if len(qs) == 1 && !echos[0] {
 		if p, ok := a.first(); ok {
 			return []string{p}, nil
+		}
+	}
+	if len(qs) > 0 {
+		if err := a.ask("keyboard-interactive"); err != nil {
+			return nil, err
 		}
 	}
 	var head []string
@@ -190,6 +215,7 @@ type id struct {
 // by its -cert.pub; then filtered by PubkeyAcceptedAlgorithms. A key is
 // read (its passphrase asked) only once the server would take it.
 func (a *auth) signers() ([]ssh.Signer, error) {
+	a.o.Step("Authenticating: public key", false)
 	cfg := a.cfg
 	var agentKeys []ssh.Signer
 	if a.ag != nil {

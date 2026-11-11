@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image/color"
 	"io"
 	"io/fs"
@@ -102,7 +103,7 @@ func lbEmuOut(t *testing.T, emu *vt.Emulator) func(want string) string {
 	t.Cleanup(func() { emu.Close() })
 	var all string
 	return func(want string) string {
-		deadline := time.After(2 * time.Second)
+		deadline := time.After(testwait.Long)
 		for !strings.Contains(all, want) {
 			select {
 			case s, ok := <-ch:
@@ -1108,7 +1109,7 @@ func TestNewTermLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tm.Close()
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && tm.Cwd() == ""; time.Sleep(50 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end) && tm.Cwd() == ""; time.Sleep(50 * time.Millisecond) {
 	}
 	if tm.Host != "local" || tm.Cwd() != dir {
 		t.Errorf("host %q cwd %q, want %q", tm.Host, tm.Cwd(), dir)

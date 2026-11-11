@@ -56,9 +56,10 @@ type Term struct {
 	typed      bool   // Claude wrote the current prompt line
 	byClaude   bool   // Claude typed into the current prompt
 	injected   bool
-	reached    bool  // the server asked something (password, host key): it answered
-	up         bool  // the SSH session started: authenticated, the shell running
-	err        error // why the SSH connection couldn't be made
+	reached    bool       // the server asked something (password, host key): it answered
+	up         bool       // the SSH session started: authenticated, the shell running
+	err        error      // why the SSH connection couldn't be made
+	steps      []connStep // the dial's steps (connsteps.go); none when the pool had the connection
 	started    time.Time
 	integrated bool // saw at least one OSC 133 mark
 	exited     bool
@@ -1008,18 +1009,27 @@ func (t *Term) Run(cmd string, timeout time.Duration) toolResult {
 		s := t.Screen()
 		return toolResult{Text: fmt.Sprintf("this pane is busy (running %q); not run. Use split to run it in another pane. Screen:\n%s", s.Running, s.Text), IsError: true}
 	}
+	var b Block
+	found := false
 	for end := time.Now().Add(timeout); time.Now().Before(end); time.Sleep(100 * time.Millisecond) {
 		t.mu.Lock()
-		if len(t.blocks) > n {
-			b := t.blocks[len(t.blocks)-1]
-			t.mu.Unlock()
-			out := b.Output
-			if lines := strings.Split(out, "\n"); len(lines) > 300 {
-				out = fmt.Sprintf("[…%d lines cut]\n", len(lines)-300) + strings.Join(lines[len(lines)-300:], "\n")
-			}
-			return toolResult{Text: fmt.Sprintf("block #%d exit=%d\n%s", b.N, b.Exit, out), IsError: b.Exit != 0}
+		if found = len(t.blocks) > n; found {
+			b = t.blocks[len(t.blocks)-1]
 		}
+		// done once the next prompt is up too (or the shell is gone): a run
+		// straight after the block would otherwise find the pane busy
+		done := found && (t.idle() || t.exited)
 		t.mu.Unlock()
+		if done {
+			break
+		}
+	}
+	if found {
+		out := b.Output
+		if lines := strings.Split(out, "\n"); len(lines) > 300 {
+			out = fmt.Sprintf("[…%d lines cut]\n", len(lines)-300) + strings.Join(lines[len(lines)-300:], "\n")
+		}
+		return toolResult{Text: fmt.Sprintf("block #%d exit=%d\n%s", b.N, b.Exit, out), IsError: b.Exit != 0}
 	}
 	s := t.Screen()
 	return toolResult{Text: fmt.Sprintf("still running after %s (left running for the user). Screen:\n%s", timeout, s.Text), IsError: true}

@@ -49,6 +49,7 @@ var floors = map[string]float64{
 	"github.com/lfdominguez/desk/internal/sshc":      95,
 	"github.com/lfdominguez/desk/internal/sshconfig": 97,
 	"github.com/lfdominguez/desk/internal/term":      98,
+	"github.com/lfdominguez/desk/internal/testwait":  100,
 	"github.com/lfdominguez/desk/internal/tty":       100,
 	"github.com/lfdominguez/desk/internal/ui":        99,
 	"github.com/lfdominguez/desk/internal/ui/kit":    99,
@@ -567,13 +568,18 @@ func try(pkg string, m mutant, dir string, limit time.Duration, run string) resu
 	return killed
 }
 
+// mutantWait is internal/testwait's limit under a mutant: a test it makes
+// wait in vain is killed (or timed out, which counts the same) sooner.
+const mutantWait = "20s"
+
 func gotest(ctx context.Context, pkg, overlay, run string) ([]byte, error) {
 	args := append([]string{"test", "-count=1", "-failfast"}, tags...)
 	cmd := exec.CommandContext(ctx, "go")
 	if overlay != "" {
 		args = append(args, "-overlay", overlay)
-		// a mutant's builds go to its worker's own cache, not the user's
-		cmd.Env = append(os.Environ(), "GOCACHE="+filepath.Join(filepath.Dir(overlay), "cache"))
+		// a mutant's builds go to its worker's own cache, not the user's;
+		// a wait it breaks fails in seconds (internal/testwait), not minutes
+		cmd.Env = append(os.Environ(), "GOCACHE="+filepath.Join(filepath.Dir(overlay), "cache"), "DESK_TEST_WAIT="+mutantWait)
 	}
 	if run != "" {
 		args = append(args, "-run", run)

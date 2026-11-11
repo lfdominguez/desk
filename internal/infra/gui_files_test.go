@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"os"
 	"path/filepath"
@@ -106,7 +107,7 @@ func (h *gfH) settle() {
 	if h.fv == nil {
 		return
 	}
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(10 * time.Millisecond) {
 		h.fv.mu.Lock()
 		busy := h.fv.sides[0].loading || h.fv.sides[1].loading || h.fv.job != nil
 		h.fv.mu.Unlock()
@@ -118,7 +119,7 @@ func (h *gfH) settle() {
 
 func (h *gfH) until(what string, f func() bool) {
 	h.t.Helper()
-	for end := time.Now().Add(10 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); ; time.Sleep(5 * time.Millisecond) {
 		h.fv.mu.Lock()
 		ok := f()
 		h.fv.mu.Unlock()

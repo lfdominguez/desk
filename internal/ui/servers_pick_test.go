@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,7 +151,7 @@ func TestPickerEnter(t *testing.T) {
 			}
 			return false
 		}
-		for end := time.Now().Add(10 * time.Second); time.Now().Before(end) && !open(); time.Sleep(50 * time.Millisecond) {
+		for end := time.Now().Add(testwait.Long); time.Now().Before(end) && !open(); time.Sleep(50 * time.Millisecond) {
 			h.frame()
 		}
 		if !open() {

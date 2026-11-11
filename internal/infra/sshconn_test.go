@@ -2,6 +2,7 @@ package infra
 
 import (
 	"errors"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"io"
 	"net"
 	"os"
@@ -110,7 +111,7 @@ func stubPath(t *testing.T) string {
 // waitS waits up to 10 s for ok.
 func waitS(t *testing.T, what string, ok func() bool) {
 	t.Helper()
-	for end := time.Now().Add(10 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
 		if ok() {
 			return
 		}

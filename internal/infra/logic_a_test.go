@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/lfdominguez/desk/internal/testwait"
 	"io"
 	"net"
 	"os"
@@ -287,7 +288,7 @@ exit 3
 			if m.exited != nil {
 				goto done
 			}
-		case <-time.After(10 * time.Second):
+		case <-time.After(testwait.Long):
 			t.Fatalf("no exit; got %d messages", len(got))
 		}
 	}
@@ -1086,7 +1087,7 @@ func TestCardToolErrorsA(t *testing.T) {
 		if r.Text != "DESK-9 answered:\n(desk couldn't reach DESK-9: board busy)" {
 			t.Errorf("unreachable card: %+v", r)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("a question the card can't get must not wait")
 	}
 	if r := (&Tab{}).askPeer("", "q"); !r.IsError || !strings.Contains(r.Text, "nobody to ask") {
@@ -1383,7 +1384,7 @@ func TestCompactAndClearContextA(t *testing.T) {
 	var cm claudeMsg
 	select {
 	case cm = <-ch:
-	case <-time.After(10 * time.Second):
+	case <-time.After(testwait.Long):
 		t.Fatal("compact never reported")
 	}
 	m.update(cm)
@@ -1703,10 +1704,14 @@ func TestKeyConnStateA(t *testing.T) {
 	if p.term == term || tab.term != p.term || term.hup != true || time.Until(p.waitUntil) < connectWait-time.Second {
 		t.Fatal("r starts the connection over")
 	}
+	// The redial's own shell may get going (connected) at any time: a fake
+	// one that failed instead, so the state doesn't hang on a real bash.
 	p.term.Close()
-	p.term.exited, p.term.reached = true, false
-	for i := 0; i < 250 && tab.connState() != "failed"; i++ { // up to 5 s: 1 s ran out on a busy CI runner
-		time.Sleep(20 * time.Millisecond)
+	failed, _ := fakeTermA(t, "local")
+	failed.b, failed.exited = nil, true
+	p.term, tab.term = failed, failed
+	if tab.connState() != "failed" {
+		t.Fatalf("state %q", tab.connState())
 	}
 	press("c")
 	if len(m.tabs) != 0 {
@@ -2138,7 +2143,7 @@ func TestSendStartsClaudeA(t *testing.T) {
 		tab.claude.Close()
 		select {
 		case <-exited:
-		case <-time.After(10 * time.Second):
+		case <-time.After(testwait.Long):
 			t.Error("claude never exited")
 		}
 	}()
