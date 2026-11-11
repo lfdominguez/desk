@@ -128,3 +128,7 @@ the button, the server offers nothing desk has (DSA host keys only, for one).
 ## desk crashed
 
 desk runs detached, with no terminal to print to. A crash's trace goes to `~/.local/share/desk/crash.log`. Include it when you [report the bug](https://github.com/lfdominguez/desk/issues).
+
+## The window vanished and came back
+
+On Wayland the compositor can drop a window, for example when a monitor powers off to save energy and comes back. desk then opens its window again, every second until it can, with the board and sessions as they were; it gives up and exits after ten minutes. `crash.log` gets a `window lost, reopening:` line with the reason the display gave (a `protocol error … on <object>` names what the compositor rejected). Include it when you report the bug.

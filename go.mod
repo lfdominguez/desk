@@ -75,8 +75,9 @@ require (
 	golang.org/x/text v0.43.0 // indirect
 )
 
-// patched copies (scroll and scrollback speed); see third_party/README.md
+// patched copies (scroll and scrollback speed; Gio's lost Wayland display); see third_party/README.md
 replace (
+	gioui.org => ./third_party/gio
 	github.com/charmbracelet/ultraviolet => ./third_party/ultraviolet
 	github.com/charmbracelet/x/vt => ./third_party/vt
 )
