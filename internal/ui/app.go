@@ -72,6 +72,7 @@ type ui struct {
 	peerOut    map[string]string             // by card: the infra Claude's events it couldn't take yet (cardTell)
 	shellStop  map[string]context.CancelFunc // by card: its "!" command running, stopped by this
 	chatPaste  bool                          // Ctrl+V in chatIn found text: the editor pastes it
+	chatFor    string                        // the card chatIn's text is for (drafts.go)
 	chats      map[string][]kanban.ChatMsg   // conversations read so far, by card
 	procs      map[string]session            // running sessions, by card
 	pending    map[string]claude.Directives  // DESK- lines seen in a turn, applied when it ends

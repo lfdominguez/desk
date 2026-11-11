@@ -21,7 +21,7 @@ import (
 
 func (u *ui) openPanel(id string) {
 	if u.panel != id {
-		u.chatIn.SetText("")
+		u.chatSwitch(id)
 		u.chatList.Position = layout.Position{BeforeEnd: false}
 	}
 	u.panel, u.sel, u.chatFocus, u.sub, u.rail = id, id, true, "", false
@@ -34,7 +34,7 @@ func (u *ui) openSession(id string) {
 	if u.b.Card(id) == nil {
 		return
 	}
-	u.chatIn.SetText("")
+	u.chatSwitch(id)
 	u.chatList.Position = layout.Position{BeforeEnd: false}
 	u.view, u.panel, u.sel, u.chatFocus, u.sub, u.rail = "sess:"+id, "", id, true, "", false
 }
