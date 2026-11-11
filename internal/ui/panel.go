@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"gioui.org/io/event"
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -126,6 +128,20 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 		}
 	}()
 	archived := !c.Archived.IsZero()
+	if !archived { // the keyboard stays in the message box: a press anywhere in the pane brings it back, a field's own press then takes it
+		for {
+			if _, ok := gtx.Event(pointer.Filter{Target: &u.chatTap, Kinds: pointer.Press}); !ok {
+				break
+			}
+			if u.asks[id] == nil { // Claude's open question answers keys while no field has them: its buttons' clicks leave them there
+				gtx.Execute(key.FocusCmd{Tag: &u.chatIn})
+			}
+		}
+		defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
+		event.Op(gtx.Ops, &u.chatTap)
+		u.selBack = &u.chatIn
+		defer func() { u.selBack = nil }()
+	}
 	u.pasteImage(gtx, &u.chatIn, &u.chatPaste, func() bool { return true }) // one box for every card, the panel's and the session view's
 	for {
 		ev, ok := u.chatIn.Update(gtx)

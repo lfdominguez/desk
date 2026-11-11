@@ -38,14 +38,14 @@ import (
 )
 
 type ui struct {
-	w    *app.Window
+	w *app.Window
 	// reopen applies the window's options again before a lost window opens
 	// anew (Gio drops them once used); drew says the window drew since.
 	reopen func()
 	drew   bool
-	k    *kit.Kit
-	b    *kanban.Board
-	path string // where b is saved
+	k      *kit.Kit
+	b      *kanban.Board
+	path   string // where b is saved
 
 	root, home string   // the organizations' folder; the user's home (Claude profiles)
 	orgList    []string // the organizations, read at start
@@ -126,6 +126,9 @@ type ui struct {
 	selSeen    map[string]time.Time       // when each selectable text (sels, rsels) was last drawn
 	selSwept   time.Time                  // when sweepSels last looked
 	selFocus   *widget.Selectable         // the selectable text that last had the keyboard
+	selLast    *widget.Selectable         // the selectable text last pressed: the one with a selection
+	chatTap    int                        // the session pane's press area: its tag
+	selBack    *widget.Editor             // while a message box is laid out: where a press on text hands the keyboard back
 	countKey   string                     // what counts were worked out for (views.go count)
 	counts     map[string]int             // board views' card counts
 	snoozeAsk  map[string]string          // cards whose Claude suggests snoozing their alert: why

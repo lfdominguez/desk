@@ -8,7 +8,12 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/io/clipboard"
+	"gioui.org/io/event"
+	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -17,11 +22,13 @@ import (
 )
 
 // selText is text s that the mouse can select (drag, double-click a word)
-// and Ctrl+C copy, kept by id across frames.
+// and Ctrl+C copy, kept by id across frames. Under a message box (u.selBack)
+// the keyboard stays in the box: a press hands it straight back, and a
+// selection is copied as the button comes up, as the rich text does.
 func (u *ui) selText(gtx layout.Context, id, s string, sp unit.Sp, c color.NRGBA, f font.Font, maxLines int) layout.Dimensions {
 	l := u.sels[id]
 	if l == nil {
-		l = &widget.Selectable{LineHeightScale: chatLead}
+		l = &widget.Selectable{LineHeightScale: chatLead, PaintSelectionWhenUnfocused: true}
 		u.sels[id] = l // pruned by sweepSels once out of sight a while
 	}
 	u.selSeen[id] = gtx.Now
@@ -29,7 +36,38 @@ func (u *ui) selText(gtx layout.Context, id, s string, sp unit.Sp, c color.NRGBA
 		l.SetText(s)
 	}
 	l.MaxLines = maxLines
+	m := op.Record(gtx.Ops)
 	d := l.Layout(gtx, u.k.Sh, f, sp, kit.Mat(gtx, c), kit.Mat(gtx, alpha(kit.CAcc, 0x70)))
+	text := m.Stop()
+	tag := "selcopy:" + id // an area around the text's own: its presses reach both
+	for {
+		ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press | pointer.Release})
+		if !ok {
+			break
+		}
+		switch e := ev.(pointer.Event); e.Kind {
+		case pointer.Press: // one selection at a time, this text's or a reply's
+			if u.selLast != nil && u.selLast != l {
+				u.selLast.ClearSelection()
+			}
+			if u.chatSel != nil {
+				u.chatSel.sel = [2]int{}
+			}
+			u.selLast = l
+		case pointer.Release:
+			if s := l.SelectedText(); s != "" && u.selBack != nil {
+				gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(s))})
+				u.showToast("Copied", false)
+			}
+		}
+	}
+	if u.selBack != nil && gtx.Focused(l) {
+		gtx.Execute(key.FocusCmd{Tag: u.selBack})
+	}
+	a := clip.Rect{Max: d.Size}.Push(gtx.Ops)
+	event.Op(gtx.Ops, tag)
+	text.Add(gtx.Ops)
+	a.Pop()
 	if l.Focused() {
 		u.selFocus = l // for typing: one to ask, not every one ever shown
 	}
