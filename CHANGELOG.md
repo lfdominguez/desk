@@ -6,41 +6,42 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.11] - 2026-11-11
+
 ### Added
 
 - **A card's session in its own window**: the session header's pop-out, the card menu's **Open in
   new window** (O) or Ctrl+Shift+O open just that session in a separate window, with its own
   message box and keyboard, while the board stays in the main one (which shows where the session
-  went, with Show window, which brings it to the front on Hyprland and KDE, and Bring it back here). Its workspace, drawings, terminal, card editor
-  and server split open in that window too. Closing the window puts the session back with what
-  you'd written; a card still in its own window when desk closes gets it again at the next start.
-
-- A message you write to a card's Claude and don't send stays with that card: opening another
-  card's session no longer wipes it, and it comes back when you return, even after closing desk.
-- In a card's session the keyboard stays in the message box: selecting or copying chat text, or
-  clicking anywhere in the conversation, no longer takes it away, so you can keep typing. Any
-  selected chat text is now copied as you let go of the mouse, as Claude's replies already were.
-
+  went, with Show window, which brings it to the front on Hyprland and KDE, and Bring it back
+  here). Its workspace, drawings, terminal, card editor and server split open in that window too.
+  Closing the window puts the session back with what you'd written; a card still in its own window
+  when desk closes gets it again at the next start.
+- **Remote Control for a card's session**: **Remote** in its terminal's header, or **R** in the
+  card menu, restarts the card's Claude Code terminal with Remote Control, to go on from
+  claude.ai/code or the Claude app (its link and QR code show in the terminal). It stays on for the
+  card until turned off.
 - **Each step of a server connection, with its time**: a pane that opens a new SSH connection
   shows, live in its connection box, every step (the config, the name lookup, the TCP connect or
   jump host, the vault's password, key exchange, host key, each authentication method, the
   shell) and how long it took, a wait on you apart from network time. A failed step stays with
   its error; once connected, the pane's header says "connected in …" and lists the steps on hover.
   A pane that reuses an open connection shows none.
-- **Remote Control for a card's session**: **Remote** in its terminal's header, or **R** in the
-  card menu, restarts the card's Claude Code terminal with Remote Control, to go on from
-  claude.ai/code or the Claude app (its link and QR code show in the terminal). It stays on for the
-  card until turned off.
-- The workspace's tree and chat are as wide as you drag the lines beside them, kept for every card;
-  in a narrow window they give way to the editor.
-- Word wrap in the workspace editor: Alt+Z or the foot's **Wrap**, for every tab, kept.
-- A card's workspace keeps its open tabs and opens them again.
 - **Find and replace in the workspace editor**: Ctrl+F finds (plain text, any case unless the
   query has capitals, every match marked and counted), Ctrl+H replaces one or all (one undo),
   Ctrl+G goes to a line.
+- A message you write to a card's Claude and don't send stays with that card: opening another
+  card's session no longer wipes it, and it comes back when you return, even after closing desk.
+- In a card's session the keyboard stays in the message box: selecting or copying chat text, or
+  clicking anywhere in the conversation, no longer takes it away, so you can keep typing. Any
+  selected chat text is now copied as you let go of the mouse, as Claude's replies already were.
 - Quick open: Ctrl+P in a card's workspace opens the palette on its files (a **Files** tab).
 - Line commands in the workspace editor: Alt+↑/↓ move lines, Ctrl+Shift+D duplicates them,
   Ctrl+/ comments them out or back in.
+- Word wrap in the workspace editor: Alt+Z or the foot's **Wrap**, for every tab, kept.
+- A card's workspace keeps its open tabs and opens them again.
+- The workspace's tree and chat are as wide as you drag the lines beside them, kept for every card;
+  in a narrow window they give way to the editor.
 
 ### Changed
 
@@ -290,7 +291,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.09.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.11...HEAD
+[2026.11.11]: https://github.com/lfdominguez/desk/compare/2026.11.09.1...2026.11.11
 [2026.11.09.1]: https://github.com/lfdominguez/desk/compare/2026.11.09...2026.11.09.1
 [2026.11.09]: https://github.com/lfdominguez/desk/compare/2026.11.08...2026.11.09
 [2026.11.08]: https://github.com/lfdominguez/desk/compare/2026.11.07.1...2026.11.08
