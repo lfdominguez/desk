@@ -1154,8 +1154,8 @@ func TestPeerOpsA(t *testing.T) {
 	m.peer(peerReq{Op: "tell", Org: "GLOBEX", From: "dev", Text: "x"})
 	globex := m.tabs[1]
 	defer dropTasksA(globex)
-	if m.active != 0 || m.flash != "a peer opened Globex's Claude (tab 2)" || !globex.orgOnly {
-		t.Errorf("a peer must not pull the user away: active %d, flash %q", m.active, m.flash)
+	if m.active() != 0 || m.flash != "a peer opened Globex's Claude (tab 2)" || !globex.orgOnly {
+		t.Errorf("a peer must not pull the user away: active %d, flash %q", m.active(), m.flash)
 	}
 	acme.busy = true
 	r := m.peer(peerReq{Op: "do", Org: "acme", From: "dev", Text: "deploy v2"})
@@ -1418,7 +1418,7 @@ func TestPaneHelpersA(t *testing.T) {
 	if n := p1.node(); n != (node{host: "10.0.0.5", dir: "/d", label: "web1", addr: "192.0.2.1"}) {
 		t.Errorf("node: %+v", n)
 	}
-	tab := &Tab{panes: []*Pane{p1, p2}, cur: 1}
+	tab := &Tab{panes: []*Pane{p1, p2}, focus: p2}
 	if p, _ := tab.pane(0); p != p2 {
 		t.Error("0 is the focused pane")
 	}
@@ -1454,20 +1454,40 @@ func TestDropExitedA(t *testing.T) {
 	tab := &Tab{panes: []*Pane{p1, p2, p3, p4, p5}, term: p1.term}
 	m := &model{}
 	m.dropExited(tab)
-	if len(tab.panes) != 3 || tab.panes[0] != p2 || tab.panes[1] != p3 || tab.panes[2] != p4 || tab.cur != 2 || tab.term != p4.term {
-		t.Fatalf("kept %d, cur %d", len(tab.panes), tab.cur)
+	if len(tab.panes) != 3 || tab.panes[0] != p2 || tab.panes[1] != p3 || tab.panes[2] != p4 || tab.focused() != p4 || tab.term != p4.term {
+		t.Fatalf("kept %d, the last not focused", len(tab.panes))
 	}
-	tab.cur = 0
+	tab.focusPane(0)
 	m.dropExited(tab) // nothing ended: focus stays
-	if tab.cur != 0 || len(tab.panes) != 3 {
+	if tab.focused() != p2 || len(tab.panes) != 3 {
 		t.Error("nothing to drop")
 	}
 	for _, p := range tab.panes {
 		p.term.exited, p.closed = true, true
 	}
 	m.dropExited(tab)
-	if len(tab.panes) != 0 || tab.term != nil || tab.cur != 0 {
+	if len(tab.panes) != 0 || tab.term != nil || tab.focus != nil || tab.focused() != nil {
 		t.Errorf("all closed: %d", len(tab.panes))
+	}
+}
+
+func TestDropExitedShiftsFocusA(t *testing.T) {
+	mk := func(exited bool) *Pane {
+		term, _ := fakeTermA(t, "h")
+		term.exited, term.reached = exited, true
+		return &Pane{term: term, closed: exited}
+	}
+	p1, p2, p3 := mk(false), mk(true), mk(false)
+	tab := &Tab{panes: []*Pane{p1, p2, p3}, focus: p3, term: p3.term, pinned: map[int]bool{4: true}}
+	(&model{}).dropExited(tab) // a pane before the focused one goes
+	if len(tab.panes) != 2 || tab.focused() != p3 || tab.term != p3.term {
+		t.Fatalf("kept %d, focus moved off the pane that stayed", len(tab.panes))
+	}
+	if d := tab.describePanes(); !strings.Contains(d, "the user's focus") || strings.Count(d, "focus") != 1 {
+		t.Errorf("describe: %q", d)
+	}
+	if !tab.pinned[4] {
+		t.Error("the same pane keeps its pins")
 	}
 }
 
@@ -1742,6 +1762,15 @@ func TestKeyShortcutsA(t *testing.T) {
 	}
 }
 
+// tabsA is n distinct empty tabs: the active one is told by pointer.
+func tabsA(n int) []*Tab {
+	ts := make([]*Tab, n)
+	for i := range ts {
+		ts[i] = &Tab{}
+	}
+	return ts
+}
+
 func treeA(dir string) []node {
 	return []node{{depth: 0, label: "Acme", org: "Acme", dir: dir}, {depth: 1, label: "g", org: "Acme", group: "g"},
 		{depth: 2, label: "web1", org: "Acme", group: "g", dir: dir, host: "web1"},
@@ -1762,7 +1791,7 @@ func TestPalItemsA(t *testing.T) {
 	term, _ := fakeTermA(t, "web1")
 	org := &Tab{org: "Acme", dir: dir, orgOnly: true, pending: []*approval{{}}}
 	host := &Tab{org: "Acme", group: "g", name: "web1", dir: dir, term: term, panes: []*Pane{{id: 1, term: term, name: "web1", dir: dir}}}
-	m := &model{tree: treeA(dir), tabs: []*Tab{org, host}, active: 1}
+	m := &model{tree: treeA(dir), tabs: []*Tab{org, host}, focus: host}
 	items := m.palItems()
 	var kinds []string
 	for _, it := range items {
@@ -1800,7 +1829,7 @@ func TestPalKeyA(t *testing.T) {
 	c, rec := claudeA(t)
 	org := &Tab{org: "Acme", dir: dir, orgOnly: true, claude: c, pinned: map[int]bool{}}
 	host := &Tab{org: "Acme", group: "g", name: "web1", dir: dir, chat: []*chatEntry{{who: "claude", text: "x", mdW: 80}}}
-	m := &model{tree: treeA(dir), tabs: []*Tab{org, host}, active: 1}
+	m := &model{tree: treeA(dir), tabs: []*Tab{org, host}, focus: host}
 	pick := func(q, label string) {
 		t.Helper()
 		m.palQ, m.pal = q, true
@@ -1818,17 +1847,17 @@ func TestPalKeyA(t *testing.T) {
 		t.Error("enter past the items does nothing")
 	}
 	pick("", "Acme › Claude")
-	if m.active != 0 || m.pal {
-		t.Errorf("session: active %d", m.active)
+	if m.active() != 0 || m.pal {
+		t.Errorf("session: active %d", m.active())
 	}
 	pick("", "Acme › g")
 	if m.group != groupKey(dir, "g") {
 		t.Errorf("group: %q", m.group)
 	}
-	m.active = 1
+	m.activate(1)
 	pick("", "Acme")
-	if m.active != 0 || m.group != "" || len(m.tabs) != 2 {
-		t.Errorf("org goes back to its tab: active %d tabs %d", m.active, len(m.tabs))
+	if m.active() != 0 || m.group != "" || len(m.tabs) != 2 {
+		t.Errorf("org goes back to its tab: active %d tabs %d", m.active(), len(m.tabs))
 	}
 	pick("haiku", "model: haiku")
 	if org.model != "haiku" {
@@ -1906,11 +1935,11 @@ func TestGroupAskSideEnterA(t *testing.T) {
 	t1 := &Tab{dir: dir, group: "g", claude: c, pinned: map[int]bool{}}
 	t2 := &Tab{dir: dir, group: "g", busy: true}
 	t3 := &Tab{dir: dir, group: "other"}
-	m.tabs, m.active = []*Tab{t3, t1, t2}, 0
+	m.tabs, m.focus = []*Tab{t3, t1, t2}, t3
 	m.group, m.input = groupKey(dir, "g"), "disk?"
 	m.groupAsk()
-	if !strings.Contains(rec.String(), "disk?") || len(t2.asked) != 1 || t2.asked[0] != "disk?" || len(t3.chat) != 0 || m.input != "" || m.active != 0 {
-		t.Errorf("group ask: asked %q, active %d", t2.asked, m.active)
+	if !strings.Contains(rec.String(), "disk?") || len(t2.asked) != 1 || t2.asked[0] != "disk?" || len(t3.chat) != 0 || m.input != "" || m.active() != 0 {
+		t.Errorf("group ask: asked %q, active %d", t2.asked, m.active())
 	}
 	if m.approvalTab() != nil {
 		t.Error("no approvals yet")
@@ -1944,10 +1973,10 @@ func TestCloseTabHubA(t *testing.T) {
 	hub.Lock()
 	hub.tasks[9001], hub.running[tab], hub.last[tab] = k, k, "close-peer"
 	hub.Unlock()
-	m := &model{tabs: []*Tab{first, tab, last}, active: 2, group: "g"}
+	m := &model{tabs: []*Tab{first, tab, last}, focus: last, group: "g"}
 	m.closeTab(1)
-	if len(m.tabs) != 2 || m.active != 1 || m.group != "g" || !rec.closed {
-		t.Errorf("tabs %d active %d", len(m.tabs), m.active)
+	if len(m.tabs) != 2 || m.tab() != last || m.active() != 1 || m.group != "g" || !rec.closed {
+		t.Errorf("tabs %d active %d", len(m.tabs), m.active())
 	}
 	if res := <-a.done; res.ok {
 		t.Error("a waiting approval is denied")
@@ -1963,11 +1992,47 @@ func TestCloseTabHubA(t *testing.T) {
 	if evs := waitEvents("close-peer", time.Second); len(evs) != 1 || evs[0].Kind != "result" || evs[0].Text != "aborted: the user closed the session" {
 		t.Errorf("peer told: %+v", evs)
 	}
-	m.active = 0
+	m.activate(0)
 	m.closeTab(1)
 	m.closeTab(0)
-	if len(m.tabs) != 0 || m.active != 0 || m.group != "" {
-		t.Errorf("none left: active %d group %q", m.active, m.group)
+	if len(m.tabs) != 0 || m.active() != 0 || m.group != "" {
+		t.Errorf("none left: active %d group %q", m.active(), m.group)
+	}
+}
+
+func TestCloseTabMovesActiveA(t *testing.T) {
+	a, b, c := &Tab{}, &Tab{}, &Tab{}
+	m := &model{tabs: []*Tab{a, b, c}, focus: b}
+	m.closeTab(1) // the active one: the next takes its place
+	if m.tab() != c {
+		t.Errorf("after closing the active tab: %d", m.active())
+	}
+	m.closeTab(1) // the active one, last: the one before
+	if m.tab() != a || m.active() != 0 {
+		t.Errorf("after closing the last: %d", m.active())
+	}
+	m.tabs, m.focus = []*Tab{a, b}, a
+	m.closeTab(1) // another one: the active stays
+	if m.tab() != a {
+		t.Error("closing another tab moved the active one")
+	}
+	m.activate(5) // out of range: nothing
+	m.activate(-1)
+	if m.tab() != a {
+		t.Error("activate out of range")
+	}
+	if (&model{}).tab() != nil || (&model{}).active() != 0 {
+		t.Error("no tabs: none active")
+	}
+}
+
+func TestGroupAskActiveClosedA(t *testing.T) {
+	a, b := &Tab{dir: "/x"}, &Tab{dir: "/y"}
+	m := &model{tabs: []*Tab{a, b}, focus: b, group: groupKey("/z", "g"), input: "q"}
+	m.tabs = m.tabs[:1] // the active tab closed while the group was asked
+	m.groupAsk()
+	if m.focus != nil || m.tab() != a || m.input != "" {
+		t.Errorf("a closed tab stays active: %p", m.focus)
 	}
 }
 

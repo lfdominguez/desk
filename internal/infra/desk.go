@@ -179,7 +179,7 @@ func (w *Workspace) OpenCard(org, card string) bool {
 		if n.Depth == 0 && n.Org == org {
 			u.d.act(func(m *model) {
 				if t, err := m.peerTab(org, card); err == nil {
-					m.active, m.group = slices.Index(m.tabs, t), ""
+					m.focus, m.group = t, ""
 				}
 			})
 			u.wantTerm, u.keyTerm = false, nil

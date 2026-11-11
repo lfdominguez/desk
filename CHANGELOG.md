@@ -33,6 +33,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Fixed
 
+- desk no longer crashes when a server pane to the left of the focused one closes (its shell
+  ended, or Ctrl+W), nor can the infra workspace's active tab go astray when another tab closes.
 - Opening a card in its Claude Code terminal no longer leaves "signal: killed" as an error in its
   conversation, nor marks the card failed: that was the conversation's own process, which desk
   stops on purpose so the terminal can take the session over. Archiving a card with a session

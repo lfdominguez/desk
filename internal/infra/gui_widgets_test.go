@@ -709,8 +709,8 @@ func TestGroupView(t *testing.T) {
 	u.wantTerm = false
 	h.clickBtn("card2")
 	m = &model{tabs: []*Tab{{}, {}, {}}, group: g}
-	if wRun(u, m) != 1 || m.active != 2 || m.group != "" || !u.wantTerm {
-		t.Errorf("card click: active %d group %q", m.active, m.group)
+	if wRun(u, m) != 1 || m.active() != 2 || m.group != "" || !u.wantTerm {
+		t.Errorf("card click: active %d group %q", m.active(), m.group)
 	}
 	u.st.Group = "nothing"
 	h.frame() // no sessions: the hint

@@ -73,9 +73,10 @@ type Tab struct {
 	card                     string     // the card (DESK-12) whose server work this is, its own Claude; "" the org's
 	hosts                    []node     // the org's servers, for connect
 	term                     *Term      // the focused pane's terminal; nil with no panes
-	mu                       sync.Mutex // guards panes and cur, read by tool calls
+	mu                       sync.Mutex // guards panes and focus, read by tool calls
 	panes                    []*Pane
-	cur, nextID              int
+	focus                    *Pane // the pane the user looks at, by pointer: an index went stale when a pane before it closed
+	nextID                   int
 	claude                   *Claude
 	chat                     []*chatEntry
 	busy                     bool
@@ -201,7 +202,7 @@ type model struct {
 	tree    []node
 	cursor  int // the tree row the last open acted on
 	tabs    []*Tab
-	active  int
+	focus   *Tab   // the active tab, by pointer as Tab.focus: an index goes stale when a tab before it closes
 	input   string // the group view's broadcast question
 	errText string
 	group   string // group view: the groupKey whose sessions are shown as cards
@@ -287,11 +288,23 @@ func loadTree(root string) []node {
 	return tree
 }
 
+// tab is the active tab, or nil with none open.
 func (m *model) tab() *Tab {
-	if len(m.tabs) == 0 {
-		return nil
+	if m.focus == nil && len(m.tabs) > 0 {
+		return m.tabs[0] // none picked yet: the first
 	}
-	return m.tabs[m.active]
+	return m.focus
+}
+
+// active is the active tab's place in tabs (0 with none), for the window's
+// snapshot and the saved session.
+func (m *model) active() int { return max(0, slices.Index(m.tabs, m.tab())) }
+
+// activate makes tab i active, if there is one.
+func (m *model) activate(i int) {
+	if i >= 0 && i < len(m.tabs) {
+		m.focus = m.tabs[i]
+	}
 }
 
 // chatWidth is how wide Claude's reply is drawn, so its pictures fit.
@@ -310,10 +323,10 @@ func (p *Pane) hostLabel() string {
 
 // focused is the pane the user looks at, or nil (UI goroutine).
 func (t *Tab) focused() *Pane {
-	if len(t.panes) == 0 {
-		return nil
+	if t.focus == nil && len(t.panes) > 0 {
+		return t.panes[0] // none picked yet: the first
 	}
-	return t.panes[t.cur]
+	return t.focus
 }
 
 // paneName is the server name of pane id ("" if there is none).
@@ -332,7 +345,7 @@ func (t *Tab) pane(id int) (*Pane, error) {
 		return nil, fmt.Errorf("no pane is open: use connect to open one on a server")
 	}
 	if id == 0 {
-		return t.panes[t.cur], nil
+		return t.focused(), nil
 	}
 	for _, p := range t.panes {
 		if p.id == id {
@@ -345,9 +358,10 @@ func (t *Tab) pane(id int) (*Pane, error) {
 // describePanes is the pane list Claude gets. Caller holds mu.
 func (t *Tab) describePanes() string {
 	var ds []string
-	for i, p := range t.panes {
+	focus := t.focused()
+	for _, p := range t.panes {
 		d := fmt.Sprintf("pane %d on %s: %s", p.id, p.name, p.term.Status())
-		if i == t.cur {
+		if p == focus {
 			d += ", the user's focus"
 		}
 		if p.claude {
@@ -420,7 +434,7 @@ func (m *model) dial(t *Tab, host, dir, label string, w, h int, prelude paneStat
 // pane's numbering, so they go.
 func (t *Tab) focusPane(i int) {
 	t.mu.Lock()
-	t.cur, t.term = i, t.panes[i].term
+	t.focus, t.term = t.panes[i], t.panes[i].term
 	t.mu.Unlock()
 	t.pinned, t.lastCtx = map[int]bool{}, map[int]bool{}
 }
@@ -450,17 +464,11 @@ func (m *model) dropExited(t *Tab) {
 	}
 	t.panes = keep
 	if len(keep) == 0 {
-		t.cur, t.term = 0, nil
+		t.focus, t.term = nil, nil
 	}
 	t.mu.Unlock()
-	if len(keep) > 0 {
-		i := slices.Index(keep, focused)
-		if i < 0 {
-			i = len(keep) - 1
-		}
-		if keep[i] != focused {
-			t.focusPane(i)
-		}
+	if len(keep) > 0 && !slices.Contains(keep, focused) {
+		t.focusPane(len(keep) - 1)
 	}
 }
 
@@ -622,11 +630,12 @@ func (m *model) closeTab(i int) {
 	delete(hub.running, t)
 	delete(hub.last, t)
 	hub.Unlock()
-	m.tabs = append(m.tabs[:i], m.tabs[i+1:]...)
-	if i < m.active {
-		m.active--
+	closed := m.tabs[i] == m.tab()
+	m.tabs = slices.Delete(m.tabs, i, i+1)
+	if closed { // the next one takes its place, or the last
+		m.focus = nil
+		m.activate(min(i, len(m.tabs)-1))
 	}
-	m.active = max(0, min(m.active, len(m.tabs)-1))
 	if len(m.tabs) == 0 {
 		m.group = ""
 	}
@@ -828,7 +837,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		t.closePane(t.focused())
 		m.dropExited(t)
 	case k == "ctrl+w" && t != nil:
-		m.closeTab(m.active)
+		m.closeTab(m.active())
 	case k == "ctrl+s" && t != nil:
 		t.pinScreen = !t.pinScreen
 	case k == "enter" && m.group != "":
@@ -898,14 +907,17 @@ func (m *model) groupAsk() {
 		m.group = ""
 		return
 	}
-	active, q := m.active, m.input
-	for i, t := range m.tabs {
+	active, q := m.focus, m.input
+	for _, t := range slices.Clone(m.tabs) {
 		if groupKey(t.dir, t.group) == m.group {
-			m.active, m.input = i, q
+			m.focus, m.input = t, q
 			m.ask()
 		}
 	}
-	m.active, m.input = active, ""
+	m.input = ""
+	if m.focus = active; active != nil && !slices.Contains(m.tabs, active) {
+		m.focus = nil // it closed meanwhile
+	}
 }
 
 // palItem is one row of the ^k palette.
@@ -1054,7 +1066,8 @@ func (m *model) palKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.pal = false
 		switch it := items[m.palSel]; it.kind {
 		case "sessions":
-			m.active, m.group = it.tab, ""
+			m.activate(it.tab)
+			m.group = ""
 		case "groups":
 			m.group = it.dir
 		case "hosts":
@@ -1257,7 +1270,7 @@ func (m *model) newTab(org, group, dir, name string) *Tab {
 	t := &Tab{org: org, group: group, dir: dir, account: account, name: name, hosts: hosts, orgCfg: cfg,
 		pinned: map[int]bool{}, lastCtx: map[int]bool{}, opened: time.Now()}
 	m.tabs = append(m.tabs, t)
-	m.active = len(m.tabs) - 1
+	m.focus = t
 	return t
 }
 
@@ -1265,7 +1278,7 @@ func (m *model) newTab(org, group, dir, name string) *Tab {
 func (m *model) open(n node) {
 	t := m.newTab(n.org, n.group, n.dir, n.label)
 	if m.addPane(t, n, false) == nil {
-		m.closeTab(m.active)
+		m.closeTab(slices.Index(m.tabs, t))
 	}
 }
 
@@ -1274,9 +1287,9 @@ func (m *model) open(n node) {
 // own; a card's key is that card's, with a Claude of its own: two tickets'
 // server work never share a session.
 func (m *model) openOrg(n node, card string) {
-	for i, t := range m.tabs {
+	for _, t := range m.tabs {
 		if t.orgOnly && t.dir == n.dir && t.card == card {
-			m.active = i
+			m.focus = t
 			return
 		}
 	}
@@ -1403,7 +1416,7 @@ func (m *model) send(t *Tab, q string, e *chatEntry) error {
 		t.mu.Lock()
 		panes := "<panes>none open</panes>\n"
 		if len(t.panes) > 0 {
-			panes = fmt.Sprintf("<panes>%s</panes>\nBlocks and screen are from pane %d.\n", t.describePanes(), t.panes[t.cur].id)
+			panes = fmt.Sprintf("<panes>%s</panes>\nBlocks and screen are from pane %d.\n", t.describePanes(), t.focused().id)
 		}
 		prompt = panes + prompt
 		t.mu.Unlock()

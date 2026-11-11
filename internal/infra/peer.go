@@ -364,11 +364,11 @@ func (m *model) peerTab(org, card string) (*Tab, error) {
 			continue
 		}
 		if strings.EqualFold(n.org, org) {
-			had, active := len(m.tabs) > 0, m.active
+			had, active := len(m.tabs) > 0, m.tab()
 			m.openOrg(n, card)
 			t := m.tab()
 			if had { // don't pull the user away from what they're doing
-				m.active = active
+				m.focus = active
 				m.flash = "a peer opened " + n.org + "'s Claude (tab " + strconv.Itoa(len(m.tabs)) + ")"
 			}
 			return t, nil
