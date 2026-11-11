@@ -281,8 +281,9 @@ runs under.
   the card's Claude can ask it things (`ask_workspace`). A diff's **`</>`** opens the file on that
   change, marked in the gutter.
 - **Artifacts** the session publishes are listed under the card's links.
-- **Selecting text**: drag or double-click; Claude's replies select with formatting kept, and
-  **Copy** takes a whole reply as Markdown.
+- **Selecting text**: drag or double-click, copied as you let go; Claude's replies select with
+  formatting kept, and **Copy** takes a whole reply as Markdown. The keyboard stays in the message
+  box meanwhile.
 
 ### Drawings
 

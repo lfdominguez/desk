@@ -8,6 +8,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- In a card's session the keyboard stays in the message box: selecting or copying chat text, or
+  clicking anywhere in the conversation, no longer takes it away, so you can keep typing. Any
+  selected chat text is now copied as you let go of the mouse, as Claude's replies already were.
+
 - **Each step of a server connection, with its time**: a pane that opens a new SSH connection
   shows, live in its connection box, every step (the config, the name lookup, the TCP connect or
   jump host, the vault's password, key exchange, host key, each authentication method, the

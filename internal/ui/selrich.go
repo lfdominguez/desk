@@ -127,6 +127,9 @@ func (u *ui) rich(gtx layout.Context, id string, spans ...span) layout.Dimension
 			if u.chatSel != nil && u.chatSel != st { // one selection at a time
 				u.chatSel.sel = [2]int{}
 			}
+			if u.selLast != nil {
+				u.selLast.ClearSelection()
+			}
 			u.chatSel, st.down = st, p
 			i := st.hit(p)
 			st.sel, st.selecting = [2]int{i, i}, true

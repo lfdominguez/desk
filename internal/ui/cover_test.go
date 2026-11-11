@@ -2048,8 +2048,9 @@ func TestCoverEscape(t *testing.T) {
 	}
 }
 
-// TestCoverTypingInSelection: with chat text selected (its selectable has
-// the keyboard) the board's letter keys stay off: Ctrl+C is for the text.
+// TestCoverTypingInSelection: chat text handed the keyboard (a press on it)
+// gives it straight back to the message box, so the board's letter keys
+// stay off and what's typed goes in the box.
 func TestCoverTypingInSelection(t *testing.T) {
 	h := newHarness(t)
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -2067,12 +2068,12 @@ func TestCoverTypingInSelection(t *testing.T) {
 	h.r.Source().Execute(key.FocusCmd{Tag: sel})
 	h.frame()
 	h.frame()
-	if !sel.Focused() {
-		t.Fatal("the text did not take the keyboard")
+	if sel.Focused() || !h.r.Source().Focused(&h.u.chatIn) {
+		t.Fatal("the text kept the keyboard")
 	}
 	h.send(press("E", 0))
 	if h.u.edit != nil {
-		t.Fatal("E opened the dialog while text was selected")
+		t.Fatal("E opened the dialog while the message box had the keyboard")
 	}
 }
 
