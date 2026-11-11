@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gioui.org/layout"
+	dbus "github.com/godbus/dbus/v5"
 
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -114,4 +115,44 @@ func hyprCall(sock, req string) ([]byte, error) {
 		return nil, err
 	}
 	return io.ReadAll(c)
+}
+
+// kwinRaise is the KWin script kwinFocus loads: KWin 6's windowList and
+// activeWindow, else KWin 5's clientList and activeClient. A script may
+// activate any window, past focus-stealing prevention.
+const kwinRaise = `const want = %s, pid = %d;
+const all = workspace.windowList ? workspace.windowList() : workspace.clientList();
+for (const w of all) {
+	if (w.pid !== pid || w.caption !== want) continue;
+	w.minimized = false;
+	if (workspace.windowList) workspace.activeWindow = w; else workspace.activeClient = w;
+	break;
+}
+`
+
+// kwinFocus focuses this process's window titled title on KDE, as kdotool
+// does: a KWin script over the session bus, loaded under one name (the last
+// one unloaded first) and started. False off KWin; whether the script found
+// the window it can't tell.
+func kwinFocus(title string) bool {
+	bus, err := dbus.ConnectSessionBus()
+	if err != nil {
+		return false
+	}
+	defer bus.Close()
+	js, _ := json.Marshal(title)
+	f := filepath.Join(os.TempDir(), fmt.Sprintf("desk-raise-%d.js", os.Getpid()))
+	if os.WriteFile(f, fmt.Appendf(nil, kwinRaise, js, os.Getpid()), 0o600) != nil {
+		return false
+	}
+	const name = "desk-raise"
+	o := bus.Object("org.kde.KWin", "/Scripting")
+	if o.Call("org.kde.kwin.Scripting.unloadScript", 0, name).Err != nil {
+		return false // no KWin
+	}
+	var id int32
+	if o.Call("org.kde.kwin.Scripting.loadScript", 0, f, name).Store(&id) != nil || id < 0 {
+		return false
+	}
+	return o.Call("org.kde.kwin.Scripting.start", 0).Err == nil
 }

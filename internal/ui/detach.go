@@ -155,17 +155,16 @@ var startDetached func(u *ui, d *detached)
 
 func init() { startDetached = func(u *ui, d *detached) { go u.runDetached(d, d.w.Event) } }
 
-// raise brings d's window to the front, off the UI goroutine: on Hyprland
-// through its socket (Gio's Wayland windows can't raise themselves: that
-// takes an activation token, and Hyprland ignores those by default), else
+// raise brings d's window to the front, off the UI goroutine. Gio's
+// Wayland windows can't raise themselves (that takes an activation token),
+// so on Hyprland through its socket, on KDE through a KWin script, else
 // Gio's raise (X11, macOS, Windows). Tests have no window.
-// ponytail: other Wayland compositors (sway, GNOME, KDE) need
-// xdg-activation, a token asked by the focused window and spent by this one,
-// which Gio has no API for.
+// ponytail: sway and GNOME need xdg-activation, a token asked by the
+// focused window and spent by this one, which Gio has no API for.
 var raise = func(d *detached) { go raiseNow(d) }
 
 func raiseNow(d *detached) {
-	if !hyprFocus(d.title) {
+	if !hyprFocus(d.title) && !kwinFocus(d.title) {
 		d.w.Perform(system.ActionRaise)
 	}
 }

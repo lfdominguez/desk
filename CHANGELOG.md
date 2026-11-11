@@ -11,7 +11,7 @@ day). A release's section here is its notes on GitHub. The format follows
 - **A card's session in its own window**: the session header's pop-out, the card menu's **Open in
   new window** (O) or Ctrl+Shift+O open just that session in a separate window, with its own
   message box and keyboard, while the board stays in the main one (which shows where the session
-  went, with Show window and Bring it back here). Its workspace, drawings, terminal, card editor
+  went, with Show window, which brings it to the front on Hyprland and KDE, and Bring it back here). Its workspace, drawings, terminal, card editor
   and server split open in that window too. Closing the window puts the session back with what
   you'd written; a card still in its own window when desk closes gets it again at the next start.
 

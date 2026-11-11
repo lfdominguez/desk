@@ -24,9 +24,12 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	dbus "github.com/godbus/dbus/v5"
+
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/term"
+	"github.com/lfdominguez/desk/internal/testwait"
 )
 
 // windows records what detach.go asked of the platform: tests open no window.
@@ -577,5 +580,78 @@ func TestHyprFocus(t *testing.T) {
 	}
 	if hyprFocus("DESK-9 · gone") {
 		t.Error("no such window")
+	}
+}
+
+// fakeKWin is org.kde.KWin's /Scripting on a test bus: the script it was
+// given, whether it started, and a loadScript that can refuse.
+type fakeKWin struct {
+	script  string
+	started bool
+	refuse  bool
+}
+
+func (k *fakeKWin) UnloadScript(name string) (bool, *dbus.Error) { return false, nil }
+func (k *fakeKWin) LoadScript(f, name string) (int32, *dbus.Error) {
+	if k.refuse {
+		return -1, nil
+	}
+	b, _ := os.ReadFile(f)
+	k.script = string(b)
+	return 3, nil
+}
+func (k *fakeKWin) Start() *dbus.Error { k.started = true; return nil }
+
+// TestKWinFocus: on KDE a KWin script is loaded that activates this
+// process's window by its title, then started; nothing without KWin.
+func TestKWinFocus(t *testing.T) {
+	daemon, err := exec.LookPath("dbus-daemon")
+	if err != nil {
+		t.Skip("no dbus-daemon")
+	}
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent")
+	if kwinFocus("x") {
+		t.Fatal("no bus")
+	}
+	dir, err := os.MkdirTemp("", "kw") // short: a socket path has a limit
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	addr := "unix:path=" + filepath.Join(dir, "bus")
+	cmd := exec.Command(daemon, "--session", "--nofork", "--nopidfile", "--address="+addr)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { cmd.Process.Kill(); cmd.Wait() }()
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", addr)
+	t.Setenv("TMPDIR", dir)
+	var kw *dbus.Conn
+	for end := time.Now().Add(testwait.Long); kw == nil; {
+		if kw, err = dbus.ConnectSessionBus(); err != nil && time.Now().After(end) {
+			t.Fatal(err)
+		}
+	}
+	defer kw.Close()
+	if kwinFocus("x") {
+		t.Fatal("no KWin")
+	}
+	k := &fakeKWin{}
+	kw.ExportMethodTable(map[string]any{"unloadScript": k.UnloadScript, "loadScript": k.LoadScript, "start": k.Start}, "/Scripting", "org.kde.kwin.Scripting")
+	kw.RequestName("org.kde.KWin", 0)
+	if !kwinFocus(`DESK-1 · "a"`) || !k.started {
+		t.Fatal("not run")
+	}
+	if !strings.Contains(k.script, `const want = "DESK-1 · \"a\"", pid = `+fmt.Sprint(os.Getpid())) {
+		t.Errorf("script: %s", k.script)
+	}
+	k.refuse, k.started = true, false
+	if kwinFocus("x") || k.started {
+		t.Error("refused script ran")
+	}
+	os.RemoveAll(dir + "/nodir")
+	t.Setenv("TMPDIR", filepath.Join(dir, "nodir"))
+	if kwinFocus("x") {
+		t.Error("unwritable script")
 	}
 }
