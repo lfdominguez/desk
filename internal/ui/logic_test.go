@@ -547,15 +547,21 @@ func TestWordAt(t *testing.T) {
 func TestClicks(t *testing.T) {
 	var c clicks
 	p := image.Pt(10, 10)
-	if c.press(p) != 1 || c.press(p.Add(image.Pt(2, 2))) != 2 || c.press(p) != 3 {
+	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
+	if c.press(p, 0) != 1 || c.press(p.Add(image.Pt(2, 2)), ms(399)) != 2 || c.press(p, ms(500)) != 3 {
 		t.Fatal("quick presses")
 	}
-	if c.press(p.Add(image.Pt(5, 0))) != 1 {
+	if c.press(p.Add(image.Pt(5, 0)), ms(600)) != 1 {
 		t.Fatal("a far press")
 	}
-	c.at = time.Now().Add(-time.Second)
-	if c.press(c.pos) != 1 {
+	if c.press(c.pos, ms(1500)) != 1 {
 		t.Fatal("a slow press")
+	}
+	if c.press(c.pos, ms(1900)) != 1 {
+		t.Fatal("a press 400ms later")
+	}
+	if first := (clicks{}); first.press(image.Pt(1, 1), 0) != 1 {
+		t.Fatal("the first press near the origin at time 0")
 	}
 }
 
@@ -630,8 +636,10 @@ func TestRichSelect(t *testing.T) {
 		t.Fatalf("no rune %d", i)
 		return 0
 	}
+	var clock time.Duration // the events' own times: double clicks count by them
 	ev := func(k pointer.Kind, px float32, py float32) pointer.Event {
-		e := pointer.Event{Kind: k, Source: pointer.Mouse, Position: f32.Pt(px, py)}
+		clock += 10 * time.Millisecond
+		e := pointer.Event{Kind: k, Source: pointer.Mouse, Position: f32.Pt(px, py), Time: clock}
 		if k != pointer.Release {
 			e.Buttons = pointer.ButtonPrimary
 		}
@@ -643,7 +651,7 @@ func TestRichSelect(t *testing.T) {
 	if st.selected() != "brave" || h.u.chatSel != st || h.u.toast != "Copied" || h.u.selRange() != [2]int{6, 11} {
 		t.Fatalf("drag selected %q (%v), toast %q", st.selected(), st.sel, h.u.toast)
 	}
-	time.Sleep(450 * time.Millisecond) // not a double click of the drag's press
+	clock += time.Second // not a double click of the drag's press
 	h.r.Queue(ev(pointer.Press, x(13), y), ev(pointer.Release, x(13), y), ev(pointer.Press, x(13), y), ev(pointer.Release, x(13), y))
 	h.draw(sz, w)
 	if st.selected() != "world" {

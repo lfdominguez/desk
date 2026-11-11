@@ -217,8 +217,8 @@ go.mod, flake.nix, LICENSE, docs and `cmd/` / `internal/` / `third_party/` / `pl
   ticker the test ticks: sshc's `aliveTicks`), or check what the code did (its error, its state).
   Read the clock once when a test builds its data and its expectation from it. Short windows that
   check something does *not* happen are fine: load only makes them pass.
-- **Every new or changed test is proven by a mutation run.** Coverage only says a line ran; a
-  test counts once it fails when the code it covers is wrong. After writing tests, run
-  `go run ./cmd/qa mutate -file <file> ./internal/<pkg>` on each source file they exercise, then
-  kill every survivor on those files with a test that fails on it, or say why the mutant behaves
-  the same as the original. Report the file's score and any survivors left with the change.
+- **Mutation runs only when the user asks for one**, never on its own after a change (they take
+  long and fill the disk). When asked: `go run ./cmd/qa mutate -file <file> ./internal/<pkg>` on
+  each source file the tests exercise, then kill every survivor on those files with a test that
+  fails on it, or say why the mutant behaves the same as the original, and report the file's score
+  and any survivors left.

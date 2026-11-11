@@ -1714,3 +1714,32 @@ func TestDeskVaultUnlockedC(t *testing.T) {
 		t.Errorf("a missing item: %v", err)
 	}
 }
+
+// TestTermRunWaitsForPromptC: run returns once the next prompt is up, not at
+// the block's end, so the next run doesn't find the pane busy; a shell gone
+// after the block gives the block too.
+func TestTermRunWaitsForPromptC(t *testing.T) {
+	term, r := fakeTermA(t, "web1")
+	go func() {
+		readPipeA(r)
+		term.mu.Lock()
+		term.blocks, term.b = append(term.blocks, Block{N: 1}), nil // D: the prompt not back yet
+		term.mu.Unlock()
+		time.Sleep(300 * time.Millisecond) // the gap before B; Run must outwait it
+		term.mu.Lock()
+		term.b = &pos{} // B
+		term.mu.Unlock()
+	}()
+	if res := term.Run("true", testwait.Long); res.Text != "block #1 exit=0\n" || !term.AtPrompt() {
+		t.Errorf("run: %q, at prompt %v", res.Text, term.AtPrompt())
+	}
+	go func() {
+		readPipeA(r)
+		term.mu.Lock()
+		term.blocks, term.b, term.exited = append(term.blocks, Block{N: 2, Exit: 3}), nil, true // "exit 3" after a block
+		term.mu.Unlock()
+	}()
+	if res := term.Run("false; exit 3", testwait.Long); res.Text != "block #2 exit=3\n" || !res.IsError {
+		t.Errorf("run before an exit: %q", res.Text)
+	}
+}

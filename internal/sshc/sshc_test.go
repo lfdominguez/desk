@@ -23,6 +23,19 @@ func handTicks(t *testing.T) (ticks chan time.Time, replies chan struct{}, every
 	return ticks, replies, every
 }
 
+// TestAliveDefaults: outside tests the keepalive's clock is a real ticker,
+// and a counted reply tells nobody.
+func TestAliveDefaults(t *testing.T) {
+	ticks, stop := aliveTicks(time.Millisecond)
+	defer stop()
+	select {
+	case <-ticks:
+	case <-time.After(testwait.Long):
+		t.Fatal("the ticker never ticked")
+	}
+	aliveReplied()
+}
+
 // tick ticks the keepalive's clock, or fails when nothing takes the tick.
 func tick(t *testing.T, ticks chan time.Time) {
 	t.Helper()

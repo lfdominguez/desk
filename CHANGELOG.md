@@ -21,6 +21,14 @@ day). A release's section here is its notes on GitHub. The format follows
   looks it up only when the server asks for a password, so a server your key logs into connects
   without waiting on the vault (or on unlocking it).
 
+### Fixed
+
+- A double or triple click in Claude's replies (a word, a block) counts by when the clicks
+  happened, not by when desk got round to them: on a busy machine it no longer turns into two
+  single clicks.
+- The infra Claude's commands in a pane wait for the shell's next prompt before reporting, so the
+  command it runs right after no longer finds the pane "busy".
+
 ## [2026.11.09.1] - 2026-11-09
 
 ### Changed
