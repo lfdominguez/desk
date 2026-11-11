@@ -209,7 +209,7 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
   `ask_workspace` reach the card's workspace.
-- **Right-click a card** for its menu: open its session or full window, its terminal, its workspace, turn its
+- **Right-click a card** for its menu: open its session, its full window or a window of its own, its terminal, its workspace, turn its
   Remote Control on or off, edit it, copy its key, move it to another column, archive it.
 - **Desktop notifications** when a card turns to your turn, blocked, failed or ready for review, unless you're
   looking at it.
@@ -256,6 +256,9 @@ runs under.
   Claude gets the command, output, exit code and time and carries on by itself.
 - **Agent Sessions**: every card with a session is listed in the sidebar. Its full window shows
   the context meter and the account's plan limits (the 5-hour session, the week, a model's week).
+- **A session in its own window** (the header's pop-out, the menu's Open in new window or
+  **Ctrl+Shift+O**): just that card's session, its own message box and keyboard, while the board
+  stays in the main window; closing it puts the session back, and it comes back when desk starts.
 - **Subagents and background shells**: a bar under the header says what runs; **Show details**
   opens a rail with each one (model, task, tools, tokens, time) and their history. A held subagent
   says why: **Waiting on \<its shell\>**, **Running \<tool\>** over 30 s, **No activity** after 2

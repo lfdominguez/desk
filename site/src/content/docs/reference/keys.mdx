@@ -15,6 +15,7 @@ Board keys work on the board only: not while you type in a field, not in a dialo
 |---|---|
 | <kbd>Esc</kbd> | Backs out of the innermost thing, one per press: the palette, the unlock dialog, the server picker, the settings, the card editor (it saves), the new-card dialog, the card menu, the snooze picker; then clears the search, leaves an answer field, goes back from a subagent or shell to the conversation, closes the rail, the session panel, the full-window session, and last the selection. |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> | Opens the command palette. Works over the message box too, but not over a dialog. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> | Opens the session in view (else the selected card's) [in its own window](/sessions/full-window/#in-its-own-window); in that window, puts it back. |
 | <kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd> | Make the text of the terminals (a card's Claude Code terminal and the servers' panes) and of the session panel bigger or smaller, 10% a press, from 50% to 300%. Also over a field and inside a terminal: the program doesn't get them. |
 | <kbd>Ctrl</kbd>+<kbd>0</kbd> | The text back to 100%. |
 
@@ -40,6 +41,7 @@ Right-click a card to open it.
 |---|---|
 | <kbd>Enter</kbd> | Open its session. |
 | <kbd>T</kbd> | Its Claude Code terminal. |
+| <kbd>O</kbd> | Its session in a window of its own. |
 | <kbd>R</kbd> | Turn its [Remote Control](/sessions/terminal/#remote-control) on or off. |
 | <kbd>W</kbd> | Its [workspace](/sessions/workspace/). |
 | <kbd>E</kbd> | Edit it. |
@@ -81,7 +83,7 @@ The message box, in the side panel and the full window.
 | <kbd>Enter</kbd> | Send the message. |
 | <kbd>Shift</kbd>+<kbd>Enter</kbd> | A new line. |
 | <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste. An image on the clipboard is saved and put in as `![image](path)`. |
-| <kbd>Esc</kbd> | Back from a subagent or a shell to the conversation, then close the rail, the panel, the full window. |
+| <kbd>Esc</kbd> | Back from a subagent or a shell to the conversation, then close the rail, the panel, the full window. In a session's own window, only the first two. |
 
 Selecting text in Claude's replies copies it when you let go of the mouse.
 

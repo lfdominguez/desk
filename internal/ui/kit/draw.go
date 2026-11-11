@@ -139,6 +139,7 @@ func (k *Kit) Pill(s string, fg, bg color.NRGBA) layout.Widget {
 }
 
 func (k *Kit) Click(id string) *widget.Clickable {
+	id = k.Scope + id
 	c, ok := k.clicks[id]
 	if !ok {
 		c = new(widget.Clickable)

@@ -144,6 +144,18 @@ var (
 		p.MoveTo(f32.Pt(s*.38, s*.18))
 		p.LineTo(f32.Pt(s*.38, s*.82))
 	}
+	IcoPopOut IconPath = func(p *clip.Path, s float32) { // a window with an arrow leaving it: its own window
+		p.MoveTo(f32.Pt(s*.46, s*.18))
+		p.LineTo(f32.Pt(s*.16, s*.18))
+		p.LineTo(f32.Pt(s*.16, s*.84))
+		p.LineTo(f32.Pt(s*.82, s*.84))
+		p.LineTo(f32.Pt(s*.82, s*.54))
+		p.MoveTo(f32.Pt(s*.46, s*.54))
+		p.LineTo(f32.Pt(s*.84, s*.16))
+		p.MoveTo(f32.Pt(s*.6, s*.16))
+		p.LineTo(f32.Pt(s*.84, s*.16))
+		p.LineTo(f32.Pt(s*.84, s*.4))
+	}
 	IcoStar IconPath = func(p *clip.Path, s float32) {
 		for k := range 10 {
 			a, rad := float64(k)*math.Pi/5-math.Pi/2, float32(.44)

@@ -80,6 +80,10 @@ func RGB(h uint32) color.NRGBA { return color.NRGBA{uint8(h >> 16), uint8(h >> 8
 type Kit struct {
 	Sh     *text.Shaper
 	clicks map[string]*widget.Clickable // ponytail: never pruned, fine for a personal board's few hundred ids
+	// Scope goes before every id while another window is laid out, so a
+	// button there keeps its own hover and press apart from the same one
+	// in the main window.
+	Scope string
 }
 
 // New loads Manrope and Geist Mono (embedded); past their glyphs (the

@@ -91,7 +91,11 @@ func (u *ui) wsRestore(id string, st *wsState) {
 // quitting writes what must outlive the window: the board, the workspaces'
 // changes not saved.
 func (u *ui) quitting() {
-	u.keepDraft()
+	u.closing = true // the detached windows close with desk: they stay detached for its next start
+	u.inPane(&u.mainPane, u.keepDraft)
+	for _, d := range u.detached {
+		u.inPane(&d.p, u.keepDraft)
+	}
 	u.flushPending()
 	u.wsStash()
 }

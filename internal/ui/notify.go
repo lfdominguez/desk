@@ -28,7 +28,10 @@ func (u *ui) notifyChange(c *kanban.Card, before string) {
 	if c.Status == before || what == "" || c.Note == "Stopped" { // a stop is the user's own doing
 		return
 	}
-	if u.focused && (u.panel == c.ID || u.view == "sess:"+c.ID) {
+	if u.mainPane.focused && (u.panel == c.ID || u.view == "sess:"+c.ID) {
+		return
+	}
+	if d := u.detached[c.ID]; d != nil && d.p.focused { // its own window, in front
 		return
 	}
 	desktopNotify(c.Key()+" · "+what, c.Title+"\n"+unmark(cmp.Or(c.Note, c.Last)))
