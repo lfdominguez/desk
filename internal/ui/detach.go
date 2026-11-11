@@ -3,6 +3,7 @@ package ui
 import (
 	"cmp"
 	"strings"
+	"sync/atomic"
 
 	"gioui.org/app"
 	"gioui.org/io/event"
@@ -22,6 +23,7 @@ import (
 // own. u.pane is the one being laid out, so the session code reads u.chatIn
 // and friends whichever window it draws in.
 type pane struct {
+	view      string // what the window shows: the main one's sidebar pick (views.go), "" all cards; a detached one's "" its session
 	chatIn    widget.Editor
 	chatList  layout.List
 	chatFocus bool   // focus chatIn on the next frame
@@ -51,10 +53,14 @@ func (p *pane) init() {
 
 // detached is a card's session in a window of its own.
 type detached struct {
-	id  string
-	w   *app.Window
-	p   pane
-	ops op.Ops
+	id        string
+	w         *app.Window // set once, before the window is listed in u.wins: read from other goroutines
+	title     string      // what its window is called, to find it (raise)
+	p         pane
+	ops       op.Ops
+	shownTerm atomic.Value // the card whose terminal it shows (string), for the terminal's reader
+	drewInfra bool         // this frame drew the infra session beside the chat
+	gone      bool         // its window closed itself: nothing to close on reattach
 }
 
 // detach moves card id's session into its own window (or brings that window
@@ -66,7 +72,7 @@ func (u *ui) detach(id string) {
 		return
 	}
 	if d := u.detached[id]; d != nil {
-		raise(d.w)
+		raise(d)
 		return
 	}
 	u.inPane(&u.mainPane, func() {
@@ -111,17 +117,36 @@ func (u *ui) openDetached(id string) {
 	u.detached[id] = d
 	d.w = new(app.Window)
 	u.detachedOpts(d)
+	u.listWins()
 	startDetached(u, d)
+}
+
+// listWins publishes the detached windows for goroutines that may not read
+// u.detached (a terminal's reader): a fresh slice each change.
+func (u *ui) listWins() {
+	ws := make([]*detached, 0, len(u.detached))
+	for _, d := range u.detached {
+		ws = append(ws, d)
+	}
+	u.wins.Store(&ws)
+}
+
+// detachedWins is the last list listWins published.
+func (u *ui) detachedWins() []*detached {
+	if ws := u.wins.Load(); ws != nil {
+		return *ws
+	}
+	return nil
 }
 
 // detachedOpts are the window's options, again after a lost display: Gio
 // drops them once used.
 func (u *ui) detachedOpts(d *detached) {
-	title := "desk"
+	d.title = "desk"
 	if c := u.b.Card(d.id); c != nil {
-		title = c.Key() + " · " + c.Title
+		d.title = c.Key() + " · " + c.Title
 	}
-	d.w.Option(app.Title(title), app.Size(unit.Dp(1000), unit.Dp(900)), app.MinSize(unit.Dp(520), unit.Dp(400)))
+	d.w.Option(app.Title(d.title), app.Size(unit.Dp(1000), unit.Dp(900)), app.MinSize(unit.Dp(520), unit.Dp(400)))
 }
 
 // startDetached runs a detached window's events; tests open none. Set in
@@ -130,9 +155,20 @@ var startDetached func(u *ui, d *detached)
 
 func init() { startDetached = func(u *ui, d *detached) { go u.runDetached(d, d.w.Event) } }
 
-// raise asks for w on top; tests have no window. ponytail: Wayland lets a
-// window raise itself only with an activation token, so there it may not.
-var raise = func(w *app.Window) { go w.Perform(system.ActionRaise) }
+// raise brings d's window to the front, off the UI goroutine: on Hyprland
+// through its socket (Gio's Wayland windows can't raise themselves: that
+// takes an activation token, and Hyprland ignores those by default), else
+// Gio's raise (X11, macOS, Windows). Tests have no window.
+// ponytail: other Wayland compositors (sway, GNOME, KDE) need
+// xdg-activation, a token asked by the focused window and spent by this one,
+// which Gio has no API for.
+var raise = func(d *detached) { go raiseNow(d) }
+
+func raiseNow(d *detached) {
+	if !hyprFocus(d.title) {
+		d.w.Perform(system.ActionRaise)
+	}
+}
 
 // reattach puts card id's session back in the main window: its window's
 // text becomes the card's draft, and the window closes when it is still
@@ -144,11 +180,25 @@ func (u *ui) reattach(id string) {
 	}
 	u.inPane(&d.p, u.keepDraft)
 	delete(u.detached, id)
+	u.listWins()
+	if u.infraBy == id { // the servers go back to the main window
+		u.infraBy = ""
+		u.infraWin.Store(nil)
+	}
+	if u.edit != nil && u.edit.in == &d.p { // its card editor closes with it, saving
+		u.inPane(&d.p, func() {
+			if u.edit.id != "" {
+				u.commit()
+			} else {
+				u.closeSheet()
+			}
+		})
+	}
 	if c := u.b.Card(id); c != nil {
 		c.Detached = false
 		u.save()
 	}
-	if d.w != nil {
+	if !d.gone {
 		closeWindow(d.w)
 	}
 	u.w.Invalidate()
@@ -211,7 +261,7 @@ func (u *ui) detachedEvent(d *detached, ev event.Event) int {
 			return winLost
 		}
 		if !u.closing { // closed by the user: back into the main window
-			d.w = nil
+			d.gone = true
 			u.reattach(d.id)
 		}
 		return winDone
@@ -231,13 +281,14 @@ func (u *ui) detachedEvent(d *detached, ev event.Event) int {
 // rail beside it when open, the toasts on top.
 func (u *ui) detachedFrame(gtx layout.Context, d *detached) {
 	u.drain() // with the main pane: the queued work belongs to no window
+	u.infraRead()
 	prevScope := u.k.Scope
 	u.k.Scope = "w" + d.id + ":"
 	defer func() { u.k.Scope = prevScope }()
 	u.inPane(&d.p, func() {
-		before := u.sig()
+		before, tg, ig := u.sig(), u.termGen.Load(), u.infraGen()
 		defer func() {
-			if u.sig() != before || len(u.events) > 0 {
+			if u.sig() != before || len(u.events) > 0 || u.termGen.Load() != tg || u.infraGen() != ig {
 				gtx.Execute(op.InvalidateCmd{})
 				u.w.Invalidate() // what changed here may show there
 			}
@@ -247,7 +298,20 @@ func (u *ui) detachedFrame(gtx layout.Context, d *detached) {
 			gtx.Execute(key.FocusCmd{})
 			u.blur = false
 		}
-		u.sessionBody(gtx, d.id)
+		id, _ := u.termCard()
+		d.shownTerm.Store(id)
+		d.drewInfra = false
+		gtx.Constraints.Min = gtx.Constraints.Max
+		if v := u.view; v == "" || v == "sess:"+d.id { // its session; else what its header opened (workspace, drawings, terminal)
+			u.sessionSplit(gtx, d.id)
+		} else {
+			u.mainView()(gtx)
+		}
+		if u.infraBy == d.id && !d.drewInfra { // gone from here: the main window may draw them again
+			u.infraBy = ""
+			u.infraWin.Store(nil)
+		}
+		u.sheet(gtx) // the card editor opened here
 		u.toasts(gtx)
 		if f := u.post; f != nil {
 			u.post = nil
@@ -260,7 +324,10 @@ func (u *ui) detachedFrame(gtx layout.Context, d *detached) {
 // the rail, Ctrl+Shift+O puts the session back in the main window, and the
 // text size keys.
 func (u *ui) detachedKeys(gtx layout.Context, id string) {
-	filters := append(kit.ZoomFilters(), key.Filter{Name: key.NameEscape}, key.Filter{Name: "O", Required: key.ModShortcut | key.ModShift})
+	filters := kit.ZoomFilters()
+	if _, tt := u.termCard(); tt == nil || u.edit != nil && u.edit.in == u.pane { // a terminal takes every other key, esc included
+		filters = append(filters, key.Filter{Name: key.NameEscape}, key.Filter{Name: "O", Required: key.ModShortcut | key.ModShift})
+	}
 	for {
 		ev, ok := gtx.Event(filters...)
 		if !ok {
@@ -270,14 +337,37 @@ func (u *ui) detachedKeys(gtx layout.Context, id string) {
 		if !ok || e.State != key.Press || u.zoomKey(e) {
 			continue
 		}
-		switch {
-		case e.Name == "O":
+		if e.Name == "O" {
 			u.reattach(id)
-		case u.sub != "":
-			u.sub = ""
-		case u.rail:
-			u.rail = false
+		} else {
+			u.detachedEscape(gtx)
 		}
+	}
+}
+
+// detachedEscape backs out of the innermost thing in a detached window, as
+// esc does in the main one: its card editor, a drawing, the workspace's
+// find bar, then the view its header opened, an answer field, a subagent,
+// the rail.
+func (u *ui) detachedEscape(gtx layout.Context) {
+	ws := strings.TrimPrefix(u.view, "ws:")
+	switch {
+	case u.edit != nil && u.edit.in == u.pane && u.edit.id != "": // the drawer saves as it closes
+		u.commit()
+	case u.edit != nil && u.edit.in == u.pane:
+		u.closeSheet()
+	case u.drawOpen() != nil:
+		u.drawEscape(u.drawOpen())
+	case strings.HasPrefix(u.view, "ws:") && u.wsOf(ws).find != nil:
+		u.wsFindClose(u.wsOf(ws))
+	case u.view != "" && u.view != "sess:"+u.win.id: // the workspace, drawings or terminal: back to the session
+		u.view, u.blur = "", true
+	case u.typing(gtx) && !gtx.Focused(&u.chatIn):
+		u.blur = true
+	case u.sub != "":
+		u.sub = ""
+	case u.rail:
+		u.rail = false
 	}
 }
 

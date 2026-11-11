@@ -103,20 +103,32 @@ func (u *ui) terminal(id string) {
 // or when it exited, for reapTerms. frame asks again when it came
 // mid-frame (Gio drops that Invalidate).
 func (u *ui) termNotify(id string, t *term.Term) {
-	if u.shownTerm.Load() != id {
-		if t == nil {
-			return
-		}
-		if done, _ := t.Exited(); !done {
-			return
+	exited := false
+	if t != nil {
+		exited, _ = t.Exited()
+	}
+	woke := false
+	for _, d := range u.detachedWins() { // a detached window showing it
+		if d.shownTerm.Load() == id || exited {
+			d.w.Invalidate()
+			woke = true
 		}
 	}
+	main := u.shownTerm.Load() == id || exited
+	if !main && !woke {
+		return
+	}
 	u.termGen.Add(1)
-	u.w.Invalidate()
+	if main {
+		u.w.Invalidate()
+	}
 }
 
 func (u *ui) showTerm(id string) {
-	u.view, u.sel, u.panel = "term:"+id, "", ""
+	u.view = "term:" + id
+	if u.win == nil { // the main window's selection and panel; a detached window has neither
+		u.sel, u.panel = "", ""
+	}
 	u.terms[id].focus = true
 }
 

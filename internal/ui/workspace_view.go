@@ -23,7 +23,10 @@ func (u *ui) openWS(id string) {
 	if u.b.Card(id) == nil {
 		return
 	}
-	u.view, u.panel, u.sel = "ws:"+id, "", id
+	u.view = "ws:" + id
+	if u.win == nil { // the main window's panel and selection; a detached window has neither
+		u.panel, u.sel = "", id
+	}
 	st := u.wsOf(id)
 	for _, t := range st.tabs {
 		u.wsCheck(t)

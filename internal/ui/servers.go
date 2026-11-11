@@ -60,21 +60,34 @@ func (u *ui) infraFrame() {
 	if u.infra == nil {
 		return
 	}
-	u.tree, u.infraTasks = u.infra.Tree(), infraTasks(u.infra)
-	for _, t := range u.infraTasks { // remembered past the task: the split and the way back stay
-		if c := u.cardOfKey(t.From); c != nil {
-			u.cardInfra[c.ID] = t.Org
-		}
-	}
-	split := u.splitShown
+	u.infraRead()
+	split := u.splitShown || u.infraBy != "" // a detached window draws it between this window's frames
 	u.splitShown = false
 	if !split {
 		u.splitFor = "" // coming back to a split asks for its org again
 	}
 	u.infra.SetShown(strings.HasPrefix(u.view, "srv:") || split) // hidden, its terminals' output asks no frames of desk
-	if on := u.focused && (strings.HasPrefix(u.view, "srv:") || split); on != u.infraOn {
+	on := u.focused && (strings.HasPrefix(u.view, "srv:") || split)
+	if d := u.detached[u.infraBy]; d != nil {
+		on = d.p.focused
+	}
+	if on != u.infraOn {
 		u.infraOn = on
 		u.infra.SetFocused(on)
+	}
+}
+
+// infraRead reads the host tree and the server tasks, in each window's
+// frame: a detached one may draw while the main one doesn't.
+func (u *ui) infraRead() {
+	if u.infra == nil {
+		return
+	}
+	u.tree, u.infraTasks = u.infra.Tree(), infraTasks(u.infra)
+	for _, t := range u.infraTasks { // remembered past the task: the split and the way back stay
+		if c := u.cardOfKey(t.From); c != nil {
+			u.cardInfra[c.ID] = t.Org
+		}
 	}
 }
 
@@ -493,6 +506,9 @@ func (u *ui) serversView(gtx layout.Context) layout.Dimensions {
 	}
 	if u.infra == nil {
 		return layout.Center.Layout(gtx, u.k.Lbl("The infra workspace isn't running.", 13, kit.CText3, kit.Sans))
+	}
+	if u.infraBy != "" { // a detached window draws it beside its chat
+		return u.infraElsewhere(gtx)
 	}
 	if a := u.infra.ActiveOrg(); a != "" && a != org && u.infraOrg(a) != nil {
 		org = a

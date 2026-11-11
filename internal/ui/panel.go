@@ -43,9 +43,26 @@ func (u *ui) openSession(id string) {
 
 // sessionView is the card's session over the whole main area.
 func (u *ui) sessionView(gtx layout.Context) layout.Dimensions {
-	id := strings.TrimPrefix(u.view, "sess:")
+	return u.sessionSplit(gtx, strings.TrimPrefix(u.view, "sess:"))
+}
+
+// sessionSplit is card id's session, its infra session beside it when its
+// Claude handed server work there. That workspace is one, drawn in one
+// window at a time: a detached window takes it (u.infraBy) unless another
+// detached one has it; the main window then shows the chat alone.
+func (u *ui) sessionSplit(gtx layout.Context, id string) layout.Dimensions {
 	org := u.splitOrg(id)
-	if org == "" || u.detached[id] != nil || u.b.Card(id) == nil {
+	if org == "" || u.detached[id] != nil && u.win == nil || u.b.Card(id) == nil {
+		return u.sessionBody(gtx, id)
+	}
+	if u.win != nil {
+		if u.infraBy != "" && u.infraBy != id {
+			return u.sessionBody(gtx, id)
+		}
+		u.infraBy = id
+		u.win.drewInfra = true
+		u.infraWin.Store(u.win.w)
+	} else if u.infraBy != "" {
 		return u.sessionBody(gtx, id)
 	}
 	// its server work beside it, in the card's own infra session: the whole
@@ -199,7 +216,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 					return d
 				}))
 			}
-			if org := u.cardInfra[id]; full && u.win == nil && u.infra != nil && u.infraOrg(org) != nil { // the infra session beside the chat, or not (a detached window has none)
+			if org := u.cardInfra[id]; full && u.infra != nil && u.infraOrg(org) != nil { // the infra session beside the chat, or not
 				label := "Chat only"
 				if u.noSplit[id] {
 					label = "Split with " + org + " servers"

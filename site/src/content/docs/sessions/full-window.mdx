@@ -34,14 +34,20 @@ board stays in the other window (another monitor, another workspace).
   selected on the board.
 
 Whatever you had written for the card goes with it, and its window has its own message box,
-scroll, subagent rail and keyboard: typing there never touches the main window. Where the main
-window would show that session it says **DESK-5 is open in its own window**, with **Show window**
-and **Bring it back here**.
+scroll, subagent rail and keyboard: typing there never touches the main window. Its header's
+workspace, drawings, terminal and edit buttons open in that window too (<kbd>Esc</kbd> comes back
+to the session). Where the main window would show that session it says **DESK-5 is open in its
+own window**, with **Show window** (brings it to the front; on Hyprland through its socket) and
+**Bring it back here**.
 
 To put it back, close its window, press its **×**, or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>
 in it: the session returns to the main window with what you had written there. A card still in its
-own window when desk closes gets it again the next time desk starts. The infra split stays in the
-main window.
+own window when desk closes gets it again the next time desk starts.
+
+A card whose Claude handed work to its servers shows them beside its chat in its own window as
+well. The servers are one workspace, drawn in one window at a time: while a card's own window has
+them, the main window's servers view says so, and **Show them here** brings them back (that
+window then shows its chat alone).
 
 ## Agent Sessions
 

@@ -160,9 +160,9 @@ func (u *ui) escape(gtx layout.Context) {
 		u.pick = ""
 	case u.cfg != nil:
 		u.closeConfig()
-	case u.edit != nil && u.edit.id != "": // the drawer saves as it closes
+	case u.edit != nil && u.edit.in == u.pane && u.edit.id != "": // the drawer saves as it closes
 		u.commit()
-	case u.edit != nil:
+	case u.edit != nil && u.edit.in == u.pane:
 		u.closeSheet()
 	case u.menu != nil:
 		u.menu = nil

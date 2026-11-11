@@ -2,8 +2,12 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"image"
+	"io"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -20,7 +24,9 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/term"
 )
 
 // windows records what detach.go asked of the platform: tests open no window.
@@ -31,7 +37,7 @@ func fakeWindows(t *testing.T) *windows {
 	s, r, c := startDetached, raise, closeWindow
 	t.Cleanup(func() { startDetached, raise, closeWindow = s, r, c })
 	startDetached = func(*ui, *detached) { w.started++ }
-	raise = func(*app.Window) { w.raised++ }
+	raise = func(*detached) { w.raised++ }
 	closeWindow = func(*app.Window) { w.closed++ }
 	return w
 }
@@ -249,16 +255,14 @@ func TestDetachedWindowEvents(t *testing.T) {
 	if h.u.detachedEvent(d, app.DestroyEvent{}) != winDone || h.u.detached[id] != nil {
 		t.Error("closing the window reattaches")
 	}
-	h.u.detach(id) // lost, and reattached before it reopens
+	h.u.detach(id) // lost, and reattached while it waits to reopen
 	d = h.u.detached[id]
-	n := 0
-	h.u.runDetached(d, func() event.Event {
-		if n++; n == 2 {
-			return app.DestroyEvent{}
-		}
-		h.u.reattach(id)
-		return app.DestroyEvent{Err: lost}
-	})
+	reopenWait = func() <-chan time.Time { h.u.reattach(id); return ended }
+	h.u.runDetached(d, func() event.Event { return app.DestroyEvent{Err: lost} })
+	reopenWait = func() <-chan time.Time { return ended }
+	if h.u.detached[id] != nil {
+		t.Error("reattached meanwhile: not reopened")
+	}
 	h.u.detach(id) // desk quits: the window closes, the card stays detached
 	d = h.u.detached[id]
 	d.p.chatIn.SetText("for later")
@@ -301,8 +305,9 @@ func TestReopenDetached(t *testing.T) {
 // TestDetachDefaults: the real platform calls take a window not yet open
 // (they queue for it), so they run here without a display.
 func TestDetachDefaults(t *testing.T) {
+	t.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "") // never the machine's Hyprland
 	w := new(app.Window)
-	raise(w)
+	raiseNow(&detached{w: w, title: "DESK-1 · a"})
 	closeWindow(w)
 }
 
@@ -318,5 +323,259 @@ func TestQuitKeepsDetached(t *testing.T) {
 	b, err := kanban.Load(h.u.path)
 	if err != nil || b.Card(id) == nil || !b.Card(id).Detached || b.Card(id).Draft != "kept" || !h.u.closing {
 		t.Errorf("after quitting: %v", err)
+	}
+}
+
+// TestDetachedSplit: the infra session goes with a detached card's chat
+// (the workspace is drawn in one window at a time); the main window's
+// servers view says where it is and can take it back, which leaves that
+// window the chat alone; reattaching gives it back too.
+func TestDetachedSplit(t *testing.T) {
+	h := newHarness(t)
+	fakeWindows(t)
+	localServer(t, h.u.root, "Acme")
+	h.u.infra = infra.New(h.u.root, func() {})
+	defer h.u.infra.Close()
+	c := h.u.b.Add(h.u.b.Column("In progress"), kanban.Card{Title: "Check web", Org: "Acme"})
+	other := h.u.b.Add(h.u.b.Column("In progress"), kanban.Card{Title: "Check db", Org: "Acme"})
+	h.u.cardInfra[c.ID], h.u.cardInfra[other.ID] = "Acme", "Acme"
+	h.u.detach(c.ID)
+	d := h.u.detached[c.ID]
+	w := &dwin{h: h, d: d}
+	w.frame()
+	if h.u.infraBy != c.ID || !d.drewInfra || h.u.infraWin.Load() != d.w {
+		t.Fatalf("the detached window draws the servers: by %q", h.u.infraBy)
+	}
+	h.u.infraWake() // its output redraws that window
+	h.u.detach(other.ID)
+	w2 := &dwin{h: h, d: h.u.detached[other.ID]}
+	w2.frame()
+	if h.u.infraBy != c.ID || w2.d.drewInfra {
+		t.Error("a second detached window shows its chat alone")
+	}
+	h.u.view = "sess:" + other.ID
+	h.u.reattach(other.ID)
+	h.frame()
+	if h.u.splitShown {
+		t.Error("the main window's session shows its chat alone meanwhile")
+	}
+	h.u.view = "srv:Acme"
+	h.frame()
+	h.clickButton("infraHere")
+	if h.u.infraBy != "" || !h.u.noSplit[c.ID] {
+		t.Fatal("Show them here takes the servers back")
+	}
+	w.frame()
+	if h.u.infraBy != "" || d.drewInfra {
+		t.Error("that window then shows the chat alone")
+	}
+	h.u.noSplit[c.ID] = false
+	w.frame()
+	h.u.reattach(c.ID)
+	if h.u.infraBy != "" || h.u.infraWin.Load() != nil {
+		t.Error("reattaching gives the servers back")
+	}
+	h.u.infraWake() // the main window's again
+	h.u.detach(c.ID)
+	d = h.u.detached[c.ID]
+	w = &dwin{h: h, d: d}
+	w.frame()
+	h.u.noSplit[c.ID] = true
+	w.frame()
+	if h.u.infraBy != "" {
+		t.Error("its own Chat only lets the servers go")
+	}
+	h.u.noSplit[c.ID] = false
+	w.frame()
+	d.p.focused = true
+	h.frame()
+	if !h.u.infraOn {
+		t.Error("the servers have the keyboard when their window has")
+	}
+}
+
+// TestDetachedViews: the header's workspace, drawings, editor and terminal
+// open in the detached window itself, the main window's panel and
+// selection untouched; esc comes back to the session step by step.
+func TestDetachedViews(t *testing.T) {
+	h := newHarness(t)
+	fakeWindows(t)
+	id := h.u.b.Add(0, kanban.Card{Title: "a", Org: "Acme"}).ID
+	other := h.u.b.Add(0, kanban.Card{Title: "b"}).ID
+	h.u.openPanel(other)
+	h.u.detach(id)
+	d := h.u.detached[id]
+	w := &dwin{h: h, d: d}
+	w.click("pnWS")
+	if d.p.view != "ws:"+id || h.u.mainPane.view != "" || h.u.panel != other {
+		t.Fatalf("workspace: detached %q, main %q, panel %q", d.p.view, h.u.mainPane.view, h.u.panel)
+	}
+	st := h.u.wsOf(id)
+	st.find = &wsFind{at: -1}
+	w.send(press(key.NameEscape, 0))
+	if st.find != nil || d.p.view != "ws:"+id {
+		t.Fatal("esc closes its find bar first")
+	}
+	ran := false
+	h.u.post = func() { ran = true } // a diff's Open in workspace, after the frame
+	w.frame()
+	if !ran {
+		t.Error("the window runs what waits for the end of its frame")
+	}
+	w.send(press(key.NameEscape, 0))
+	if d.p.view != "" {
+		t.Fatalf("esc back to the session: %q", d.p.view)
+	}
+	w.click("pnEdit")
+	if h.u.edit == nil || h.u.edit.in != &d.p {
+		t.Fatal("the editor opens in the detached window")
+	}
+	h.frame()
+	h.send(press(key.NameEscape, 0)) // the main window's esc leaves it alone
+	if h.u.edit == nil {
+		t.Fatal("main esc closed the detached window's editor")
+	}
+	w.send(press(key.NameEscape, 0))
+	if h.u.edit != nil {
+		t.Fatal("its esc closes it")
+	}
+	h.u.inPane(&d.p, func() { h.u.newCard(0) }) // a new-card dialog there: esc closes it unsaved
+	w.frame()
+	w.send(press(key.NameEscape, 0))
+	if h.u.edit != nil {
+		t.Fatal("esc closes a new card there")
+	}
+	w.click("pnDraw")
+	if d.p.view != "drc:"+id {
+		t.Fatalf("drawings: %q", d.p.view)
+	}
+	dst, _ := h.drawing("plan") // a drawing open there: esc goes to it
+	h.u.mainPane.view, d.p.view = "", "draw:"+dst.path
+	w.frame()
+	w.send(press(key.NameEscape, 0))
+	if d.p.view == "" {
+		t.Fatalf("esc is the drawing's first: it backs out its own way, not to the session")
+	}
+	d.p.view = "sess:" + id // the way the workspace comes back
+	w.frame()
+	d.p.sub, d.p.rail = "x", true
+	w.send(press(key.NameEscape, 0))
+	w.send(press(key.NameEscape, 0))
+	if d.p.sub != "" || d.p.rail {
+		t.Error("then the subagent and the rail")
+	}
+	w.click("pnEdit")
+	h.u.reattach(id) // its editor closes with it
+	if h.u.edit != nil {
+		t.Error("reattaching closes its editor")
+	}
+	h.u.detach(id)
+	d = h.u.detached[id]
+	h.u.inPane(&d.p, func() { h.u.newCard(0) })
+	h.u.reattach(id)
+	if h.u.edit != nil {
+		t.Error("and a new card's dialog")
+	}
+}
+
+// TestDetachedTerminal: a terminal shown in a detached window redraws
+// that window on its output, not the main one, and takes esc itself.
+func TestDetachedTerminal(t *testing.T) {
+	h := newHarness(t)
+	fakeWindows(t)
+	id := h.u.b.Add(0, kanban.Card{Title: "a"}).ID
+	h.u.detach(id)
+	d := h.u.detached[id]
+	w := &dwin{h: h, d: d}
+	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
+		return term.Start(prog("cat"), w, ht, notify)
+	}
+	defer func() { startTerm = term.Start }()
+	w.click("pnTerm")
+	defer h.u.closeTerm(id)
+	if d.p.view != "term:"+id || h.u.mainPane.view != "" {
+		t.Fatalf("the terminal opens in its window: %q, main %q", d.p.view, h.u.mainPane.view)
+	}
+	w.frame()
+	if d.shownTerm.Load() != id {
+		t.Fatal("the window says which terminal it shows")
+	}
+	g := h.u.termGen.Load()
+	h.u.termNotify(id, nil)
+	if h.u.termGen.Load() == g {
+		t.Error("its output asks for a frame")
+	}
+	g = h.u.termGen.Load()
+	h.u.termNotify("other", nil)
+	if h.u.termGen.Load() != g {
+		t.Error("a hidden terminal's output asks nothing")
+	}
+	w.send(press(key.NameEscape, 0))
+	if d.p.view != "term:"+id {
+		t.Error("esc goes to the terminal")
+	}
+}
+
+// TestHyprFocus: on Hyprland the window is found among the clients by pid
+// and title and focused through the socket: hl.dsp.focus, else the older
+// focuswindow; nothing off Hyprland or without the window.
+func TestHyprFocus(t *testing.T) {
+	t.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "")
+	if hyprFocus("x") {
+		t.Fatal("off Hyprland")
+	}
+	rt, err := os.MkdirTemp("", "hy") // short: a socket path has a limit
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(rt)
+	os.MkdirAll(filepath.Join(rt, "hypr", "sig"), 0o700)
+	t.Setenv("XDG_RUNTIME_DIR", rt)
+	t.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "sig")
+	if hyprFocus("x") {
+		t.Fatal("no socket")
+	}
+	l, err := net.Listen("unix", filepath.Join(rt, "hypr", "sig", ".socket.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	clients, lua := "", "ok"
+	var got []string
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			b := make([]byte, 512)
+			n, _ := c.Read(b)
+			req := string(b[:n])
+			got = append(got, req)
+			switch {
+			case req == "j/clients":
+				io.WriteString(c, clients)
+			case strings.Contains(req, "hl.dsp.focus"):
+				io.WriteString(c, lua)
+			default:
+				io.WriteString(c, "ok")
+			}
+			c.Close()
+		}
+	}()
+	clients = "not json"
+	if hyprFocus("DESK-1 · a") {
+		t.Error("bad clients")
+	}
+	clients = fmt.Sprintf(`[{"address":"0xa","pid":%d,"title":"other"},{"address":"0xb","pid":1,"title":"DESK-1 · a"},{"address":"0xc","pid":%d,"title":"DESK-1 · a"}]`, os.Getpid(), os.Getpid())
+	if !hyprFocus("DESK-1 · a") || !strings.Contains(got[len(got)-1], "address:0xc") {
+		t.Errorf("Lua focus: %q", got)
+	}
+	lua = "error"
+	if !hyprFocus("DESK-1 · a") || got[len(got)-1] != "dispatch focuswindow address:0xc" {
+		t.Errorf("older focus: %q", got)
+	}
+	if hyprFocus("DESK-9 · gone") {
+		t.Error("no such window")
 	}
 }

@@ -41,9 +41,12 @@ import (
 type ui struct {
 	*pane    // the window being laid out's own state: mainPane, or a detached session's (detach.go)
 	mainPane pane
-	detached map[string]*detached // cards whose session has its own window, by card
-	mu       sync.Mutex           // held by each window's event loop while it handles an event: they share u
-	closing  bool                 // desk is quitting: its detached windows close without reattaching
+	detached map[string]*detached        // cards whose session has its own window, by card
+	mu       sync.Mutex                  // held by each window's event loop while it handles an event: they share u
+	closing  bool                        // desk is quitting: its detached windows close without reattaching
+	wins     atomic.Pointer[[]*detached] // the detached windows, for other goroutines (listWins)
+	infraBy  string                      // the detached card whose window draws the infra workspace, "" the main one's
+	infraWin atomic.Pointer[app.Window]  // that window, for infra's redraws
 	w        *app.Window
 	// reopen applies the window's options again before a lost window opens
 	// anew (Gio drops them once used); drew says the window drew since.
@@ -56,8 +59,7 @@ type ui struct {
 	root, home string   // the organizations' folder; the user's home (Claude profiles)
 	orgList    []string // the organizations, read at start
 
-	view       string // the sidebar's pick (see views.go); "" all cards
-	side       bool   // the sidebar shows
+	side       bool // the sidebar shows
 	search     widget.Editor
 	sel, hover string      // the keyboard's card; the one under the pointer
 	lastOrg    string      // the organization of the last card saved: new cards start there
@@ -226,7 +228,7 @@ var Version = "dev"
 
 // startInfra starts the infra workspace and the card tools' socket.
 func (u *ui) startInfra() {
-	u.infra = infra.New(u.root, u.w.Invalidate)
+	u.infra = infra.New(u.root, u.infraWake)
 	u.infra.OnInvestigate(func(org, host, service, state, output string, since time.Time) {
 		u.later(func() { u.investigate(org, host, service, state, output, "", since) })
 	})
@@ -455,28 +457,7 @@ func (u *ui) frame(gtx layout.Context) {
 			if u.side {
 				kids = append(kids, layout.Rigid(u.sidebar), layout.Rigid(kit.HGap(1)))
 			}
-			main := u.board
-			if u.view == viewArchive {
-				main = u.archive
-			} else if strings.HasPrefix(u.view, "tk:") {
-				main = u.ticketsView
-			} else if strings.HasPrefix(u.view, "al:") {
-				main = u.alertsView
-			} else if strings.HasPrefix(u.view, "ci:") {
-				main = u.ciView
-			} else if strings.HasPrefix(u.view, "srv:") {
-				main = u.serversView
-			} else if strings.HasPrefix(u.view, "term:") {
-				main = u.termView
-			} else if strings.HasPrefix(u.view, "sess:") {
-				main = u.sessionView
-			} else if strings.HasPrefix(u.view, "ws:") {
-				main = u.wsView
-			} else if strings.HasPrefix(u.view, "dr:") || strings.HasPrefix(u.view, "drc:") {
-				main = u.drawingsView
-			} else if strings.HasPrefix(u.view, "draw:") {
-				main = u.drawView
-			}
+			main := u.mainView()
 			kids = append(kids, layout.Flexed(1, main))
 			if u.panel != "" && !strings.HasPrefix(u.view, "term:") && !strings.HasPrefix(u.view, "sess:") && !strings.HasPrefix(u.view, "ws:") && !strings.HasPrefix(u.view, "draw:") {
 				kids = append(kids, layout.Rigid(kit.HGap(1)), layout.Rigid(u.chatPanel))
@@ -493,6 +474,33 @@ func (u *ui) frame(gtx layout.Context) {
 		u.post = nil
 		f()
 	}
+}
+
+// mainView is what the window's main area shows for u.view.
+func (u *ui) mainView() layout.Widget {
+	main := u.board
+	if u.view == viewArchive {
+		main = u.archive
+	} else if strings.HasPrefix(u.view, "tk:") {
+		main = u.ticketsView
+	} else if strings.HasPrefix(u.view, "al:") {
+		main = u.alertsView
+	} else if strings.HasPrefix(u.view, "ci:") {
+		main = u.ciView
+	} else if strings.HasPrefix(u.view, "srv:") {
+		main = u.serversView
+	} else if strings.HasPrefix(u.view, "term:") {
+		main = u.termView
+	} else if strings.HasPrefix(u.view, "sess:") {
+		main = u.sessionView
+	} else if strings.HasPrefix(u.view, "ws:") {
+		main = u.wsView
+	} else if strings.HasPrefix(u.view, "dr:") || strings.HasPrefix(u.view, "drc:") {
+		main = u.drawingsView
+	} else if strings.HasPrefix(u.view, "draw:") {
+		main = u.drawView
+	}
+	return main
 }
 
 // save writes the board; a failure shows rather than losing the change
