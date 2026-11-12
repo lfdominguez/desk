@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -57,9 +58,14 @@ type fakePassbolt struct {
 	logins         int
 	deny           bool // resources.json always refuses
 	noMFACookie    bool // a TOTP accepted without the passbolt_mfa cookie
+	resources      []map[string]any
+	lists, bulk    int // metadata lists; lists with every secret (never wanted)
 }
 
-const pbToken = "gpgauthv1.3.0|36|00000000-0000-4000-8000-000000000000|gpgauthv1.3.0"
+const (
+	pbToken = "gpgauthv1.3.0|36|00000000-0000-4000-8000-000000000000|gpgauthv1.3.0"
+	pbVPN   = "9b2c5f0e-1d2a-4c3b-8e4f-5a6b7c8d9e0f"
+)
 
 func newFakePassbolt(t *testing.T, key *crypto.Key, mfa bool) *fakePassbolt {
 	pgp := crypto.PGP()
@@ -76,14 +82,14 @@ func newFakePassbolt(t *testing.T, key *crypto.Key, mfa bool) *fakePassbolt {
 	resources := []map[string]any{
 		{"id": "r0", "name": "Folder link"}, // no secret of the user's
 		{"id": "r1", "name": "Acme mail", "username": "me", "uri": "https://mail.acme.example.com", "description": "the note", "secrets": []map[string]string{{"data": enc("pw1")}}},
-		{"id": "r2", "name": "Globex VPN", "username": "vpn-me", "secrets": []map[string]string{{"data": enc("pw2")}}},
+		{"id": pbVPN, "name": "Globex VPN", "username": "vpn-me", "secrets": []map[string]string{{"data": enc("pw2")}}},
 		{"id": "r3", "name": "Broken", "secrets": []map[string]string{{"data": "not pgp"}}},
 		// v5: metadata encrypted to the user's key, with a custom field
 		{"id": "r4", "metadata_key_type": "user_key", "secrets": []map[string]string{{"data": enc("pw4")}},
 			"metadata": enc(`{"name":"Initech API","custom_fields":[{"id":"f1","metadata_key":"pin","metadata_value":"4242"}]}`)},
 		{"id": "r5", "metadata_key_type": "user_key", "metadata": "not pgp"}, // unreadable metadata
 	}
-	f := &fakePassbolt{mfa: mfa}
+	f := &fakePassbolt{mfa: mfa, resources: resources}
 	reply := func(w http.ResponseWriter, code int, body any) {
 		h := map[string]any{"status": "success", "code": code}
 		if code != 200 {
@@ -149,8 +155,17 @@ func newFakePassbolt(t *testing.T, key *crypto.Key, mfa bool) *fakePassbolt {
 				return
 			}
 			q := r.URL.Query()
-			var out []map[string]any
-			for _, res := range resources {
+			ids := q["filter[has-id][]"]
+			if len(ids) == 0 && q.Get("contain[secret]") != "" {
+				f.bulk++
+			} else if len(ids) == 0 {
+				f.lists++
+			}
+			out := []map[string]any{}
+			for _, res := range f.resources {
+				if len(ids) > 0 && !slices.Contains(ids, res["id"].(string)) {
+					continue
+				}
 				o := map[string]any{}
 				for k, v := range res {
 					if k != "secrets" || q.Get("contain[secret]") != "" {
@@ -209,7 +224,7 @@ func TestPassbolt(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range [][3]string{
-		{"Acme mail", "", "pw1"}, {"Globex VPN", "password", "pw2"}, {"r2", "username", "vpn-me"},
+		{"Acme mail", "", "pw1"}, {"Globex VPN", "password", "pw2"}, {pbVPN, "username", "vpn-me"},
 		{"Acme mail", "uri", "https://mail.acme.example.com"}, {"Acme mail", "notes", "the note"},
 		{"Acme mail", "description", "the note"}, {"Initech API", "", "pw4"}, {"Initech API", "pin", "4242"},
 	} {
@@ -218,7 +233,7 @@ func TestPassbolt(t *testing.T) {
 		}
 	}
 	for _, c := range [][3]string{
-		{"Acme mail", "pin", `has no field "pin"`}, {"Initech", "", `no item "Initech"`}, {"Broken", "", "decrypt"},
+		{"Acme mail", "pin", `has no field "pin"`}, {"Initech", "", `no such item "Initech"`}, {"Broken", "", "decrypt"},
 	} {
 		if _, err := Get(ctx, v, c[0], c[1]); err == nil || !strings.Contains(err.Error(), c[2]) {
 			t.Errorf("%s %s: %v", c[0], c[1], err)
@@ -235,7 +250,7 @@ func TestPassbolt(t *testing.T) {
 		}
 		return strings.Join(ns, ",")
 	}
-	const all = "r0:Folder link::,r1:Acme mail:me:the note,r2:Globex VPN:vpn-me:,r3:Broken::,r4:Initech API::"
+	const all = "r0:Folder link::,r1:Acme mail:me:the note," + pbVPN + ":Globex VPN:vpn-me:,r3:Broken::,r4:Initech API::"
 	if got := names(); got != all {
 		t.Errorf("list: %s", got)
 	}
@@ -251,7 +266,7 @@ func TestPassbolt(t *testing.T) {
 
 	f.expire()
 	f.forget()
-	if _, err := Get(ctx, v, "r2", ""); !errors.As(err, &locked) || !locked.Code {
+	if _, err := Get(ctx, v, pbVPN, ""); !errors.As(err, &locked) || !locked.Code {
 		t.Errorf("forgotten code: want locked for a code, got %v", err)
 	}
 	f.expire()
@@ -339,7 +354,50 @@ func TestPassboltDenied(t *testing.T) {
 	if es, err := o.list(ctx); err == nil || es != nil {
 		t.Errorf("list: %v %v", es, err)
 	}
-	if s, err := o.item(ctx, "Globex VPN", ""); err == nil || s != "" {
-		t.Errorf("item: %q %v", s, err)
+	for _, name := range []string{"Globex VPN", pbVPN} { // the list, then the one resource by id
+		if s, err := o.item(ctx, name, ""); err == nil || s != "" {
+			t.Errorf("item %s: %q %v", name, s, err)
+		}
 	}
+}
+
+// TestPassboltFetchesOne: an item is read without fetching every secret:
+// an id directly, a name through one metadata list a session, learnt again
+// when the name is gone or moved to another resource; a resource without
+// a secret of the user's is no item.
+func TestPassboltFetchesOne(t *testing.T) {
+	key, armored := pbKey(t, "secret")
+	f := newFakePassbolt(t, key, false)
+	keyFile := filepath.Join(t.TempDir(), "key.asc")
+	os.WriteFile(keyFile, []byte(armored), 0o600)
+	ctx := context.Background()
+	o, err := openPassbolt(ctx, orgs.Vault{URL: f.URL, KeyFile: keyFile}, "secret", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func(name, want string, lists int) {
+		t.Helper()
+		got, err := o.item(ctx, name, "")
+		if want == "" && (err == nil || !strings.Contains(err.Error(), "no such item")) || want != "" && got != want {
+			t.Errorf("%s: %q %v", name, got, err)
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.lists != lists || f.bulk != 0 {
+			t.Errorf("%s: %d lists (want %d), %d with every secret", name, f.lists, lists, f.bulk)
+		}
+	}
+	edit := func(fn func()) { f.mu.Lock(); fn(); f.mu.Unlock() }
+	get(pbVPN, "pw2", 0)
+	get("Acme mail", "pw1", 1)
+	get("Globex VPN", "pw2", 1)
+	get("Folder link", "", 2)
+	edit(func() { f.resources[2]["name"] = "Globex VPN 2" })
+	get("Globex VPN", "", 3)
+	get("Globex VPN 2", "pw2", 3)
+	edit(func() { // Acme mail deleted, its name given to the VPN
+		f.resources = slices.Delete(f.resources, 1, 2)
+		f.resources[1]["name"] = "Acme mail"
+	})
+	get("Acme mail", "pw2", 4)
 }

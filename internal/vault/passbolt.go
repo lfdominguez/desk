@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -20,8 +21,9 @@ import (
 // passbolt is a logged-in Passbolt client; its session is renewed on a
 // failure, since the key and passphrase stay in it.
 type passbolt struct {
-	mu sync.Mutex
-	c  *api.Client
+	mu  sync.Mutex
+	c   *api.Client
+	ids map[string]string // a resource's name or id → its id: learn
 }
 
 // cliConfig is the part of a go-passbolt-cli config desk uses (the CLI's
@@ -105,7 +107,7 @@ func (p *passbolt) item(ctx context.Context, name, field string) (string, error)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	s, err := p.find(ctx, name, field)
-	if err != nil { // the session may have expired: log in again (the remembered MFA cookie skips the code)
+	if err != nil && !errors.Is(err, errNoItem) { // the session may have expired: log in again (the remembered MFA cookie skips the code)
 		if lerr := p.c.Login(ctx); errors.Is(lerr, errNeedCode) {
 			return "", lerr
 		} else if lerr == nil {
@@ -140,37 +142,86 @@ func (p *passbolt) list(ctx context.Context) ([]Entry, error) {
 	return out, nil
 }
 
-func (p *passbolt) find(ctx context.Context, name, field string) (string, error) {
-	rs, err := p.c.GetResources(ctx, &api.GetResourcesOptions{ContainSecret: true, ContainResourceType: true})
+// isUUID is a Passbolt resource id, which can be fetched without a list.
+var isUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// learn maps every resource's id and name to its id, from the metadata
+// list (no secrets: fetching them all took seconds on a large vault).
+func (p *passbolt) learn(ctx context.Context) error {
+	rs, err := p.c.GetResources(ctx, &api.GetResourcesOptions{ContainResourceType: true})
 	if err != nil {
-		return "", err
+		return err
 	}
+	p.ids = map[string]string{}
 	for _, r := range rs {
-		if len(r.Secrets) == 0 {
-			continue
-		}
-		if r.ID != name { // names of v5 resources are encrypted: read them, not yet the secret
-			_, meta, _, err := helper.GetResourceFieldMaps(p.c, r, r.Secrets[0], r.ResourceType, false)
-			if err != nil || helper.GetStringField(meta, "name") != name {
-				continue
+		p.ids[r.ID] = r.ID
+		if _, meta, _, err := helper.GetResourceFieldMaps(p.c, r, api.Secret{}, r.ResourceType, false); err == nil {
+			if n := helper.GetStringField(meta, "name"); p.ids[n] == "" { // the first of equal names, as before
+				p.ids[n] = r.ID
 			}
 		}
-		_, meta, sec, err := helper.GetResourceFieldMaps(p.c, r, r.Secrets[0], r.ResourceType, true)
-		if err != nil {
+	}
+	return nil
+}
+
+// one is resource id with its secret and type, in one request.
+func (p *passbolt) one(ctx context.Context, id string) (*api.Resource, error) {
+	rs, err := p.c.GetResources(ctx, &api.GetResourcesOptions{FilterHasID: []string{id}, ContainSecret: true, ContainResourceType: true})
+	if err != nil {
+		return nil, err
+	}
+	if len(rs) == 0 || len(rs[0].Secrets) == 0 {
+		return nil, nil
+	}
+	return &rs[0], nil
+}
+
+// find reads field of the resource named (or with id) name: its id from
+// p.ids (learnt once a session, again when a name is missing or moved),
+// then only that resource's secret.
+func (p *passbolt) find(ctx context.Context, name, field string) (string, error) {
+	id, known := p.ids[name]
+	if !known && isUUID.MatchString(name) {
+		id, known = name, true
+	}
+	var r *api.Resource
+	var meta, sec map[string]any
+	for try := 0; ; try++ {
+		if !known {
+			if err := p.learn(ctx); err != nil {
+				return "", err
+			}
+			if id = p.ids[name]; id == "" {
+				return "", fmt.Errorf("%w %q", errNoItem, name)
+			}
+		}
+		var err error
+		if r, err = p.one(ctx, id); err != nil {
 			return "", err
 		}
-		switch field {
-		case "", "password":
-			return helper.GetStringField(sec, "password"), nil
-		case "username", "uri", "description":
-			return helper.GetStringField(meta, field), nil
-		case "notes":
-			return helper.GetStringField(meta, "description"), nil
+		if r != nil {
+			if _, meta, sec, err = helper.GetResourceFieldMaps(p.c, *r, r.Secrets[0], r.ResourceType, true); err != nil {
+				return "", err
+			}
+			if r.ID == name || helper.GetStringField(meta, "name") == name {
+				break
+			}
 		}
-		if v, ok := helper.ParseCustomFields(meta, sec).Map()[field]; ok {
-			return v, nil
+		if !known || try > 0 { // gone, renamed, or no secret of ours even after a fresh list
+			return "", fmt.Errorf("%w %q", errNoItem, name)
 		}
-		return "", fmt.Errorf("%q has no field %q", name, field)
+		known = false
 	}
-	return "", fmt.Errorf("no item %q", name)
+	switch field {
+	case "", "password":
+		return helper.GetStringField(sec, "password"), nil
+	case "username", "uri", "description":
+		return helper.GetStringField(meta, field), nil
+	case "notes":
+		return helper.GetStringField(meta, "description"), nil
+	}
+	if v, ok := helper.ParseCustomFields(meta, sec).Map()[field]; ok {
+		return v, nil
+	}
+	return "", fmt.Errorf("%q has no field %q", name, field)
 }
