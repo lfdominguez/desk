@@ -230,7 +230,7 @@ func init() {
 			time.Sleep(1500 * time.Millisecond)
 			s.settle()
 			s.shot("srv-hostkey", cut{"box", dp(434, 403, 998, 650), true})
-			s.clickAt(f32.Pt(1160, 925), pointer.ButtonPrimary) // Accept new key
+			s.clickAt(f32.Pt(1160, 1010), pointer.ButtonPrimary) // Accept new key
 			srvState(s, "db-02", infra.Connected, 15*time.Second)
 			s.shot("srv-hostkey-accepted")
 		}},
