@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Passbolt items are read in about a tenth of a second instead of several: desk no longer downloads
+  every secret of the vault to find one, but only the item's own (a name is looked up once per
+  session in the list of names; an item's id goes straight to it).
+
 ## [2026.11.11.1] - 2026-11-11
 
 ### Fixed
