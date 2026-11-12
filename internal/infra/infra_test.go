@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testtmp"
 	"github.com/lfdominguez/desk/internal/testwait"
 	"image"
 	"image/color"
@@ -1405,7 +1406,7 @@ func TestMain(m *testing.M) {
 		os.Exit(255)
 	}
 	desktopNotify = func(string, string) {} // tests never reach the desktop
-	state, _ := os.MkdirTemp("", "desk-test-state")
+	state, _ := testtmp.Dir("desk-test-state")
 	os.Setenv("XDG_STATE_HOME", state)  // nor the user's state: recordings, audit, session
 	os.Setenv("XDG_CONFIG_HOME", state) // nor desk's settings: the folders to search
 	os.Setenv("HOME", state)            // nor the user's home: ~/.claude.json, ~/Secure

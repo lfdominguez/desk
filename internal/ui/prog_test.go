@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/term"
+	"github.com/lfdominguez/desk/internal/testtmp"
 )
 
 // TestMain doubles as the programs tests run in terminals (prog), so they
@@ -26,12 +27,12 @@ func TestMain(m *testing.M) {
 	if s, ok := os.LookupEnv("DESK_UI_FAKE_" + strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")); ok {
 		os.Exit(fakeScript(s, os.Args[1:])) // fakeBin's program, on Windows
 	}
-	fakeDir, _ = os.MkdirTemp("", "desk-ui-fakes")
+	fakeDir, _ = testtmp.Dir("desk-ui-fakes")
 	// A -cover test binary run without GOCOVERDIR (qa mutate's runs) would
 	// end each prog with a warning on its terminal.
 	var cover string
 	if os.Getenv("GOCOVERDIR") == "" {
-		cover, _ = os.MkdirTemp("", "desk-ui-cover")
+		cover, _ = testtmp.Dir("desk-ui-cover")
 		os.Setenv("GOCOVERDIR", cover)
 	}
 	code := m.Run()

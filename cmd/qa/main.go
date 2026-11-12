@@ -23,6 +23,7 @@ import (
 	"maps"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -31,7 +32,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/testtmp"
 )
 
 // floors is each package's coverage (%) that cover refuses to go under:
@@ -49,6 +53,7 @@ var floors = map[string]float64{
 	"github.com/lfdominguez/desk/internal/sshc":      95,
 	"github.com/lfdominguez/desk/internal/sshconfig": 97,
 	"github.com/lfdominguez/desk/internal/term":      98,
+	"github.com/lfdominguez/desk/internal/testtmp":   100,
 	"github.com/lfdominguez/desk/internal/testwait":  100,
 	"github.com/lfdominguez/desk/internal/tty":       100,
 	"github.com/lfdominguez/desk/internal/ui":        99,
@@ -380,11 +385,12 @@ func mutate(args []string) error {
 	if fl.NArg() == 0 {
 		return fmt.Errorf("give the package folders, e.g. ./internal/fzf")
 	}
-	tmp, err := os.MkdirTemp("", "qa-mutate")
+	tmp, err := testtmp.Dir("qa-mutate")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
+	defer onInterrupt(tmp)()
 	for _, dir := range fl.Args() {
 		pkg := "./" + filepath.Clean(dir)
 		start := time.Now()
@@ -469,6 +475,7 @@ func testsByLine(pkg, dir, tmp string, jobs int) (*coverage, error) {
 				prof := fmt.Sprintf("%s.%d.cov", bin, i)
 				cmd := exec.Command(bin, "-test.run", "^"+names[i]+"$", "-test.count=1", "-test.coverprofile="+prof)
 				cmd.Dir = dir
+				cmd.Env = append(os.Environ(), "TMPDIR="+tmp) // what a test that crashes leaves goes with tmp
 				err := cmd.Run()
 				data, _ := os.ReadFile(prof)
 				mu.Lock()
@@ -553,6 +560,7 @@ func try(pkg string, m mutant, dir string, limit time.Duration, run string) resu
 	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
 	out, err := gotest(ctx, pkg, ov, run)
+	os.RemoveAll(filepath.Join(dir, "tmp")) // what the mutant's run left (gotest's TMPDIR)
 	switch {
 	case ctx.Err() != nil:
 		return timedOut
@@ -560,12 +568,30 @@ func try(pkg string, m mutant, dir string, limit time.Duration, run string) resu
 		return survived
 	case bytes.Contains(out, []byte("no space left on device")):
 		fmt.Printf("disk full, stopping:\n%s", out)
+		os.RemoveAll(filepath.Dir(dir)) // exit skips mutate's deferred RemoveAll
 		exit(1)
 		return invalid
 	case bytes.Contains(out, []byte("[build failed]")) || bytes.Contains(out, []byte("[setup failed]")):
 		return invalid
 	}
 	return killed
+}
+
+// onInterrupt removes tmp and ends qa on Ctrl+C or SIGTERM, which skip
+// mutate's deferred RemoveAll; stop undoes it.
+func onInterrupt(tmp string) (stop func()) {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-sig:
+			os.RemoveAll(tmp)
+			exit(130)
+		case <-done:
+		}
+	}()
+	return func() { signal.Stop(sig); close(done) }
 }
 
 // mutantWait is internal/testwait's limit under a mutant: a test it makes
@@ -578,8 +604,12 @@ func gotest(ctx context.Context, pkg, overlay, run string) ([]byte, error) {
 	if overlay != "" {
 		args = append(args, "-overlay", overlay)
 		// a mutant's builds go to its worker's own cache, not the user's;
-		// a wait it breaks fails in seconds (internal/testwait), not minutes
-		cmd.Env = append(os.Environ(), "GOCACHE="+filepath.Join(filepath.Dir(overlay), "cache"), "DESK_TEST_WAIT="+mutantWait)
+		// a wait it breaks fails in seconds (internal/testwait), not minutes;
+		// its temp folders (go's and the tests', left when a mutant crashes
+		// them) to its worker's tmp, which try empties
+		wdir := filepath.Dir(overlay)
+		os.MkdirAll(filepath.Join(wdir, "tmp"), 0o755)
+		cmd.Env = append(os.Environ(), "GOCACHE="+filepath.Join(wdir, "cache"), "TMPDIR="+filepath.Join(wdir, "tmp"), "DESK_TEST_WAIT="+mutantWait)
 	}
 	if run != "" {
 		args = append(args, "-run", run)

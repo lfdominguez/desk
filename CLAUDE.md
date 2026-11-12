@@ -168,7 +168,9 @@ go.mod, flake.nix, LICENSE, docs and `cmd/` / `internal/` / `third_party/` / `pl
   `ABC-123`; hosts in 192.0.2.0/24 or `*.example.com`; a skill `team-tools:work-ticket`. No
   personal paths or usernames either: `$DESK_ROOT`, `~/`, `/home/me`. Live checks against real
   accounts are throwaway tests, and what they show stays out of the repo. The repo is public.
-- Tests write only under `t.TempDir()` (a test that unsets `HOME` also `t.Chdir`s into one).
+- Tests write only under `t.TempDir()` (a test that unsets `HOME` also `t.Chdir`s into one). A
+  `TestMain`'s own folder comes from `internal/testtmp`'s `Dir`, which removes those of test
+  binaries that died before cleaning up (a panic or a timeout skips what follows `m.Run`).
 - The window owns the board on Gio's event goroutine (each window's loop, a detached session's too,
   handles its events under `u.mu`); change it there, then `u.save()`. Goroutines (Claude events,
   link checks) hand work over with `u.later(func(){…})`, never touch `u.b` directly. Per-window state

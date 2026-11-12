@@ -3,6 +3,7 @@ package term
 import (
 	"bufio"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/testtmp"
 	"github.com/lfdominguez/desk/internal/testwait"
 	"os"
 	"os/exec"
@@ -21,7 +22,7 @@ func TestMain(m *testing.M) {
 		// A -cover test binary run without GOCOVERDIR (qa mutate's runs)
 		// would end each helper with a warning on its screen.
 		if os.Getenv("GOCOVERDIR") == "" {
-			d, _ := os.MkdirTemp("", "desk-term-cover")
+			d, _ := testtmp.Dir("desk-term-cover")
 			os.Setenv("GOCOVERDIR", d)
 			code := m.Run()
 			os.RemoveAll(d)
