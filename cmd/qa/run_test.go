@@ -5,9 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/testwait"
 )
 
 // stdout returns what f printed.
@@ -269,6 +272,8 @@ func TestTry(t *testing.T) {
 		t.Errorf("mutant: %v, want killed", r)
 	} else if _, err := os.Stat(filepath.Join(w, "cache")); err != nil {
 		t.Errorf("no worker cache: %v", err)
+	} else if _, err := os.Stat(filepath.Join(w, "tmp")); err == nil {
+		t.Error("the mutant's temp folder stayed")
 	}
 	defer func() { exit = os.Exit }()
 	code := 0
@@ -278,6 +283,35 @@ func TestTry(t *testing.T) {
 	stdout(t, func() { try("./internal/a", m, w, time.Minute, "") })
 	if code != 1 {
 		t.Errorf("disk full: exit %d, want 1", code)
+	}
+	if _, err := os.Stat(w); err == nil {
+		t.Error("disk full: the run's folder stayed")
+	}
+}
+
+// TestOnInterrupt: Ctrl+C removes the run's folder and ends qa.
+func TestOnInterrupt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no signals to send itself on Windows")
+	}
+	defer func() { exit = os.Exit }()
+	code := make(chan int, 1)
+	exit = func(c int) { code <- c }
+	tmp := t.TempDir()
+	stop := onInterrupt(tmp)
+	defer stop()
+	self, _ := os.FindProcess(os.Getpid())
+	self.Signal(os.Interrupt)
+	select {
+	case c := <-code:
+		if c != 130 {
+			t.Errorf("exit %d, want 130", c)
+		}
+	case <-time.After(testwait.Long):
+		t.Fatal("no exit")
+	}
+	if _, err := os.Stat(tmp); err == nil {
+		t.Error("the folder stayed")
 	}
 }
 
