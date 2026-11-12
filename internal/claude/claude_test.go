@@ -56,6 +56,21 @@ func TestParseUsage(t *testing.T) {
 	}
 }
 
+// TestParseCompact: a compaction's start (status compacting) and end
+// (compact_boundary, with its sizes); other statuses are no news.
+func TestParseCompact(t *testing.T) {
+	if e := Parse([]byte(`{"type":"system","subtype":"status","status":"compacting"}`)); len(e) != 1 || e[0].Kind != KindCompact || e[0].Text != "" {
+		t.Fatalf("start %+v", e)
+	}
+	if e := Parse([]byte(`{"type":"system","subtype":"status","status":null,"compact_result":"success"}`)); len(e) != 0 {
+		t.Fatalf("status null %+v", e)
+	}
+	e := Parse([]byte(`{"type":"system","subtype":"compact_boundary","compact_metadata":{"trigger":"manual","pre_tokens":120000,"post_tokens":9000}}`))
+	if len(e) != 1 || e[0].Kind != KindCompact || e[0].Text != "done" || e[0].Tokens != 120000 || e[0].Context != 9000 {
+		t.Fatalf("end %+v", e)
+	}
+}
+
 // TestParseShellOutWindows: a background shell's output file on Windows
 // (backslashes, doubled in the JSON) comes whole; the sentence's period
 // isn't part of it.

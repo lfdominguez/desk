@@ -35,6 +35,7 @@ const (
 	KindArtifact = "artifact" // Text is the URL of an artifact Claude published
 	KindTask     = "task"     // a subagent or background shell started or changed: Task
 	KindToolDone = "tooldone" // a tool use (ToolID, a subagent's when Parent) has its result
+	KindCompact  = "compact"  // a compaction started (/compact, or near the window), or with Text "done" ended: Tokens before, Context after (0 when not told)
 )
 
 // shellOut is where a background shell's tool result says its output goes.
@@ -169,6 +170,10 @@ func Parse(line []byte) []Event {
 		Models map[string]struct {
 			Window int `json:"contextWindow"`
 		} `json:"modelUsage"`
+		Compact struct {
+			Pre  int `json:"pre_tokens"`
+			Post int `json:"post_tokens"`
+		} `json:"compact_metadata"`
 		RequestID string `json:"request_id"`
 		Request   struct {
 			Subtype string          `json:"subtype"`
@@ -200,6 +205,13 @@ func Parse(line []byte) []Event {
 			switch ev.Subtype {
 			case "init":
 				return []Event{{Kind: KindInit, Session: ev.Session}}
+			case "status": // the only status that lasts: "compacting"
+				if ev.Status != "compacting" {
+					return nil
+				}
+				return []Event{{Kind: KindCompact}}
+			case "compact_boundary":
+				return []Event{{Kind: KindCompact, Text: "done", Tokens: ev.Compact.Pre, Context: ev.Compact.Post}}
 			case "task_started":
 				t.ToolUse, t.Shell, t.Name, t.Agent, t.Prompt, t.Status = ev.ToolUseID, ev.TaskType == "local_bash", ev.Description, ev.Subagent, ev.Prompt, "running"
 			case "task_progress":

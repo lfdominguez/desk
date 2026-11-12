@@ -935,6 +935,56 @@ func TestCardToolBadConfig(t *testing.T) {
 
 // ---- sessions ----
 
+// TestCompact: the composer's Compact sends /compact and notes it on the
+// card; Claude Code's start keeps the note, its end says the sizes in the
+// chat and sets the context; Compact shows only with a conversation and
+// Claude free.
+func TestCompact(t *testing.T) {
+	h := newHarness(t)
+	c := h.u.b.Add(h.u.b.Column("Review"), kanban.Card{Title: "x", Org: "Acme", Status: kanban.StatusWaiting})
+	id := c.ID
+	card := func() *kanban.Card { return h.u.b.Card(id) }
+	f := &fakeClaude{}
+	h.u.procs[id] = f
+	h.u.say(id, "you", "hi")
+	sz := image.Pt(700, 900)
+	pane := func(gtx layout.Context) layout.Dimensions { return h.u.chatPane(gtx, id, 700, false) }
+	foot := image.Rect(0, 700, 700, 900)
+
+	shown := func() bool {
+		h.draw(sz, pane)
+		return h.count("Compact", foot) > 0
+	}
+	if shown() {
+		t.Fatal("Compact before any turn")
+	}
+	card().Session.Turns = 1
+	if !shown() {
+		t.Fatal("no Compact after a turn")
+	}
+	h.clickIn(sz, foot, pane, "pnCompact")
+	if len(f.prompts) != 1 || f.prompts[0] != "/compact" || card().Note != compactingNote || card().Status != kanban.StatusWorking {
+		t.Fatalf("prompts %q card %+v", f.prompts, card())
+	}
+	if shown() {
+		t.Fatal("Compact while Claude works")
+	}
+	on := func(e claude.Event) { h.u.onEvent(id, 0, e) }
+	on(claude.Event{Kind: claude.KindCompact})
+	if card().Note != compactingNote {
+		t.Fatalf("start %+v", card())
+	}
+	on(claude.Event{Kind: claude.KindCompact, Text: "done", Tokens: 120000, Context: 9000})
+	if ms := h.u.chat(id); card().Note != "" || card().Session.Context != 9000 || !strings.HasPrefix(ms[len(ms)-1].Text, "compacted the conversation: ") {
+		t.Fatalf("end %+v %+v", card(), ms[len(ms)-1])
+	}
+	card().Note = "Reading files"
+	on(claude.Event{Kind: claude.KindCompact, Text: "done"}) // near the window, mid-turn: sizes untold, the note stays
+	if ms := h.u.chat(id); card().Note != "Reading files" || card().Session.Context != 9000 || ms[len(ms)-1].Text != "compacted the conversation" {
+		t.Fatalf("untold %+v %+v", card(), ms[len(ms)-1])
+	}
+}
+
 // TestOnEventEnds: how a turn's end leaves the card: failed with the
 // error, stopped, blocked on permissions, done; usage, artifacts and
 // cost on the card; an exit fails a working card.

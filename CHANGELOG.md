@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Compact** in a session's message box summarizes Claude's conversation (`/compact`). The card
+  says "Compacting the conversation…" while it runs, and the conversation then shows the context's
+  size before and after, also when Claude compacts by itself.
+
 ## [2026.11.12] - 2026-11-12
 
 ### Added
