@@ -6,6 +6,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.11.1] - 2026-11-11
+
+### Fixed
+
+- Card sessions and the infra Claude start when Claude Code isn't on `PATH` but is where its
+  installer puts it, `~/.local/bin` (on Windows `%USERPROFILE%\.local\bin\claude.exe`), instead of
+  failing with `executable file not found in %PATH%`.
+
 ## [2026.11.11] - 2026-11-11
 
 ### Added
@@ -291,7 +299,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.11...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.11.1...HEAD
+[2026.11.11.1]: https://github.com/lfdominguez/desk/compare/2026.11.11...2026.11.11.1
 [2026.11.11]: https://github.com/lfdominguez/desk/compare/2026.11.09.1...2026.11.11
 [2026.11.09.1]: https://github.com/lfdominguez/desk/compare/2026.11.09...2026.11.09.1
 [2026.11.09]: https://github.com/lfdominguez/desk/compare/2026.11.08...2026.11.09
