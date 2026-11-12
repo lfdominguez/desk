@@ -34,6 +34,7 @@ import (
 	"github.com/charmbracelet/x/vt"
 	"golang.org/x/image/math/fixed"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/sshc"
 )
 
@@ -731,7 +732,7 @@ func TestGMShortcut(t *testing.T) {
 	tabs := append(gmTabs("Acme", 3), gmTabs("Globex", 1)...)
 	h.set(&guiState{Tabs: tabs})
 	u.org = "Acme"
-	mod := shortcutMod
+	mod := keys.Mod
 	sc := func(name key.Name) bool { return u.shortcut(key.Event{Name: name, Modifiers: mod, State: key.Press}) }
 	if u.shortcut(key.Event{Name: "K", Modifiers: mod, State: key.Release}) || u.shortcut(key.Event{Name: "K", Modifiers: key.ModCtrl, State: key.Press}) {
 		t.Error("a release or a plain ctrl isn't a shortcut")
@@ -750,6 +751,10 @@ func TestGMShortcut(t *testing.T) {
 		if !sc(n) || len(h.acts()) != 1 {
 			t.Errorf("%s presses a key", n)
 		}
+	}
+	u.wantTerm = false
+	if sc("Y"); len(h.acts()) != 1 || !u.wantTerm {
+		t.Error("Y types the suggestion into the terminal, which takes the keys")
 	}
 	sc("S")
 	h.runActs(pm)
@@ -826,8 +831,38 @@ func TestGMShortcut(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("4 is past the org's tabs")
 	}
-	if n := map[bool]int{true: 24, false: 26}[shortcutMod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
+	if n := map[bool]int{true: 24, false: 26}[keys.Mod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
 		t.Error("filters")
+	}
+	if u.shortcut(key.Event{Name: "3", Modifiers: mod, State: key.Release}) || u.shortcut(key.Event{Name: "3", Modifiers: key.ModCtrl, State: key.Press}) || u.shortcut(key.Event{Name: "0", Modifiers: mod, State: key.Press}) {
+		t.Error("a digit's release, plain Ctrl or 0 isn't a tab")
+	}
+	if u.shortcut(key.Event{Name: "K", Modifiers: mod | key.ModAlt, State: key.Press}) {
+		t.Error("an extra Alt makes another chord")
+	}
+}
+
+// TestGMShortcutRebound: a rebinding in keys moves the workspace's key,
+// its filter and the tip that names it.
+func TestGMShortcutRebound(t *testing.T) {
+	h := newGM(t)
+	u := h.u
+	keys.Set("infra.pane", keys.Chord{Name: "N", Mods: key.ModAlt})
+	t.Cleanup(func() { keys.Load(nil) })
+	if u.shortcut(key.Event{Name: "T", Modifiers: keys.Mod, State: key.Press}) {
+		t.Error("the old chord still opens a pane")
+	}
+	if !u.shortcut(key.Event{Name: "N", Modifiers: key.ModAlt, State: key.Press}) || len(h.acts()) != 1 {
+		t.Error("Alt+N opens a pane")
+	}
+	found := false
+	for _, f := range shortcutFilters() {
+		if kf, ok := f.(key.Filter); ok && kf.Name == "N" && kf.Required == key.ModAlt {
+			found = true
+		}
+	}
+	if !found || !strings.Contains(tbTips("tbPane"), "⌥N") {
+		t.Errorf("filter %v, tip %q", found, tbTips("tbPane"))
 	}
 }
 
@@ -840,7 +875,7 @@ func TestGMCycleTab(t *testing.T) {
 		t.Helper()
 		h.set(&guiState{Tabs: tabs, Active: active})
 		u.wantTerm = false
-		if !u.shortcut(key.Event{Name: name, Modifiers: shortcutMod, State: key.Press}) || !u.wantTerm {
+		if !u.shortcut(key.Event{Name: name, Modifiers: keys.Mod, State: key.Press}) || !u.wantTerm {
 			t.Fatalf("%s from %d isn't handled", name, active)
 		}
 		m := &model{}
@@ -865,7 +900,7 @@ func TestGMCycleTab(t *testing.T) {
 	}
 	u.org = "Umbrella" // no tabs
 	h.set(&guiState{Tabs: tabs})
-	u.shortcut(key.Event{Name: key.NamePageDown, Modifiers: shortcutMod, State: key.Press})
+	u.shortcut(key.Event{Name: key.NamePageDown, Modifiers: keys.Mod, State: key.Press})
 	if len(h.acts()) != 0 {
 		t.Error("an org without tabs has none to go to")
 	}
@@ -970,7 +1005,7 @@ func TestGMFrame(t *testing.T) {
 		t.Errorf("theme %q, want %q", guiTheme, st.Theme)
 	}
 	// the window-wide shortcut handler
-	h.key("J", shortcutMod)
+	h.key("J", keys.Mod)
 	claude := u.claude
 	h.frame("Acme")
 	if u.claude == claude {
@@ -1045,13 +1080,6 @@ func TestGMDrawPrimitives(t *testing.T) {
 	}
 	h.draw(w)
 	h.hover(u.click("hv"), image.Rect(2, 2, 40, 20), 4, w)
-	want := "⌃⇧K"
-	if runtime.GOOS == "darwin" {
-		want = "⌘K"
-	}
-	if modText("K") != want {
-		t.Errorf("modText %q", modText("K"))
-	}
 }
 
 func TestGMClipboardAndToast(t *testing.T) {
@@ -1854,6 +1882,15 @@ func TestGMComposer(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("an empty question")
 	}
+	// Alt+Enter is a new line; Shift+Enter neither sends nor breaks the line
+	h.key(key.NameReturn, key.ModShift)
+	h.draw(w)
+	h.key(key.NameReturn, key.ModAlt)
+	h.draw(w)
+	if u.input.Text() != "\n" || len(h.acts()) != 0 {
+		t.Errorf("new line: box %q", u.input.Text())
+	}
+	u.input.SetText("")
 	u.wantTerm = false
 	u.toggleComposer = true // focused: back to the terminal
 	h.draw(w)
@@ -2118,7 +2155,7 @@ func TestGMTermTyping(t *testing.T) {
 	h.key("A", 0)
 	h.draw(w)
 	// a workspace shortcut pressed in the terminal
-	h.key("K", shortcutMod)
+	h.key("K", keys.Mod)
 	h.draw(w)
 	if !u.pal {
 		t.Error("the terminal hands shortcuts over")
@@ -2303,8 +2340,10 @@ func TestGMTermBlocks(t *testing.T) {
 	if got := gmClip(u); got != "a b" || !strings.Contains(u.toast, "#1") {
 		t.Errorf("shift-click copied %q, toast %q", got, u.toast)
 	}
-	// keyboard block picking: newest, older, newer, past the newest ends
-	u.selectBlock(true)
+	// keyboard block picking (the workspace's block keys): newest, older,
+	// newer, past the newest ends
+	blk := func(n key.Name) { u.shortcut(key.Event{Name: n, Modifiers: keys.Mod, State: key.Press}) }
+	blk(key.NameUpArrow)
 	if v.blockSel != 3 || !u.wantTerm {
 		t.Errorf("up picks the newest: %d", v.blockSel)
 	}
@@ -2315,7 +2354,7 @@ func TestGMTermBlocks(t *testing.T) {
 	if v.blockSel != 1 {
 		t.Errorf("up stops at #1: %d", v.blockSel)
 	}
-	u.selectBlock(false)
+	blk(key.NameDownArrow)
 	if v.blockSel != 2 {
 		t.Errorf("down: %d", v.blockSel)
 	}

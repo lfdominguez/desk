@@ -5,8 +5,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"gioui.org/io/key"
-	"gioui.org/layout"
 	"github.com/oligo/gvcode"
 )
 
@@ -152,22 +150,21 @@ func (u *ui) wsLineCmd(t *wsTab, c lineEdit) {
 
 // wsLineKeys are t's editor commands for the line commands.
 func (u *ui) wsLineKeys(t *wsTab) {
-	cmd := func(name key.Name, mods key.Modifiers, f func(r []rune, s, e int)) {
-		t.ed.RegisterCommand(t, key.Filter{Name: name, Required: mods}, func(layout.Context, key.Event) gvcode.EditorEvent {
+	cmd := func(id string, f func(r []rune, s, e int)) {
+		u.wsCmd(t, id, func() {
 			s, e := t.ed.Selection()
 			f([]rune(t.ed.Text()), s, e)
-			return nil
 		})
 	}
-	for name, d := range map[key.Name]int{key.NameUpArrow: -1, key.NameDownArrow: 1} {
-		cmd(name, key.ModAlt, func(r []rune, s, e int) {
+	for id, d := range map[string]int{"ws.lineup": -1, "ws.linedown": 1} {
+		cmd(id, func(r []rune, s, e int) {
 			if c, ok := moveLines(r, s, e, d); ok {
 				u.wsLineCmd(t, c)
 			}
 		})
 	}
-	cmd("D", key.ModShortcut|key.ModShift, func(r []rune, s, e int) { u.wsLineCmd(t, dupLines(r, s, e)) })
-	cmd("/", key.ModShortcut, func(r []rune, s, e int) {
+	cmd("ws.duplicate", func(r []rune, s, e int) { u.wsLineCmd(t, dupLines(r, s, e)) })
+	cmd("ws.comment", func(r []rune, s, e int) {
 		if p := lineComment(t.path); p != "" {
 			u.wsLineCmd(t, commentLines(r, s, e, p))
 		} else {

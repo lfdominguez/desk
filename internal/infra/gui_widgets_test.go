@@ -32,6 +32,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/x/styledtext"
 	"github.com/charmbracelet/x/vt"
+	"github.com/lfdominguez/desk/internal/keys"
 	east "github.com/yuin/goldmark/extension/ast"
 	"golang.org/x/image/math/fixed"
 )
@@ -324,6 +325,11 @@ func TestApprovalSheetVerdicts(t *testing.T) {
 	if !h.r.Source().Focused(&u.apEdit) {
 		t.Error("Edit button: the editor isn't focused")
 	}
+	u.apEdit.SetText("")
+	h.send(key.Event{Name: key.NameReturn, Modifiers: key.ModAlt, State: key.Press})
+	if u.apEdit.Text() != "\n" || wRun(u, &model{}) != 0 {
+		t.Errorf("alt+enter: %q", u.apEdit.Text())
+	}
 	u.apEdit.SetText("  systemctl reload nginx ")
 	h.send(wPress(key.NameReturn))
 	verdict(true, "systemctl reload nginx")
@@ -374,7 +380,7 @@ func TestApprovalText(t *testing.T) {
 }
 
 // TestPaletteScopes: the tabs are All and the kinds the items have (and the
-// chosen one); tab and shift+tab cycle them, a click picks one, the list and
+// chosen one); tab and ctrl+shift+tab cycle them, a click picks one, the list and
 // enter work within it.
 func TestPaletteScopes(t *testing.T) {
 	items := []guiPal{{Kind: "hosts", Label: "a"}, {Kind: "actions", Label: "b"}, {Kind: "hosts", Label: "c"}}
@@ -409,8 +415,12 @@ func TestPaletteScopes(t *testing.T) {
 		t.Errorf("tab again: scope %q sel %d", u.palScope, u.palSel)
 	}
 	h.send(key.Event{Name: key.NameTab, Modifiers: key.ModShift, State: key.Press})
+	if u.palScope != "actions" {
+		t.Errorf("shift+tab goes nowhere now: scope %q", u.palScope)
+	}
+	h.send(key.Event{Name: key.NameTab, Modifiers: key.ModShortcut | key.ModShift, State: key.Press})
 	if u.palScope != "hosts" {
-		t.Errorf("shift+tab: scope %q", u.palScope)
+		t.Errorf("ctrl+shift+tab: scope %q", u.palScope)
 	}
 	h.send(wPress(key.NameTab), wPress(key.NameTab))
 	if u.palScope != "" {
@@ -562,9 +572,14 @@ func TestPaletteSheet(t *testing.T) {
 	if u.palQ != "recordings" || u.palSel != 0 || wRun(u, m) != 1 || m.palQ != "recordings" {
 		t.Fatalf("query %q sel %d model %q", u.palQ, u.palSel, m.palQ)
 	}
-	if g := u.guiPal(); len(g) != 1 || g[0].Label != "Open recordings" {
+	if g := u.guiPal(); len(g) != 1 || g[0].Label != "Open recordings" || strings.Contains(g[0].Hint, " · ") {
 		t.Fatalf("guiPal %+v", g)
 	}
+	u.palQ = "directory split"
+	if g := u.guiPal(); len(g) != 1 || !strings.HasSuffix(g[0].Hint, " · "+keys.Short("infra.files")) {
+		t.Fatalf("the split's hint names its key: %+v", g)
+	}
+	u.palQ = "recordings"
 	h.send(wPress(key.NameReturn))
 	if want := filepath.Join(stateDir(), "recordings"); len(opened) != 1 || opened[0] != want || u.pal {
 		t.Fatalf("opened %v, pal %v", opened, u.pal)

@@ -276,11 +276,12 @@ func Folders(root string) []Folder {
 
 // settings is settings.toml: the search folders and the languages.
 type settings struct {
-	Folder   []Folder `toml:"folder"`
-	CardLang string   `toml:"card_lang,omitempty"` // what cards (and Improve, and tickets) are written in
-	ChatLang string   `toml:"chat_lang,omitempty"` // what Claude speaks with the user in
-	Zoom     int      `toml:"zoom,omitempty"`      // the terminals' and session panel's text, in percent (zoom.go)
-	Editor   Editor   `toml:"editor,omitempty"`    // the workspace's panes and editor (editor.go)
+	Folder   []Folder          `toml:"folder"`
+	CardLang string            `toml:"card_lang,omitempty"` // what cards (and Improve, and tickets) are written in
+	ChatLang string            `toml:"chat_lang,omitempty"` // what Claude speaks with the user in
+	Zoom     int               `toml:"zoom,omitempty"`      // the terminals' and session panel's text, in percent (zoom.go)
+	Editor   Editor            `toml:"editor,omitempty"`    // the workspace's panes and editor (editor.go)
+	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
 }
 
 func loadSettings() (s settings) {
@@ -299,6 +300,20 @@ func Langs() (card, chat string) {
 func SaveLangs(card, chat string) error {
 	s := loadSettings()
 	s.CardLang, s.ChatLang = card, chat
+	return saveSettings(s)
+}
+
+// Keys are the shortcuts the user rebound (internal/keys IDs to chords).
+func Keys() map[string]string { return loadSettings().Keys }
+
+// SaveKeys writes m as the rebound shortcuts, the rest as it is. A file that
+// doesn't parse isn't rewritten: it would lose its folders.
+func SaveKeys(m map[string]string) error {
+	var s settings
+	if _, err := toml.DecodeFile(SettingsFile(), &s); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	s.Keys = m
 	return saveSettings(s)
 }
 

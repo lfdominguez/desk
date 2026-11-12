@@ -14,6 +14,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -127,6 +128,10 @@ type cfgDialog struct {
 	showSkipped bool
 	asbru       []string // an org page's Import from Ásbrú: its groups while the picker is open (nil: closed)
 	srvFile     string   // an org page's servers file line, read on its first frame
+	// the Keyboard shortcuts page (config_keys.go)
+	kdraft map[string]*keys.Chord // unsaved rebindings by ID; nil: back to the defaults
+	rec    string                 // the shortcut recording its next key
+	recErr string                 // why the last key recorded was refused
 }
 
 // sig is what of d the frame draws from, for ui.sig: printing d itself
@@ -135,7 +140,7 @@ func (d *cfgDialog) sig() string {
 	if d == nil {
 		return ""
 	}
-	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru))
+	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d %s %s %d", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru), d.rec, d.recErr, len(d.kdraft))
 }
 
 type cfgSet struct {
@@ -184,6 +189,9 @@ func (e *cfgEntry) edited() bool { return e.old && e.snap() != e.base }
 
 // changes is how many entries of d were added, edited or removed.
 func (d *cfgDialog) changes() int {
+	if d.org == cfgKeys {
+		return len(d.kdraft)
+	}
 	n := d.n0
 	if d.langs != nil && d.langs.edited() {
 		n++
@@ -285,10 +293,10 @@ func newEntry(kind string, raw map[string]any) *cfgEntry {
 // edits are dropped (Discard comes here too).
 func (u *ui) openConfig(org string) {
 	u.orgList = orgs.List(u.root)
-	if len(u.orgList) == 0 {
+	if len(u.orgList) == 0 && org != cfgKeys {
 		org = cfgFolders
 	}
-	if org != cfgFolders && !slices.Contains(u.orgList, org) {
+	if org != cfgFolders && org != cfgKeys && !slices.Contains(u.orgList, org) {
 		org = u.orgList[0]
 	}
 	s := &cfgSet{pages: map[string]*cfgDialog{}, state: map[string]int{}, parent: map[string]string{}, nav: layout.List{Axis: layout.Vertical}}
@@ -316,9 +324,12 @@ func (u *ui) cfgPage(o string) {
 	d := s.pages[o]
 	if d == nil {
 		d = &cfgDialog{org: o, set: s, list: layout.List{Axis: layout.Vertical}}
-		if o == cfgFolders {
+		switch o {
+		case cfgFolders:
 			u.loadFolders(d)
-		} else {
+		case cfgKeys:
+			d.kdraft = map[string]*keys.Chord{}
+		default:
 			u.loadOrg(d)
 		}
 		s.pages[o] = d
@@ -382,15 +393,18 @@ func (u *ui) saveConfig() {
 		}
 	}
 	var saved []string
-	folders := false
+	folders, keysSaved := false, false
 	for _, p := range pages {
 		if p.changes() == 0 {
 			continue
 		}
 		var ok bool
-		if p.org == cfgFolders {
+		switch p.org {
+		case cfgFolders:
 			ok, folders = u.saveFolders(p), true
-		} else {
+		case cfgKeys:
+			ok, keysSaved = u.saveKeys(p), true
+		default:
 			ok = u.saveOrg(p)
 			saved = append(saved, p.org)
 		}
@@ -405,6 +419,9 @@ func (u *ui) saveConfig() {
 		return
 	}
 	if len(saved) == 0 {
+		if keysSaved {
+			u.showToast("Saved the keyboard shortcuts", false)
+		}
 		return
 	}
 	clear(u.locked) // vaults may have changed; the next check finds what is still locked
@@ -515,12 +532,15 @@ func (u *ui) configDialog(gtx layout.Context) {
 	if d == nil {
 		return
 	}
-	for {
-		ev, ok := gtx.Event(key.Filter{Name: "S", Required: key.ModShortcut})
+	if d.rec != "" { // the shortcuts page records: every key is its, Ctrl+S too
+		u.keyRecord(gtx, d)
+	}
+	for d.rec == "" {
+		ev, ok := gtx.Event(keys.Filters(nil, "settings.save")...)
 		if !ok {
 			break
 		}
-		if e, ok := ev.(key.Event); ok && e.State == key.Press {
+		if e, ok := ev.(key.Event); ok && keys.Is("settings.save", e) {
 			d.act = u.saveConfig
 		}
 	}
@@ -566,7 +586,7 @@ func (s *cfgSet) note(o string) (string, color.NRGBA) {
 	switch p := s.pages[o]; {
 	case p != nil && p.changes() > 0:
 		return "edited", kit.CAccText
-	case o == cfgFolders:
+	case o == cfgFolders, o == cfgKeys:
 		return "", kit.CText3
 	case s.state[o] == orgBroken:
 		return "can't read", kit.COrange
@@ -581,7 +601,7 @@ func (s *cfgSet) note(o string) (string, color.NRGBA) {
 // barText is the footer's message, its color, and the note after it.
 func (u *ui) barText(d *cfgDialog) (msg string, tone color.NRGBA, note string) {
 	file := d.file
-	if d.org == cfgFolders {
+	if d.org == cfgFolders || d.org == cfgKeys {
 		file = orgs.SettingsFile()
 	}
 	switch n := d.total(); {
@@ -619,7 +639,9 @@ func (u *ui) cfgNav(gtx layout.Context) layout.Dimensions {
 			lead := kit.Icon(14, fg, kit.IcoSearch)
 			name, indent := "General", unit.Dp(10)
 			note, tone := s.note(o)
-			if o != cfgFolders {
+			if o == cfgKeys {
+				lead, name = kit.Icon(14, fg, kit.IcoCode), "Keyboard shortcuts"
+			} else if o != cfgFolders {
 				name = o
 				lead = kit.Dot(orgDots[s.state[o]])
 				if s.parent[o] != "" {
@@ -641,7 +663,7 @@ func (u *ui) cfgNav(gtx layout.Context) layout.Dimensions {
 			return dim
 		}
 	}
-	items := []layout.Widget{k.Lbl("desk", 11, kit.CText3, kit.Semi(kit.Sans)), row(cfgFolders), k.Lbl(fmt.Sprintf("Organizations · %d", len(order)), 11, kit.CText3, kit.Semi(kit.Sans))}
+	items := []layout.Widget{k.Lbl("desk", 11, kit.CText3, kit.Semi(kit.Sans)), row(cfgFolders), row(cfgKeys), k.Lbl(fmt.Sprintf("Organizations · %d", len(order)), 11, kit.CText3, kit.Semi(kit.Sans))}
 	for _, o := range order {
 		items = append(items, row(o))
 	}
@@ -649,7 +671,7 @@ func (u *ui) cfgNav(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return s.nav.Layout(gtx, len(items), func(gtx layout.Context, i int) layout.Dimensions {
-					if i == 0 || i == 2 { // the section heads
+					if i == 0 || i == 3 { // the section heads
 						return layout.Inset{Top: unit.Dp(min(i, 1) * 14), Bottom: 6, Left: 10}.Layout(gtx, items[i])
 					}
 					return layout.Inset{Bottom: 2}.Layout(gtx, items[i])
@@ -675,6 +697,9 @@ func (u *ui) cfgMain(gtx layout.Context) layout.Dimensions {
 	body := u.cfgAccounts
 	if d.org == cfgFolders {
 		title, sub, body = "General", "The languages new cards start with, and the folders desk searches for organizations.", u.cfgFolderPage
+	}
+	if d.org == cfgKeys {
+		title, sub, body = "Keyboard shortcuts", "Every shortcut in desk and its infra workspace, by where it works.", u.cfgKeysPage
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -738,7 +763,7 @@ func (u *ui) cfgBar(gtx layout.Context) layout.Dimensions {
 			}
 			if !d.broken {
 				kids = append(kids, layout.Rigid(kit.HGap(8)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					dim, ok := k.KBtn(gtx, "cfgSave", kit.Primary, "Save", kit.ModText("S"))
+					dim, ok := k.KBtn(gtx, "cfgSave", kit.Primary, "Save", keys.Cap("settings.save"))
 					if ok {
 						d.act = u.saveConfig
 					}

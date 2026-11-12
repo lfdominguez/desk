@@ -16,6 +16,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -185,7 +186,7 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 								return dim
 							}),
 							layout.Rigid(kit.HGap(12)),
-							layout.Rigid(k.Lbl("Terminals and the session panel · "+kit.ModText("=")+" bigger, "+kit.ModText("-")+" smaller, "+kit.ModText("0")+" back to 100%", 11, kit.CText3, kit.Sans)))
+							layout.Rigid(k.Lbl("Terminals and the session panel · "+keys.Cap("zoom.in")+" bigger, "+keys.Cap("zoom.out")+" smaller, "+keys.Cap("zoom.reset")+" back to 100%", 11, kit.CText3, kit.Sans)))
 					}))
 			})
 		},

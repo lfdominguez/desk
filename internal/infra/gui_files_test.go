@@ -22,6 +22,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"github.com/lfdominguez/desk/internal/keys"
 )
 
 // --- gui_files.go: the directory split, driven through Gio's router on the
@@ -484,17 +485,32 @@ func TestFilesKeysMoveAndMark(t *testing.T) {
 	if h.sel(0) != ".." {
 		t.Errorf("page up: %q", h.sel(0))
 	}
-	// shift+down marks what it passes, never ".."
+	// shift+down only moves: Shift alone is no shortcut
 	h.key(key.NameDownArrow, key.ModShift)
-	h.key(key.NameDownArrow, key.ModShift)
+	if h.sel(0) != ".." || len(trueKeys(h.fv.sides[0].marked)) != 0 {
+		t.Errorf("shift+down: sel %q marks %v", h.sel(0), h.fv.sides[0].marked)
+	}
+	// ctrl+down marks what it passes, never ".."
+	h.key(key.NameDownArrow, key.ModShortcut)
+	h.key(key.NameDownArrow, key.ModShortcut)
 	m := h.fv.sides[0].marked
 	if !m["alpha"] || !m["beta"] || m[".."] || m["notes.txt"] || h.fv.sides[0].anchor != 2 {
-		t.Errorf("shift marks %v", m)
+		t.Errorf("ctrl marks %v", m)
 	}
-	// space toggles and moves on, without marking the next one
-	h.key(key.NameSpace, key.ModShift)
+	// space toggles and moves on; rebound to a Ctrl chord, still without
+	// marking the next one
+	keys.Set("files.mark", keys.Chord{Name: "M", Mods: key.ModShortcut})
+	t.Cleanup(func() { keys.Load(nil) })
+	h.frame() // the new filters
+	h.key(key.NameSpace, 0)
+	if !m["beta"] || h.sel(0) != "beta" {
+		t.Errorf("space rebound away still marks: %v sel %q", m, h.sel(0))
+	}
+	h.key("M", key.ModShortcut)
+	keys.Load(nil)
+	h.frame()
 	if m["beta"] || m["notes.txt"] || h.sel(0) != "notes.txt" {
-		t.Errorf("space: %v sel %q", m, h.sel(0))
+		t.Errorf("mark: %v sel %q", m, h.sel(0))
 	}
 	h.key(key.NameHome, 0)
 	h.key(key.NameSpace, 0) // on "..": nothing
@@ -528,7 +544,7 @@ func TestFilesKeysMoveAndMark(t *testing.T) {
 	}
 	// keys on an empty side
 	h.fv.sides[0].entries = nil
-	h.key(key.NameDownArrow, key.ModShift)
+	h.key(key.NameDownArrow, key.ModShortcut)
 	h.key("H", key.ModShortcut)
 	if h.fv.sides[0].sel != 0 {
 		t.Error("empty side moved")
@@ -1043,6 +1059,10 @@ func TestFilesDelete(t *testing.T) {
 	}
 	h.key(key.NameF8, 0)
 	h.key(key.NameF5, 0) // ignored while asking
+	h.key("N", key.ModShift)
+	if h.fv.prompt != "delete" {
+		t.Error("shift+N answered the question")
+	}
 	h.key("Y", 0)
 	h.until("deleted", func() bool { return h.index(0, "notes.txt") < 0 && !h.fv.sides[0].loading })
 	if fileExists(filepath.Join(h.srv, "notes.txt")) {
@@ -1173,13 +1193,17 @@ func TestFilesRename(t *testing.T) {
 	if h.sel(0) != "memo.txt" || fileExists(filepath.Join(h.srv, "notes.txt")) {
 		t.Errorf("remote rename: %q", h.sel(0))
 	}
-	// shift+F6 too, here locally; a dotfile's whole name is selected
+	// F2 here locally (Shift+F6 no more); a dotfile's whole name is selected
 	gfWrite(t, filepath.Join(h.loc, ".bashrc"), "", 0o644)
 	h.key("H", key.ModShortcut)
 	h.u.loadSide(h.fv, h.fv.sides[1], h.loc, ".bashrc")
 	h.listed(1, h.loc, ".bashrc")
 	h.fv.active = 1
 	h.key(key.NameF6, key.ModShift)
+	if h.fv.prompt != "" || h.fv.job != nil || len(h.fv.queue) != 0 {
+		t.Errorf("shift+F6: prompt %q", h.fv.prompt)
+	}
+	h.key(key.NameF2, 0)
 	if s, e := h.u.nameIn.Selection(); h.fv.prompt != "rename" || s != 7 || e != 0 {
 		t.Errorf("dotfile selection %d-%d", s, e)
 	}

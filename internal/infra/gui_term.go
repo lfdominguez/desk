@@ -26,6 +26,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"golang.org/x/image/math/fixed"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -231,7 +232,7 @@ func (u *ui) terminals(gtx layout.Context) layout.Dimensions {
 		if u.keyTerm != paneNext { // no pane to follow: a later one doesn't take the composer's keys
 			u.keyTerm = nil
 		}
-		title, sub := "No session", "Pick a server in the sidebar, or press "+modText("K")+"."
+		title, sub := "No session", "Pick a server in the sidebar, or press "+keys.Short("infra.palette")+"."
 		if t != nil {
 			title, sub = t.Org+" · Claude", "No server open yet. Ask Claude to connect to one, or pick a host in the sidebar."
 		}
@@ -370,7 +371,7 @@ func (u *ui) pane(gtx layout.Context, t *guiTab, i int) layout.Dimensions {
 				if n := u.view(p.Term).blockSel; n != 0 {
 					return u.lbl(fmt.Sprintf("block #%d · space pins · y copies · ↑↓ · esc", n), 11, cOrange, sansFont)(gtx)
 				}
-				return u.lbl("click #n to pin · ⇧ copies its output · "+modText("↑")+" picks", 11, cText3, sansFont)(gtx)
+				return u.lbl("click #n to pin · ⇧ copies its output · "+keys.Short("infra.blockup")+" picks", 11, cText3, sansFont)(gtx)
 			}),
 			layout.Rigid(hgap(6)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -417,7 +418,7 @@ func (u *ui) sudoBar(gtx layout.Context, p guiPane, user string, area image.Rect
 			layout.Flexed(1, u.lblFill("Asks for "+who+" password", 12, cOrange, fSemi(sansFont))),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				d, ok := u.button(gtx, "sudoPw", cAcc, cHover, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 10, Right: 10},
-					u.lbl("Type server password  "+modText("P"), 12, cWhite, fSemi(sansFont)))
+					u.lbl("Type server password  "+keys.Short("infra.password"), 12, cWhite, fSemi(sansFont)))
 				if ok {
 					u.d.press("alt+p")
 					u.wantTerm = true

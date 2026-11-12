@@ -18,6 +18,7 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
+	"github.com/lfdominguez/desk/internal/keys"
 )
 
 // sideRow is one visible line of the sidebar.
@@ -601,7 +602,7 @@ func (u *ui) toolbar(gtx layout.Context) layout.Dimensions {
 					c, bg = cAccText, cAccSoft
 				}
 				d, ok := u.button(gtx, id, bg, cHover, rCtl, layout.UniformInset(5), icon(15, c, ico))
-				u.tip(gtx, id, d, tbTips[id])
+				u.tip(gtx, id, d, tbTips(id))
 				if ok {
 					f()
 				}
@@ -636,7 +637,7 @@ func (u *ui) toolbar(gtx layout.Context) layout.Dimensions {
 						layout.Rigid(hgap(6)),
 						layout.Rigid(u.lbl("Commands", 12, cText2, sansFont)),
 						layout.Rigid(hgap(10)),
-						layout.Rigid(u.lbl(modText("K"), 11, cText3, sansFont)))
+						layout.Rigid(u.lbl(keys.Short("infra.palette"), 11, cText3, sansFont)))
 				})
 				if ok {
 					u.openPalette()
@@ -681,7 +682,7 @@ func (u *ui) tabPill(gtx layout.Context, i, n int, t guiTab) layout.Dimensions {
 			layout.Rigid(u.lbl(name, 12, fg, fMedium(sansFont))),
 		}
 		if n < 9 {
-			kids = append(kids, layout.Rigid(hgap(7)), layout.Rigid(u.lbl(modText(fmt.Sprint(n+1)), 11, cText3, sansFont)))
+			kids = append(kids, layout.Rigid(hgap(7)), layout.Rigid(u.lbl(keys.Chord{Name: key.Name(fmt.Sprint(n + 1)), Mods: keys.Mod}.Short(), 11, cText3, sansFont)))
 		}
 		kids = append(kids, layout.Rigid(hgap(4)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			d, ok := u.button(gtx, fmt.Sprint("tabx", i), color.NRGBA{}, cHover, 3, layout.UniformInset(3), icon(11, cText3, icoX))

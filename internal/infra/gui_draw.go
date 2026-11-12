@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"io"
 	"math"
-	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -528,14 +527,6 @@ var (
 		p.LineTo(f32.Pt(s*.28, s*.72))
 	}
 )
-
-// modText is how shortcuts read on this platform.
-func modText(k string) string {
-	if runtime.GOOS == "darwin" {
-		return "⌘" + k
-	}
-	return "⌃⇧" + k
-}
 
 func (u *ui) setClipboard(s string) {
 	select {

@@ -330,10 +330,15 @@ func TestDrawingDrawAndSave(t *testing.T) {
 		t.Error("Ctrl+D")
 	}
 	c := st.ed.Selected()[0]
-	h.send(press(key.NameRightArrow, 0), press(key.NameDownArrow, key.ModShift), press(key.NameLeftArrow, 0), press(key.NameUpArrow, 0))
+	h.send(press(key.NameRightArrow, 0), press(key.NameDownArrow, key.ModShortcut), press(key.NameLeftArrow, 0), press(key.NameUpArrow, 0))
 	if c.X != 510 || c.Y != 119 {
 		t.Errorf("arrows: %v,%v", c.X, c.Y)
 	}
+	h.send(press(key.NameDownArrow, key.ModShift), press(key.NameRightArrow, key.ModShortcut))
+	if c.X != 520 || c.Y != 119 {
+		t.Errorf("Shift+↓ moved it, or Ctrl+→ didn't by 10: %v,%v", c.X, c.Y)
+	}
+	h.send(press(key.NameLeftArrow, key.ModShortcut))
 	h.send(press("[", key.ModShortcut))
 	if st.ed.Scene.Elements[0] != c {
 		t.Error("Ctrl+[")
@@ -499,7 +504,15 @@ func TestDrawingPanZoom(t *testing.T) {
 	if st.zoom != 1 || st.pan.X <= 0 {
 		t.Errorf("fit a small drawing: %v %v", st.zoom, st.pan)
 	}
-	h.send(press("1", key.ModShift))
+	st.zoom = 2
+	h.send(press("1", key.ModShift|key.ModAlt))
+	if st.zoom != 2 {
+		t.Error("Alt+Shift+1 fit")
+	}
+	h.send(press("1", key.ModShortcut))
+	if st.zoom != 1 {
+		t.Errorf("Ctrl+1 didn't fit: %v", st.zoom)
+	}
 	st.zoomAt(f32.Point{}, 1000)
 	if st.zoom != drawZoomMax {
 		t.Error("zoom past the most")

@@ -12,6 +12,7 @@ import (
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/draw"
 	"github.com/lfdominguez/desk/internal/infra"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -171,6 +172,7 @@ func (u *ui) drawChat(gtx layout.Context, st *drawState) layout.Dimensions {
 	c := &st.claude
 	gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(360), gtx.Constraints.Max.Y))
 	kit.Fill(gtx, kit.CPanel)
+	kit.Newline(gtx, &c.in)
 	for {
 		ev, ok := c.in.Update(gtx)
 		if !ok {
@@ -203,7 +205,7 @@ func (u *ui) drawChat(gtx layout.Context, st *drawState) layout.Dimensions {
 		kit.Fill(gtx, kit.CColumn)
 		if len(msgs) == 0 {
 			return layout.UniformInset(16).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return k.Label(gtx, "Ask it to draw or change something: what you have selected goes with your message. Its changes show marked and undo with Ctrl+Z; what you didn't ask for comes as a suggestion to approve.", 13, kit.CText3, kit.Sans, 0)
+				return k.Label(gtx, "Ask it to draw or change something: what you have selected goes with your message. Its changes show marked and undo with "+keys.Cap("draw.undo")+"; what you didn't ask for comes as a suggestion to approve.", 13, kit.CText3, kit.Sans, 0)
 			})
 		}
 		c.list.Axis, c.list.ScrollToEnd = layout.Vertical, true // newest at the bottom, followed

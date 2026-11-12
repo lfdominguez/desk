@@ -235,6 +235,7 @@ var (
 // drawReworkBox is the comment that sends suggestion sg back.
 func (u *ui) drawReworkBox(gtx layout.Context, st *drawState, sg drawSuggestion, act *func()) layout.Dimensions {
 	k := u.k
+	kit.Newline(gtx, &st.reworkIn)
 	for {
 		ev, ok := st.reworkIn.Update(gtx)
 		if !ok {

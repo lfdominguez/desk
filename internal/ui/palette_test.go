@@ -206,13 +206,13 @@ func TestPaletteKeys(t *testing.T) {
 	if h.u.pal.scope != 0 {
 		t.Fatalf("tab past Actions: %d", h.u.pal.scope)
 	}
-	h.send(press(key.NameTab, key.ModShift))
+	h.send(press(key.NameTab, key.ModShortcut|key.ModShift))
 	if h.u.pal.scope != 4 {
-		t.Fatalf("shift+tab from All: %d", h.u.pal.scope)
+		t.Fatalf("ctrl+shift+tab from All: %d", h.u.pal.scope)
 	}
-	h.send(press(key.NameDownArrow, 0), press(key.NameTab, key.ModShift))
+	h.send(press(key.NameDownArrow, 0), press(key.NameTab, key.ModShortcut|key.ModShift))
 	if h.u.pal.scope != 3 || h.u.pal.sel != 0 {
-		t.Fatalf("shift+tab: scope %d, sel %d", h.u.pal.scope, h.u.pal.sel)
+		t.Fatalf("ctrl+shift+tab: scope %d, sel %d", h.u.pal.scope, h.u.pal.sel)
 	}
 }
 

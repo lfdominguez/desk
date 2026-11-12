@@ -30,6 +30,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/lfdominguez/desk/internal/keys"
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -848,6 +849,10 @@ func (u *ui) focusPrompt(gtx layout.Context, fv *filesView) {
 	gtx.Execute(op.InvalidateCmd{})
 }
 
+// filesKeyIDs are the files split's rebindable keys (keys' files.*).
+var filesKeyIDs = []string{"files.view", "files.edit", "files.copy", "files.move", "files.rename", "files.mkdir", "files.delete",
+	"files.chmod", "files.mark", "files.all", "files.hidden", "files.reload"}
+
 // filesKeys handles the panels' keyboard.
 func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 	if fv.focusNext {
@@ -858,15 +863,12 @@ func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 		gtx.Execute(key.FocusCmd{Tag: tag})
 		fv.focusNext = false
 	}
-	names := []key.Name{key.NameUpArrow, key.NameDownArrow, key.NamePageUp, key.NamePageDown, key.NameHome, key.NameEnd,
-		key.NameReturn, key.NameEnter, key.NameDeleteBackward, key.NameDeleteForward, key.NameTab, key.NameSpace,
-		key.NameF2, key.NameF3, key.NameF4, key.NameF5, key.NameF6, key.NameF7, key.NameF8, key.NameF9, key.NameEscape, "Y", "N", "O", "S"}
-	filters := []event.Filter{key.FocusFilter{Target: fv}}
-	for _, n := range []key.Name{"A", "H", "R", "."} {
-		filters = append(filters, key.Filter{Focus: fv, Name: n, Required: key.ModShortcut, Optional: key.ModShift})
+	filters := append([]event.Filter{key.FocusFilter{Target: fv}}, keys.Filters(fv, filesKeyIDs...)...)
+	for _, n := range []key.Name{key.NameUpArrow, key.NameDownArrow, key.NamePageUp, key.NamePageDown, key.NameHome, key.NameEnd} {
+		filters = append(filters, key.Filter{Focus: fv, Name: n, Optional: key.ModShortcut}) // Ctrl marks what it passes
 	}
-	for _, n := range names {
-		filters = append(filters, key.Filter{Focus: fv, Name: n, Optional: key.ModShift})
+	for _, n := range []key.Name{key.NameReturn, key.NameEnter, key.NameDeleteBackward, key.NameTab, key.NameEscape, "Y", "N", "O", "S"} {
+		filters = append(filters, key.Filter{Focus: fv, Name: n})
 	}
 	for {
 		ev, ok := gtx.Event(filters...)
@@ -916,12 +918,12 @@ func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 			fv.mu.Unlock()
 			continue
 		}
-		shift := e.Modifiers.Contain(key.ModShift)
+		mark := e.Modifiers.Contain(key.ModShortcut)
 		move := func(d int) {
 			from := s.sel
 			s.sel = max(0, min(len(s.entries)-1, s.sel+d))
 			s.follow, fv.search = true, ""
-			if shift { // shift+arrows mark what they pass over
+			if mark { // Ctrl+arrows mark what they pass over
 				for i := min(from, s.sel); i <= max(from, s.sel) && i < len(s.entries); i++ {
 					if s.entries[i].Name != ".." {
 						s.marked[s.entries[i].Name] = true
@@ -932,29 +934,15 @@ func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 		}
 		searching := fv.search != "" && time.Since(fv.searchAt) < time.Second
 		var after func()
-		switch e.Name {
-		case key.NameUpArrow:
-			move(-1)
-		case key.NameDownArrow:
-			move(1)
-		case key.NamePageUp:
-			move(-page)
-		case key.NamePageDown:
-			move(page)
-		case key.NameHome:
-			move(-len(s.entries))
-		case key.NameEnd:
-			move(len(s.entries))
-		case key.NameTab:
-			fv.active, fv.search = 1-fv.active, ""
-		case key.NameSpace:
+		switch {
+		case keys.Is("files.mark", e):
 			if s.sel < len(s.entries) && s.entries[s.sel].Name != ".." {
 				n := s.entries[s.sel].Name
 				s.marked[n] = !s.marked[n]
-				shift = false
+				mark = false
 				move(1)
 			}
-		case "A":
+		case keys.Is("files.all", e):
 			all := true
 			for _, e := range s.entries {
 				all = all && (e.Name == ".." || s.marked[e.Name])
@@ -964,7 +952,7 @@ func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 					s.marked[e.Name] = !all
 				}
 			}
-		case "H", ".":
+		case keys.Is("files.hidden", e):
 			fv.hidden = !fv.hidden
 			for _, side := range fv.sides {
 				keep := ""
@@ -973,9 +961,41 @@ func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 				}
 				fv.refilter(side, keep)
 			}
-		case key.NameReturn, key.NameEnter, key.NameF3:
+		case keys.Is("files.view", e), e.Name == key.NameReturn, e.Name == key.NameEnter:
 			after = func() { u.open(fv, s) }
-		case key.NameDeleteBackward:
+		case keys.Is("files.edit", e):
+			after = func() { u.edit(fv, s) }
+		case keys.Is("files.copy", e):
+			after = func() { u.copyChosen(fv, false) }
+		case keys.Is("files.move", e):
+			after = func() { u.copyChosen(fv, true) }
+		case keys.Is("files.rename", e):
+			u.startPrompt(gtx, fv, "rename")
+		case keys.Is("files.mkdir", e):
+			u.startPrompt(gtx, fv, "mkdir")
+		case keys.Is("files.chmod", e):
+			u.startPrompt(gtx, fv, "chmod")
+		case keys.Is("files.delete", e):
+			if len(s.chosen()) > 0 {
+				fv.prompt = "delete"
+			}
+		case keys.Is("files.reload", e):
+			after = func() { u.loadSide(fv, s, s.path, "") }
+		case e.Name == key.NameUpArrow:
+			move(-1)
+		case e.Name == key.NameDownArrow:
+			move(1)
+		case e.Name == key.NamePageUp:
+			move(-page)
+		case e.Name == key.NamePageDown:
+			move(page)
+		case e.Name == key.NameHome:
+			move(-len(s.entries))
+		case e.Name == key.NameEnd:
+			move(len(s.entries))
+		case e.Name == key.NameTab:
+			fv.active, fv.search = 1-fv.active, ""
+		case e.Name == key.NameDeleteBackward:
 			if searching {
 				_, size := lastRune(fv.search)
 				fv.search, fv.searchAt = fv.search[:len(fv.search)-size], time.Now()
@@ -983,29 +1003,7 @@ func (u *ui) filesKeys(gtx layout.Context, fv *filesView) {
 			} else {
 				after = func() { u.up(fv, s) }
 			}
-		case key.NameF4:
-			after = func() { u.edit(fv, s) }
-		case key.NameF5:
-			after = func() { u.copyChosen(fv, false) }
-		case key.NameF6:
-			if shift { // Shift+F6 renames, as in Total Commander
-				u.startPrompt(gtx, fv, "rename")
-			} else {
-				after = func() { u.copyChosen(fv, true) }
-			}
-		case key.NameF2:
-			u.startPrompt(gtx, fv, "rename")
-		case key.NameF7:
-			u.startPrompt(gtx, fv, "mkdir")
-		case key.NameF9:
-			u.startPrompt(gtx, fv, "chmod")
-		case key.NameF8, key.NameDeleteForward:
-			if len(s.chosen()) > 0 {
-				fv.prompt = "delete"
-			}
-		case "R":
-			after = func() { u.loadSide(fv, s, s.path, "") }
-		case key.NameEscape:
+		case e.Name == key.NameEscape:
 			switch {
 			case searching:
 				fv.search = ""
@@ -1419,7 +1417,7 @@ func (u *ui) fileSidePanel(gtx layout.Context, fv *filesView, side int) layout.D
 					case !s.loading && s.path != "" && len(s.entries) <= 1:
 						hint = "Empty folder"
 						if len(s.all) > 0 {
-							hint = "Only hidden files: " + map[bool]string{true: "⌘.", false: "⌃H"}[runtime.GOOS == "darwin"] + " shows them"
+							hint = "Only hidden files: " + keys.Short("files.hidden") + " shows them"
 						}
 					}
 					if hint == "" {
@@ -1894,9 +1892,9 @@ func (u *ui) fkeyBar(gtx layout.Context, fv *filesView) layout.Dimensions {
 		if j := fv.job; j != nil {
 			rows = append(rows, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.jobProgress(gtx, fv, j) }), layout.Rigid(vgap(8)))
 		}
-		summary := "Drag rows to the other side to copy · Space or ⌃click marks · type to find"
+		summary := "Drag rows to the other side to copy · " + keys.Cap("files.mark") + " or ⌃click marks · type to find"
 		if runtime.GOOS == "darwin" {
-			summary = "Drag rows to the other side to copy · Space or ⌘click marks · type to find"
+			summary = "Drag rows to the other side to copy · " + keys.Cap("files.mark") + " or ⌘click marks · type to find"
 		}
 		var n int
 		var bytes int64
@@ -1912,14 +1910,14 @@ func (u *ui) fkeyBar(gtx layout.Context, fv *filesView) layout.Dimensions {
 		rows = append(rows, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 				layout.Flexed(1, u.lblFill(summary, 12, cText3, sansFont)),
-				act("F3", "Open", func() { u.open(fv, fv.sides[fv.active]) }),
-				act("F4", "Edit", func() { u.edit(fv, fv.sides[fv.active]) }),
-				act("F5", "Copy to "+other, func() { u.copyChosen(fv, false) }),
-				act("F6", "Move", func() { u.copyChosen(fv, true) }),
-				act("F2", "Rename", func() { fv.mu.Lock(); u.startPrompt(gtx, fv, "rename"); fv.mu.Unlock() }),
-				act("F7", "New folder", func() { fv.mu.Lock(); u.startPrompt(gtx, fv, "mkdir"); fv.mu.Unlock() }),
-				act("F9", "Chmod", func() { fv.mu.Lock(); u.startPrompt(gtx, fv, "chmod"); fv.mu.Unlock() }),
-				act("F8", "Delete", func() {
+				act(keys.Cap("files.view"), "Open", func() { u.open(fv, fv.sides[fv.active]) }),
+				act(keys.Cap("files.edit"), "Edit", func() { u.edit(fv, fv.sides[fv.active]) }),
+				act(keys.Cap("files.copy"), "Copy to "+other, func() { u.copyChosen(fv, false) }),
+				act(keys.Cap("files.move"), "Move", func() { u.copyChosen(fv, true) }),
+				act(keys.Cap("files.rename"), "Rename", func() { fv.mu.Lock(); u.startPrompt(gtx, fv, "rename"); fv.mu.Unlock() }),
+				act(keys.Cap("files.mkdir"), "New folder", func() { fv.mu.Lock(); u.startPrompt(gtx, fv, "mkdir"); fv.mu.Unlock() }),
+				act(keys.Cap("files.chmod"), "Chmod", func() { fv.mu.Lock(); u.startPrompt(gtx, fv, "chmod"); fv.mu.Unlock() }),
+				act(keys.Cap("files.delete"), "Delete", func() {
 					fv.mu.Lock()
 					if len(fv.sides[fv.active].chosen()) > 0 {
 						fv.prompt = "delete"

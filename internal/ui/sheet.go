@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -20,6 +19,7 @@ import (
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/fzf"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
@@ -288,15 +288,15 @@ func (u *ui) sheet(gtx layout.Context) {
 	}
 	if s.optStop == nil { // while Claude works the request stays as sent
 		u.pasteImage(gtx, &s.notes, &s.pasteText, func() bool { return u.edit == s })
+		kit.Newline(gtx, &s.notes)
 	}
 	// the dialog's own shortcuts, over its fields: Ctrl+Enter creates or
 	// saves, Ctrl+J asks Claude to improve a new card, Ctrl+Backspace deletes
-	fs := []event.Filter{key.Filter{Name: key.NameReturn, Required: key.ModShortcut}, key.Filter{Name: key.NameEnter, Required: key.ModShortcut},
-		key.Filter{Name: "S", Required: key.ModShortcut}}
+	fs := keys.Filters(nil, "sheet.commit")
 	if s.id == "" {
-		fs = append(fs, key.Filter{Name: "J", Required: key.ModShortcut})
+		fs = append(fs, keys.Filters(nil, "sheet.improve")...)
 	} else {
-		fs = append(fs, key.Filter{Name: key.NameDeleteBackward, Required: key.ModShortcut})
+		fs = append(fs, keys.Filters(nil, "sheet.delete")...)
 	}
 	for {
 		ev, ok := gtx.Event(fs...)
@@ -304,15 +304,15 @@ func (u *ui) sheet(gtx layout.Context) {
 			break
 		}
 		e, ok := ev.(key.Event)
-		if !ok || e.State != key.Press {
+		if !ok {
 			continue
 		}
-		switch e.Name {
-		case "J":
+		switch {
+		case keys.Is("sheet.improve", e):
 			u.optimizeCard()
-		case key.NameDeleteBackward:
+		case keys.Is("sheet.delete", e):
 			u.remove()
-		default:
+		case keys.Is("sheet.commit", e):
 			u.commit()
 		}
 		if u.edit != s {
@@ -721,7 +721,7 @@ func (u *ui) sheetFooter(gtx layout.Context) layout.Dimensions {
 		if s.optimized {
 			row = append(row, btn("shDiscard", kit.Ghost, "Discard suggestions", "", u.discardDraft), layout.Rigid(kit.HGap(6)))
 		}
-		row = append(row, btn("shOpt", kit.Secondary, improve, kit.ModText("J"), u.optimizeCard))
+		row = append(row, btn("shOpt", kit.Secondary, improve, keys.Cap("sheet.improve"), u.optimizeCard))
 		row = append(row, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			if s.optimized {
 				return layout.Dimensions{Size: gtx.Constraints.Min}
@@ -745,7 +745,7 @@ func (u *ui) sheetFooter(gtx layout.Context) layout.Dimensions {
 			cancel, create = kit.Off, kit.Off
 		}
 		row = append(row, btn("shCancel", cancel, "Cancel", "esc", u.closeSheet), layout.Rigid(kit.HGap(6)),
-			btn("shSave", create, "Create card", kit.ModText("↵"), u.commit))
+			btn("shSave", create, "Create card", keys.Cap("sheet.commit"), u.commit))
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, row...)
 	})
 }

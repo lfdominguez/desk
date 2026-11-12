@@ -540,10 +540,16 @@ refuses its file and says so (an export is read anyway).
 | In the Done archive | **↑/↓** preview, **Space** check, **Ctrl+A** check all, **Enter** session, **Delete**, **Esc** uncheck |
 | Back out | **Esc**: the dialog, the search, a field, the panel, then the selection |
 | Text size | **Ctrl+=** bigger, **Ctrl+-** smaller, **Ctrl+0** back to 100%: the terminals and the session panel, anywhere |
+| A new line in a message box | **Alt+Enter** (Enter sends) |
+| Change a shortcut | **Settings → Keyboard shortcuts**, or **Keyboard shortcuts** in the palette (**Ctrl+K**) |
 
 Board keys work on the board only, not while you type in a field or in a dialog. A terminal takes
 every key, Esc included, for Claude Code, except the text size's. A drawing has Excalidraw's keys
 (tool letters and digits, Ctrl+C/X/V, Ctrl+G, Ctrl+D…): see the docs' Keys page.
+
+Every key with a modifier has Ctrl or Alt in it (⌘ on macOS): Shift alone types (Shift+2 is `@` on
+many layouts). These are the defaults; what you change is kept in `settings.toml` under `[keys]`
+and the buttons show it.
 
 ## Development
 

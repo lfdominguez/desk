@@ -32,6 +32,7 @@ import (
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
@@ -251,6 +252,7 @@ func (u *ui) startInfra() {
 // Run opens the window on board b and returns when it closes.
 func Run(b *kanban.Board, path string) error {
 	u := newUI(b, path)
+	u.loadKeys()
 	u.startInfra()
 	files := explorer.NewExplorer(u.w)
 	pickFile = func(exts ...string) (io.ReadCloser, error) {
@@ -636,7 +638,7 @@ func (u *ui) toolbar(gtx layout.Context) layout.Dimensions {
 							layout.Rigid(kit.HGap(6)),
 							layout.Rigid(k.Lbl("New card", 12, kit.CWhite, kit.Semi(kit.Sans))),
 							layout.Rigid(kit.HGap(8)),
-							layout.Rigid(k.Lbl(kit.ModText("N"), 11, kit.Mix(kit.CWhite, kit.CAcc, .35), kit.Sans)))
+							layout.Rigid(k.Lbl(keys.Cap("board.new"), 11, kit.Mix(kit.CWhite, kit.CAcc, .35), kit.Sans)))
 					})
 					if ok {
 						u.newCard(u.selCol())
@@ -718,7 +720,7 @@ func (u *ui) toasts(gtx layout.Context) {
 				d, ok := k.RimButton(gtx, "toastUndo", kit.CFoot, kit.CHover, kit.CKeyRim, kit.RCtl, layout.Inset{Top: 5, Bottom: 5, Left: 10, Right: 8}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(k.Lbl("Undo", 13, kit.CAccText, kit.Semi(kit.Sans))), layout.Rigid(kit.HGap(8)),
-						layout.Rigid(k.KeyCap(kit.ModText("Z"), false)))
+						layout.Rigid(k.KeyCap(keys.Cap("undo"), false)))
 				})
 				if ok {
 					u.runUndo()

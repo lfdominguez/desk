@@ -3,7 +3,12 @@ title: Keys
 description: Every keyboard shortcut in desk and its infra workspace, grouped by where it works.
 ---
 
-Most buttons in desk show their key on them, so you can also learn these as you go.
+Most buttons in desk show their key on them, so you can also learn these as you go. These are
+the default keys: you can [change them](#changing-shortcuts), and the buttons show yours.
+
+Every key with a modifier has <kbd>Ctrl</kbd> or <kbd>Alt</kbd> in it (<kbd>⌘</kbd> on macOS counts
+as <kbd>Ctrl</kbd>). <kbd>Shift</kbd> alone types: <kbd>Shift</kbd>+<kbd>2</kbd> is `@` on many
+layouts.
 
 :::note
 Board keys work on the board only: not while you type in a field, not in a dialog, and not in the full-window session view. A card's terminal takes every key, <kbd>Esc</kbd> included, for Claude Code. The infra workspace has its own keys, on <kbd>Ctrl</kbd>+<kbd>Shift</kbd>.
@@ -56,7 +61,7 @@ Right-click a card to open it.
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>S</kbd> | Create the card. |
 | <kbd>Enter</kbd> (in a one-line field) | Create the card. In the organization field, an unfinished name first takes its best match. |
-| <kbd>Shift</kbd>+<kbd>Enter</kbd> (in What to do) | A new line. |
+| <kbd>Enter</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> (in What to do) | A new line. |
 | <kbd>Ctrl</kbd>+<kbd>J</kbd> | Improve with Claude; again to ask again, or to stop it while it runs. |
 | <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste. An image on the clipboard is saved and put in as `![image](path)`. |
 | <kbd>Esc</kbd> | Close. What you wrote is kept for the next new card, unless Improve with Claude already rewrote it. Not while Improve runs: stop it first. |
@@ -81,7 +86,7 @@ The message box, in the side panel and the full window.
 | Keys | What they do |
 |---|---|
 | <kbd>Enter</kbd> | Send the message. |
-| <kbd>Shift</kbd>+<kbd>Enter</kbd> | A new line. |
+| <kbd>Alt</kbd>+<kbd>Enter</kbd> | A new line. |
 | <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste. An image on the clipboard is saved and put in as `![image](path)`. |
 | <kbd>Esc</kbd> | Back from a subagent or a shell to the conversation, then close the rail, the panel, the full window. In a session's own window: its card editor, the workspace, drawings or terminal opened there, a subagent, the rail. |
 
@@ -99,7 +104,7 @@ Claude's open request, above the message box. Its letter and digit keys work whi
 | <kbd>N</kbd> | Deny. |
 | <kbd>S</kbd> | Allow every use of this tool on this card, until desk quits. |
 | <kbd>E</kbd> | Edit the command first (shell commands only). |
-| <kbd>Enter</kbd> (editing) | Allow the command as edited. <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. |
+| <kbd>Enter</kbd> (editing) | Allow the command as edited. <kbd>Alt</kbd>+<kbd>Enter</kbd> adds a line. |
 
 **A question:**
 
@@ -115,7 +120,7 @@ Claude's open request, above the message box. Its letter and digit keys work whi
 | Keys | What they do |
 |---|---|
 | <kbd>↑</kbd> <kbd>↓</kbd> | Move. |
-| <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous scope. |
+| <kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous scope. |
 | <kbd>Enter</kbd> | Run the item. |
 | <kbd>Esc</kbd> | Close. |
 
@@ -124,6 +129,7 @@ Claude's open request, above the message box. Its letter and digit keys work whi
 | Where | Keys | What they do |
 |---|---|---|
 | Settings | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save every edited page. |
+| Settings, Keyboard shortcuts | <kbd>Esc</kbd> | While a shortcut waits for its new key: cancel. |
 | Settings | <kbd>Esc</kbd> | Close (it warns first about unsaved changes). |
 | Vault unlock | <kbd>Enter</kbd> | In the password: to the one-time code if one is needed, else unlock. In the code: unlock. |
 | Vault unlock | <kbd>Esc</kbd> | Not now. |
@@ -157,13 +163,14 @@ A card's [workspace](/sessions/workspace/). Board keys don't work here.
 | <kbd>Alt</kbd>+<kbd>↑</kbd>, <kbd>Alt</kbd>+<kbd>↓</kbd> (in the editor) | Move the lines up or down. |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> (in the editor) | Duplicate the lines below. |
 | <kbd>Ctrl</kbd>+<kbd>/</kbd> (in the editor) | Comment the lines out, or back in. |
-| <kbd>Enter</kbd> (in the message box) | Send to the workspace Claude, with what you're looking at. <kbd>Shift</kbd>+<kbd>Enter</kbd> is a new line. |
+| <kbd>Enter</kbd> (in the message box) | Send to the workspace Claude, with what you're looking at. <kbd>Alt</kbd>+<kbd>Enter</kbd> is a new line. |
 | <kbd>Esc</kbd> | Close the find bar; without one, back to the card's session, from the editor too. |
 
 ## Drawings
 
-A drawing open in [the editor](/drawings/editor/): Excalidraw's keys. They don't work while you
-type in the drawing's name, its chat or a frame's name.
+A drawing open in [the editor](/drawings/editor/): Excalidraw's keys, except the two that are
+<kbd>Shift</kbd> alone there (show it all, move by 10), which take <kbd>Ctrl</kbd> here. They don't
+work while you type in the drawing's name, its chat or a frame's name.
 
 | Keys | What they do |
 |---|---|
@@ -172,7 +179,7 @@ type in the drawing's name, its chat or a frame's name.
 | <kbd>9</kbd> | Insert an image from a file. |
 | <kbd>Space</kbd> held, middle button | Drag to move around. |
 | Scroll, <kbd>Ctrl</kbd>+scroll | Move around, zoom. |
-| <kbd>Shift</kbd>+<kbd>1</kbd> | Show it all. |
+| <kbd>Ctrl</kbd>+<kbd>1</kbd> | Show it all. |
 | <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | Dark or light canvas. |
 | <kbd>Delete</kbd> or <kbd>Backspace</kbd> | Delete the selection. |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd> | Undo, redo: yours and Claude's edits. |
@@ -180,7 +187,7 @@ type in the drawing's name, its chat or a frame's name.
 | <kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> | Duplicate, select everything. |
 | <kbd>Ctrl</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> | Group, ungroup. |
 | <kbd>Ctrl</kbd>+<kbd>]</kbd>, <kbd>Ctrl</kbd>+<kbd>[</kbd> | Forward, backward; with <kbd>Shift</kbd>, to the front, to the back. |
-| Arrows | Move the selection by 1; with <kbd>Shift</kbd>, by 10. |
+| Arrows | Move the selection by 1; with <kbd>Ctrl</kbd>, by 10. |
 | <kbd>Enter</kbd> | Edit the selected text. |
 | <kbd>Esc</kbd> | Step back: Export's choices, the text being typed, the tool, the selection, then to the list. |
 
@@ -235,7 +242,7 @@ Any other key leaves block mode and goes to the shell.
 | Keys | What they do |
 |---|---|
 | <kbd>↑</kbd> <kbd>↓</kbd> | Move. |
-| <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous scope. |
+| <kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous scope. |
 | <kbd>Enter</kbd> | Run the item. |
 | <kbd>Esc</kbd> | Close. |
 
@@ -249,13 +256,13 @@ The infra Claude's approval box takes the keyboard when it opens.
 | <kbd>A</kbd> | Always allow this in this organization (not for commands that use a secret). |
 | <kbd>E</kbd> | Edit the command first (not for commands that use a secret). |
 | <kbd>N</kbd> or <kbd>Esc</kbd> | Deny. |
-| <kbd>Enter</kbd> (editing) | Approve the command as edited. <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line; <kbd>Esc</kbd> stops editing. |
+| <kbd>Enter</kbd> (editing) | Approve the command as edited. <kbd>Alt</kbd>+<kbd>Enter</kbd> adds a line; <kbd>Esc</kbd> stops editing. |
 
 ### Claude's message box and questions
 
 | Where | Keys | What they do |
 |---|---|---|
-| Message box | <kbd>Enter</kbd> | Ask the infra Claude (queued if it's busy). <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line. |
+| Message box | <kbd>Enter</kbd> | Ask the infra Claude (queued if it's busy). <kbd>Alt</kbd>+<kbd>Enter</kbd> for a new line. |
 | A question or passphrase | <kbd>Enter</kbd> | Answer. |
 | A question or passphrase | <kbd>Esc</kbd> | Not now. |
 | Group view | <kbd>Enter</kbd> | Ask every session in the group. |
@@ -279,7 +286,7 @@ A two-pane file manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>).
 
 | Keys | What they do |
 |---|---|
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Move. With <kbd>Shift</kbd>, also mark what you pass. |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Move. With <kbd>Ctrl</kbd>, also mark what you pass. |
 | <kbd>Tab</kbd> | The other side. |
 | <kbd>Space</kbd> | Mark or unmark, and move down. |
 | <kbd>Ctrl</kbd>+<kbd>A</kbd> | Mark all, or unmark all. |
@@ -290,7 +297,7 @@ A two-pane file manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>).
 | <kbd>F4</kbd> | Edit. |
 | <kbd>F5</kbd> | Copy to the other side. |
 | <kbd>F6</kbd> | Move to the other side. |
-| <kbd>F2</kbd> or <kbd>Shift</kbd>+<kbd>F6</kbd> | Rename. |
+| <kbd>F2</kbd> | Rename. |
 | <kbd>F7</kbd> | New folder. |
 | <kbd>F8</kbd> or <kbd>Delete</kbd> | Delete what's marked (it asks first). |
 | <kbd>F9</kbd> | Change permissions. |
@@ -298,3 +305,38 @@ A two-pane file manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>).
 | <kbd>Esc</kbd> | Clear the jump, else cancel a transfer, else close the split. |
 
 <kbd>Ctrl</kbd>+click marks a file, <kbd>Shift</kbd>+click a range. In its prompts: <kbd>Y</kbd> or <kbd>Enter</kbd> confirms a delete; <kbd>O</kbd> overwrites; <kbd>S</kbd> skips a conflict; <kbd>N</kbd> or <kbd>Esc</kbd> cancels. A name or permissions field takes <kbd>Enter</kbd> to apply and <kbd>Esc</kbd> to cancel.
+
+## Changing shortcuts
+
+**Settings → Keyboard shortcuts** (or **Keyboard shortcuts** in the command palette) lists every
+shortcut by where it works, with its keys as they are now.
+
+![The Keyboard shortcuts page in Settings: Reset all on top, then the Anywhere and Board shortcuts, each with its keys and Change; Esc and the arrows marked fixed](../../../assets/shots/orgs-settings-keys.png)
+
+- **Change**, or a click on the row's keys, waits for the next key you press, with its modifiers, and makes it the shortcut's.
+  <kbd>Esc</kbd> cancels. A key that breaks the rule is refused, with why under the row: a modifier
+  needs <kbd>Ctrl</kbd> or <kbd>Alt</kbd>, and a key that types (a letter, a digit, a symbol,
+  <kbd>Space</kbd>) works alone only for shortcuts that never fire while you type (the board's
+  <kbd>E</kbd>, a drawing's tools).
+- A key another shortcut in the same place already uses is named under the row, and Save refuses
+  until one of them changes.
+
+  ![New card changed to Ctrl+Z, with "also runs Undo an archive or a delete, while its toast shows — change one" under it](../../../assets/shots/orgs-settings-keys-clash-row.png)
+
+- **Reset** puts one back; **Reset all** every one. Rows marked *fixed* (Enter, Esc, arrows, the
+  answers of a permission or approval box) can't change.
+- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves, with the other settings' pages. Buttons, and the workspace
+  editor's tabs already open, take the new keys at once.
+
+What you change is kept in `settings.toml` (`~/.config/desk/`), under `[keys]`, one line per
+shortcut you changed:
+
+```toml
+[keys]
+"board.new" = "Alt+B"
+"text.newline" = "Ctrl+Enter"
+```
+
+A line desk can't use (a name it doesn't know, a key that breaks the rule) is skipped at start,
+and a message says which. A shortcut is one key with its modifiers; sequences (<kbd>Ctrl</kbd>+<kbd>K</kbd>
+then a key) aren't supported.

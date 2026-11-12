@@ -21,6 +21,7 @@ import (
 	"github.com/oligo/gvcode/textstyle/syntax"
 
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -145,20 +146,42 @@ func (u *ui) wsAddTab(st *wsState, path, text string, mtime time.Time, mode os.F
 	t.ed = kit.CodeEditor(wsScheme(), t.diff)
 	t.ed.WithOptions(gvcode.WrapLine(u.wsEd.Wrap))
 	t.ed.SetText(text)
-	t.ed.RegisterCommand(t, key.Filter{Name: "S", Required: key.ModShortcut}, func(layout.Context, key.Event) gvcode.EditorEvent {
-		u.wsSave(t)
-		return nil
-	})
-	t.ed.RegisterCommand(t, key.Filter{Name: "Z", Required: key.ModAlt}, func(layout.Context, key.Event) gvcode.EditorEvent {
-		u.wsToggleWrap()
-		return nil
-	})
-	u.wsFindKeys(st, t)
-	u.wsLineKeys(t)
+	u.wsKeys(st, t)
 	st.tabs = append(st.tabs, t)
 	st.cur = len(st.tabs) - 1
 	u.wsRedraw()
 	return t
+}
+
+// wsKeys registers t's editor commands from internal/keys, first dropping
+// the ones it had: gvcode reads a command's key when it is registered, so a
+// rebinding reaches open tabs only through this again (wsRekey).
+func (u *ui) wsKeys(st *wsState, t *wsTab) {
+	t.ed.RemoveCommands(t)
+	u.wsCmd(t, "ws.save", func() { u.wsSave(t) })
+	u.wsCmd(t, "ws.wrap", u.wsToggleWrap)
+	u.wsFindKeys(st, t)
+	u.wsLineKeys(t)
+}
+
+// wsRekey gives every open tab the shortcuts as bound now, after the
+// settings saved new ones.
+func (u *ui) wsRekey() {
+	for _, st := range u.ws {
+		for _, t := range st.tabs {
+			u.wsKeys(st, t)
+		}
+	}
+}
+
+// wsCmd runs f on any of shortcut id's keys in t's editor.
+func (u *ui) wsCmd(t *wsTab, id string, f func()) {
+	for _, k := range keys.Filters(nil, id) {
+		t.ed.RegisterCommand(t, k.(key.Filter), func(layout.Context, key.Event) gvcode.EditorEvent {
+			f()
+			return nil
+		})
+	}
 }
 
 // wsToggleWrap turns word wrap on or off in every workspace's tabs, and keeps
@@ -372,7 +395,7 @@ func (u *ui) wsCloseTab(st *wsState, i int) {
 	t := st.tabs[i]
 	if t.dirty && !t.closing {
 		t.closing = true
-		u.showToast(filepath.Base(t.path)+" has changes not saved: "+kit.ModText("S")+" saves them, × again drops them", false)
+		u.showToast(filepath.Base(t.path)+" has changes not saved: "+keys.Cap("ws.save")+" saves them, × again drops them", false)
 		u.wsRedraw()
 		return
 	}
