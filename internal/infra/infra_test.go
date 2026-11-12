@@ -1998,3 +1998,19 @@ func TestWorkspace(t *testing.T) {
 		t.Error("never asked for a frame")
 	}
 }
+
+// TestClaudeCmdInstalled: the infra Claude starts from the native
+// installer's ~/.local/bin when claude isn't on PATH.
+func TestClaudeCmdInstalled(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
+	name := map[bool]string{true: "claude.exe", false: "claude"}[runtime.GOOS == "windows"]
+	bin := filepath.Join(home, ".local", "bin", name)
+	os.MkdirAll(filepath.Dir(bin), 0o755)
+	os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", t.TempDir())
+	if c, err := claudeCmd(t.TempDir(), "-p"); err != nil || c.Path != bin {
+		t.Errorf("claudeCmd = %v, %v; want %s", c, err, bin)
+	}
+}

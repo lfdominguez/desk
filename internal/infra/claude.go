@@ -398,13 +398,13 @@ func claudeCmd(dir string, args ...string) (*exec.Cmd, error) {
 		return ClaudeCmd(args...), nil
 	}
 	home, _ := os.UserHomeDir()
-	name, cfg, js := profileFor(home, dir)
-	if name == "" {
-		return exec.Command("claude", args...), nil
-	}
-	bin, err := exec.LookPath("claude")
+	bin, err := claude.Bin(home)
 	if err != nil {
 		return nil, err
+	}
+	name, cfg, js := profileFor(home, dir)
+	if name == "" {
+		return exec.Command(bin, args...), nil
 	}
 	if claude.NoBwrap { // macOS, Windows: the profile folder is Claude Code's config dir
 		cmd := exec.Command(bin, args...)

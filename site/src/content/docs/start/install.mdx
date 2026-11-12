@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 ## Requirements
 
 - **Linux under Wayland** (Hyprland, Sway, KDE, GNOME and other Wayland compositors; X11 is on the roadmap), **macOS 12 or later** (Apple silicon or Intel), or **Windows 10 or 11** (x64).
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`. Every card runs it.
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`, or where its native installer puts it (`~/.local/bin`, on Windows `%USERPROFILE%\.local\bin\claude.exe`). Every card runs it.
 - **Optional, on Linux: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login. macOS and Windows need nothing for that: there each profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`.
 desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios, the password vaults and your servers (SSH) itself. You don't need `gh`, `glab`, `bw`, `wl-paste` or `ssh`: the infra workspace reads your OpenSSH config and keys, and uses your `ssh-agent` when one runs, but never runs the `ssh` program.
 
@@ -105,7 +105,7 @@ Neither is code-signed yet, so the first time SmartScreen says "Windows protecte
 
 The infra workspace's card sessions run `desk peer`. desk puts its own folder first on the `PATH` of everything it starts, so that works from the zip too. To type `desk` in your own terminal, the MSI adds it to `PATH`; with the zip, add its folder yourself.
 
-What's different on Windows: terminals run on ConPTY, and local shells are PowerShell 7 (`pwsh`) when it's installed, else Windows PowerShell. An organization's Claude profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`. desk keeps its files in the same layout as on Linux, under your user folder: `%USERPROFILE%\.config\desk` and `%USERPROFILE%\.local\share\desk`. The infra workspace's virtual camera stays Linux-only.
+What's different on Windows: terminals run on ConPTY, and local shells are PowerShell 7 (`pwsh`) when it's installed, else Windows PowerShell. Claude Code is found on `PATH`, else at its installer's `%USERPROFILE%\.local\bin\claude.exe`, so a desk started from the Start menu finds it even before `PATH` has it (the Claude desktop app's own `claude.exe` is never used). An organization's Claude profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`. desk keeps its files in the same layout as on Linux, under your user folder: `%USERPROFILE%\.config\desk` and `%USERPROFILE%\.local\share\desk`. The infra workspace's virtual camera stays Linux-only.
 
 No winget or Scoop package yet.
 
