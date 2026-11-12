@@ -3,11 +3,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"image"
 	"os"
 	"path/filepath"
 	"time"
 
 	"gioui.org/f32"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 
 	"github.com/lfdominguez/desk/internal/claude"
@@ -89,6 +91,16 @@ func init() {
 			)
 			s.click(id + "only_toml")
 			s.shot("orgs-settings-only", cut{"preview", dp(446, 308, 1388, 574), false})
+		}},
+		scene{"orgs-settings-keys", func(s *shooter) {
+			s.click("sideOrgCfg")
+			s.click("cfgOrg" + cfgKeys)
+			s.shot("orgs-settings-keys", cut{"nav", dp(204, 58, 428, 320), true})
+			s.click("keyChangeboard.new")
+			s.key("Z", key.ModShortcut) // undo's key: the clash shows under the row
+			r := s.at("keyChangeboard.new")
+			page := dp(446, 0, 1388, 0)
+			s.shot("orgs-settings-keys-clash", cut{"row", image.Rect(page.Min.X, r.Min.Y-int(14*shotScale), page.Max.X, r.Max.Y+int(34*shotScale)), true})
 		}},
 		scene{"orgs-settings-org", func(s *shooter) {
 			s.click("sideOrgCfg")

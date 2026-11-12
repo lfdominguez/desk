@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"maps"
 	"slices"
 	"strings"
@@ -197,29 +198,41 @@ func (u *ui) cfgKeyRow(gtx layout.Context, d *cfgDialog, b *keys.Binding) layout
 	} else if keys.Changed(b.ID) {
 		note = "changed from " + strings.Join(chordTexts(b.Def), " or ")
 	}
+	// toggle starts recording b's new key, or stops: Change and a click on
+	// the keys themselves both do it.
+	toggle := func() {
+		if d.rec == b.ID {
+			d.rec = ""
+		} else {
+			d.rec = b.ID
+		}
+		d.recErr = ""
+	}
 	row := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		kids := []layout.FlexChild{
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return k.Label(gtx, b.What, 13, kit.CText, kit.Sans, 1) }),
 			layout.Rigid(kit.HGap(12)),
 		}
-		kids = append(kids, caps...)
-		if b.Fixed == "" {
-			kids = append(kids, layout.Rigid(kit.HGap(12)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		if b.Fixed != "" {
+			kids = append(kids, caps...)
+		} else {
+			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				dim, ok := k.Button(gtx, "keyCap"+b.ID, color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Top: 2, Bottom: 2, Left: 4, Right: 4},
+					func(gtx layout.Context) layout.Dimensions { return layout.Flex{Alignment: layout.Middle}.Layout(gtx, caps...) })
+				if ok {
+					d.act = toggle
+				}
+				return dim
+			}))
+			kids = append(kids, layout.Rigid(kit.HGap(8)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				label := "Change"
 				if d.rec == b.ID {
 					label = "Cancel"
 				}
 				dim, ok := k.KBtn(gtx, "keyChange"+b.ID, kit.Ghost, label, "")
 				if ok {
-					d.act = func() {
-						if d.rec == b.ID {
-							d.rec = ""
-						} else {
-							d.rec = b.ID
-						}
-						d.recErr = ""
-					}
+					d.act = toggle
 				}
 				return dim
 			}))

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/keys"
@@ -264,7 +265,7 @@ func TestBoardArrows(t *testing.T) {
 func TestPaletteScopeBack(t *testing.T) {
 	h := newHarness(t)
 	h.send(press("K", key.ModShortcut))
-	n := len(palScopes)
+	n := h.u.pal.scopes() // Files only in a workspace
 	h.send(press(key.NameTab, 0))
 	if h.u.pal.scope != 1 {
 		t.Fatalf("Tab: %d", h.u.pal.scope)
@@ -301,5 +302,48 @@ func TestComposerNewline(t *testing.T) {
 	h.send(press(key.NameReturn, key.ModAlt), press(key.NameReturn, key.ModShift))
 	if h.u.chatIn.Text() != "hi\n" || len(h.claudes[0].prompts) != sent {
 		t.Fatalf("box %q, prompts %v", h.u.chatIn.Text(), h.claudes[0].prompts)
+	}
+}
+
+// TestShortcutsClickKey: a click on a row's keys records its new key, as
+// Change does; another click stops.
+func TestShortcutsClickKey(t *testing.T) {
+	h := newHarness(t)
+	d := h.shortcutsPage()
+	h.clickButton("keyCappalette")
+	if d.rec != "palette" {
+		t.Fatalf("the keys' click didn't record: %q", d.rec)
+	}
+	h.clickButton("keyCappalette")
+	if d.rec != "" {
+		t.Fatalf("a second click didn't stop: %q", d.rec)
+	}
+}
+
+// TestShortcutsRekeyOpenTab: saving a new key for ws.save reaches a
+// workspace tab already open: its old key stops saving, the new one saves.
+func TestShortcutsRekeyOpenTab(t *testing.T) {
+	h := newHarness(t)
+	t.Cleanup(func() { keys.Load(nil) })
+	c, dir := wsCard(h)
+	p := filepath.Join(dir, "main.go")
+	h.u.openWS(c.ID)
+	tb := h.u.wsOpen(h.u.wsOf(c.ID), p)
+	h.frame()
+	h.send(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: editorAt},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: editorAt})
+	tb.ed.SetCaret(0, 0)
+	h.send(key.EditEvent{Text: "// x\n"})
+	alt := keys.Chord{Name: "S", Mods: key.ModAlt}
+	if !h.u.saveKeys(&cfgDialog{kdraft: map[string]*keys.Chord{"ws.save": &alt}}) {
+		t.Fatal("not saved")
+	}
+	h.send(press("S", key.ModShortcut))
+	if !tb.dirty {
+		t.Fatal("the old key still saves the open tab")
+	}
+	h.send(press("S", key.ModAlt))
+	if b, _ := os.ReadFile(p); tb.dirty || !strings.HasPrefix(string(b), "// x\n") {
+		t.Fatalf("the new key didn't save: dirty %v, %q", tb.dirty, b)
 	}
 }

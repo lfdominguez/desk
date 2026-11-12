@@ -311,17 +311,22 @@ A two-pane file manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>).
 **Settings → Keyboard shortcuts** (or **Keyboard shortcuts** in the command palette) lists every
 shortcut by where it works, with its keys as they are now.
 
-- **Change** waits for the next key you press, with its modifiers, and makes it the shortcut's.
+![The Keyboard shortcuts page in Settings: Reset all on top, then the Anywhere and Board shortcuts, each with its keys and Change; Esc and the arrows marked fixed](../../../assets/shots/orgs-settings-keys.png)
+
+- **Change**, or a click on the row's keys, waits for the next key you press, with its modifiers, and makes it the shortcut's.
   <kbd>Esc</kbd> cancels. A key that breaks the rule is refused, with why under the row: a modifier
   needs <kbd>Ctrl</kbd> or <kbd>Alt</kbd>, and a key that types (a letter, a digit, a symbol,
   <kbd>Space</kbd>) works alone only for shortcuts that never fire while you type (the board's
   <kbd>E</kbd>, a drawing's tools).
 - A key another shortcut in the same place already uses is named under the row, and Save refuses
   until one of them changes.
+
+  ![New card changed to Ctrl+Z, with "also runs Undo an archive or a delete, while its toast shows — change one" under it](../../../assets/shots/orgs-settings-keys-clash-row.png)
+
 - **Reset** puts one back; **Reset all** every one. Rows marked *fixed* (Enter, Esc, arrows, the
   answers of a permission or approval box) can't change.
-- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves, with the other settings' pages. Buttons show the new keys at
-  once.
+- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves, with the other settings' pages. Buttons, and the workspace
+  editor's tabs already open, take the new keys at once.
 
 What you change is kept in `settings.toml` (`~/.config/desk/`), under `[keys]`, one line per
 shortcut you changed:
