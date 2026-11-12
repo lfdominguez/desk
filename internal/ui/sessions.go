@@ -209,6 +209,20 @@ func (u *ui) newCards(id string, todo []string) {
 // text with "!" in front is the user's own command (shell.go).
 func (u *ui) send(id, text string) { u.deliver(id, text, false) }
 
+// compactingNote is the card's note while Claude Code compacts its conversation.
+const compactingNote = "Compacting the conversation…"
+
+// compact has card id's Claude summarize its conversation so far (the
+// composer's Compact): /compact as a turn, noted at once since Claude Code
+// says it started only once it has the session loaded.
+func (u *ui) compact(id string) {
+	u.send(id, "/compact")
+	if c := u.b.Card(id); c != nil && c.Status == kanban.StatusWorking {
+		c.Note = compactingNote
+		u.save()
+	}
+}
+
 // deliver is send; quiet keeps text out of the chat (desk's own note, as
 // a command's end, which the chat shows its own way).
 func (u *ui) deliver(id, text string, quiet bool) {
@@ -403,6 +417,20 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		return // nothing on the card changed
 	case claude.KindUsage:
 		c.Session.Context = e.Context
+	case claude.KindCompact: // its progress: the card's note while it runs, a line once it's done
+		if e.Text != "done" {
+			c.Status, c.Note = kanban.StatusWorking, compactingNote
+			break
+		}
+		line := "compacted the conversation"
+		if e.Tokens > 0 && e.Context > 0 {
+			line += ": " + tokens(e.Tokens) + " → " + tokens(e.Context) + " tokens"
+			c.Session.Context = e.Context
+		}
+		u.say(id, "tool", line)
+		if c.Note == compactingNote {
+			c.Note = ""
+		}
 	case claude.KindArtifact:
 		if !slices.Contains(c.Artifacts, e.Text) {
 			c.Artifacts = append(c.Artifacts, e.Text)

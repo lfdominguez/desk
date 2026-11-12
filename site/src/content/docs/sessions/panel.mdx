@@ -150,13 +150,18 @@ closing desk keeps it too.
 
 <figure class="cut">
 
-![The message box: "Message Claude… (! runs a shell command)", the keys and Send](../../../assets/shots/sess-panel-composer.png)
+![The message box: "Message Claude… (! runs a shell command)", the keys, Compact and Send](../../../assets/shots/sess-panel-composer.png)
 
 <figcaption>The message box of a card whose turn it is.</figcaption>
 </figure>
 
 - While Claude works, the box says **Claude is working; your message goes next**. A **Stop**
   button beside Send interrupts the turn.
+- **Compact** beside Send has Claude summarize the conversation so far (`/compact`), to free its
+  context. It shows once the session has had a turn and while Claude isn't working. While it runs,
+  the card says **Compacting the conversation…**; when it ends, the conversation gets a line with
+  the context's size before and after. Claude compacting by itself near a full context shows the
+  same way.
 - A message that starts with `!` is a shell command you run yourself. See
   [Shell commands](/sessions/shell/).
 - <kbd>Ctrl</kbd>+<kbd>V</kbd> with an image on the clipboard saves it beside the board and puts

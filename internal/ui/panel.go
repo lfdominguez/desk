@@ -482,6 +482,15 @@ func (u *ui) composer(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 				if running {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx, kids...) // no Send: Stop command, or wait
 				}
+				if !working && !shell && c.Session.Turns > 0 { // a conversation to summarize, and Claude free to do it
+					kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						d, ok := k.Button(gtx, "pnCompact", kit.CPanelCard, kit.CHover, kit.RCtl, layout.Inset{Top: 5, Bottom: 5, Left: 10, Right: 12}, k.Lbl("Compact", 12, kit.CText, kit.Semi(kit.Sans)))
+						if ok {
+							u.compact(c.ID)
+						}
+						return d
+					}), layout.Rigid(kit.HGap(6)))
+				}
 				kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					bg, hov, label := kit.CAcc, kit.CAccText, "Send"
 					if shell {
