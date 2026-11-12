@@ -6,11 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.12] - 2026-11-12
+
 ### Added
 
 - **Change any keyboard shortcut**: **Settings → Keyboard shortcuts** (or **Keyboard shortcuts**
   in the command palette) lists every shortcut of desk and its infra workspace by where it works.
-  **Change** takes the next key you press, a key another shortcut there already uses is named
+  **Change** (or a click on a shortcut's keys) takes the next key you press, a key another shortcut there already uses is named
   before you save, **Reset** and **Reset all** put the defaults back. Saved in `settings.toml`
   under `[keys]`; buttons, tips and the workspace editor's open tabs take your keys at once.
 
@@ -325,7 +327,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.11.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.12...HEAD
+[2026.11.12]: https://github.com/lfdominguez/desk/compare/2026.11.11.1...2026.11.12
 [2026.11.11.1]: https://github.com/lfdominguez/desk/compare/2026.11.11...2026.11.11.1
 [2026.11.11]: https://github.com/lfdominguez/desk/compare/2026.11.09.1...2026.11.11
 [2026.11.09.1]: https://github.com/lfdominguez/desk/compare/2026.11.09...2026.11.09.1
