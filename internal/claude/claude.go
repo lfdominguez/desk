@@ -568,7 +568,7 @@ func AccountName(home, org string) string {
 }
 
 func command(home, org string, args ...string) (*exec.Cmd, error) {
-	bin, err := exec.LookPath("claude")
+	bin, err := Bin(home)
 	if err != nil {
 		return nil, err
 	}

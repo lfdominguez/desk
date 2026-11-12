@@ -63,7 +63,7 @@ Taken from `desk demo`: the organizations, tickets and servers are made up.
 
 desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…; X11 is on the
 [roadmap](#roadmap)), on **macOS 12+** (Apple silicon and Intel) and on **Windows 10/11** (x64).
-It needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`.
+It needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`, or where its native installer puts it (`~/.local/bin`, on Windows `%USERPROFILE%\.local\bin\claude.exe`).
 Optional on Linux: `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for
 per-organization Claude profiles (macOS and Windows hand the profile to Claude Code as
 `CLAUDE_CONFIG_DIR` instead). The infra workspace speaks SSH itself (no `ssh` program needed).
