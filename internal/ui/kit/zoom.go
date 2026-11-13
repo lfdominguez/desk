@@ -27,12 +27,11 @@ func ZoomKey(e key.Event) (steps int, ok bool) {
 // ZoomFilters are ZoomKey's keys, for a focus-less listener.
 func ZoomFilters() []event.Filter { return keys.Filters(nil, "zoom.in", "zoom.out", "zoom.reset") }
 
-// Newline puts a line break in ed on text.newline (Alt+Enter), and takes
-// Shift+Enter, which Gio's editor would make one: a modifier comes with Ctrl
-// or Alt. Call it before ed is laid out, so its keys come here first.
+// Newline puts a line break in ed on text.newline (Alt+Enter); Shift+Enter
+// is left to Gio's editor, which makes one too, as every chat box does.
+// Call it before ed is laid out, so its keys come here first.
 func Newline(gtx layout.Context, ed *widget.Editor) {
-	fs := append(keys.Filters(ed, "text.newline"), key.Filter{Focus: ed, Name: key.NameReturn, Required: key.ModShift},
-		key.Filter{Focus: ed, Name: key.NameEnter, Required: key.ModShift})
+	fs := keys.Filters(ed, "text.newline")
 	for {
 		ev, ok := gtx.Event(fs...)
 		if !ok {

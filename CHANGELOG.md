@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Shift+Enter** makes a new line in a message box again, as Alt+Enter does (the last release left
+  it doing nothing).
+
 ## [2026.11.12.1] - 2026-11-12
 
 ### Added

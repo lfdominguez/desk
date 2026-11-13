@@ -1882,12 +1882,12 @@ func TestGMComposer(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("an empty question")
 	}
-	// Alt+Enter is a new line; Shift+Enter neither sends nor breaks the line
+	// Shift+Enter and Alt+Enter are new lines, neither sends
 	h.key(key.NameReturn, key.ModShift)
 	h.draw(w)
 	h.key(key.NameReturn, key.ModAlt)
 	h.draw(w)
-	if u.input.Text() != "\n" || len(h.acts()) != 0 {
+	if u.input.Text() != "\n\n" || len(h.acts()) != 0 {
 		t.Errorf("new line: box %q", u.input.Text())
 	}
 	u.input.SetText("")

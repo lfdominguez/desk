@@ -286,7 +286,7 @@ func TestPaletteScopeBack(t *testing.T) {
 }
 
 // TestComposerNewline: in the session's message box Alt+Enter is a new
-// line and Shift+Enter neither one nor a send.
+// line, Shift+Enter too, and neither sends.
 func TestComposerNewline(t *testing.T) {
 	h := newHarness(t)
 	h.create("a card", "Acme")
@@ -300,7 +300,7 @@ func TestComposerNewline(t *testing.T) {
 	h.frame()
 	sent := len(h.claudes[0].prompts)
 	h.send(press(key.NameReturn, key.ModAlt), press(key.NameReturn, key.ModShift))
-	if h.u.chatIn.Text() != "hi\n" || len(h.claudes[0].prompts) != sent {
+	if h.u.chatIn.Text() != "hi\n\n" || len(h.claudes[0].prompts) != sent {
 		t.Fatalf("box %q, prompts %v", h.u.chatIn.Text(), h.claudes[0].prompts)
 	}
 }
