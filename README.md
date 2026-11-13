@@ -540,7 +540,7 @@ refuses its file and says so (an export is read anyway).
 | In the Done archive | **↑/↓** preview, **Space** check, **Ctrl+A** check all, **Enter** session, **Delete**, **Esc** uncheck |
 | Back out | **Esc**: the dialog, the search, a field, the panel, then the selection |
 | Text size | **Ctrl+=** bigger, **Ctrl+-** smaller, **Ctrl+0** back to 100%: the terminals and the session panel, anywhere |
-| A new line in a message box | **Alt+Enter** (Enter sends) |
+| A new line in a message box | **Shift+Enter** or **Alt+Enter** (Enter sends) |
 | Change a shortcut | **Settings → Keyboard shortcuts**, or **Keyboard shortcuts** in the palette (**Ctrl+K**) |
 
 Board keys work on the board only, not while you type in a field or in a dialog. A terminal takes

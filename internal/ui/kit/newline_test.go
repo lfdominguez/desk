@@ -12,8 +12,8 @@ import (
 	"github.com/lfdominguez/desk/internal/keys"
 )
 
-// TestNewline: in a message box Alt+Enter puts a line in, Shift+Enter does
-// nothing (no line, no send), Enter still sends; a rebinding moves it.
+// TestNewline: in a message box Alt+Enter and Shift+Enter put a line in,
+// Enter still sends; a rebinding moves Alt+Enter's.
 func TestNewline(t *testing.T) {
 	t.Cleanup(func() { keys.Load(nil) })
 	var r input.Router
@@ -50,7 +50,7 @@ func TestNewline(t *testing.T) {
 		t.Fatalf("Alt+Enter: %q, sent %d", ed.Text(), sent)
 	}
 	press(key.NameReturn, key.ModShift)
-	if ed.Text() != "a\n" || sent != 0 {
+	if ed.Text() != "a\n\n" || sent != 0 {
 		t.Fatalf("Shift+Enter: %q, sent %d", ed.Text(), sent)
 	}
 	press(key.NameReturn, 0)
@@ -61,12 +61,12 @@ func TestNewline(t *testing.T) {
 	frame()
 	press(key.NameReturn, key.ModAlt)
 	press("J", key.ModCtrl)
-	if ed.Text() != "a\n\n" {
+	if ed.Text() != "a\n\n\n" {
 		t.Errorf("rebound to Ctrl+J: %q", ed.Text())
 	}
 	ed.ReadOnly = true
 	press("J", key.ModCtrl)
-	if ed.Text() != "a\n\n" {
+	if ed.Text() != "a\n\n\n" {
 		t.Errorf("a read-only box took a line: %q", ed.Text())
 	}
 }
