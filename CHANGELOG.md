@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Exit confirmation**: closing desk while cards have Claude at work (a turn, background
+  subagents or shells, a `!` command) asks first and names those cards. Exit anyway with Enter, or
+  stay with Esc.
+
 ### Fixed
 
 - **Shift+Enter** makes a new line in a message box again, as Alt+Enter does (the last release left

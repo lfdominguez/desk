@@ -16,6 +16,10 @@ import (
 // fields, T its terminal, / or Ctrl+F search, Ctrl+N a new card, esc backs
 // out of whatever is open.
 func (u *ui) keys(gtx layout.Context) {
+	if u.exit != nil { // the exit question takes esc and enter, over a terminal too
+		u.exitKeys(gtx)
+		return
+	}
 	if u.cfg != nil && u.cfg.rec != "" { // the shortcuts page records the next key, esc included
 		return
 	}
@@ -126,7 +130,7 @@ func (u *ui) keys(gtx layout.Context) {
 // quiet is when the shortcuts stay off: a dialog is open, an editor has
 // the keyboard, or a card's session fills the window (its keys are for it).
 func (u *ui) quiet(gtx layout.Context) bool {
-	return u.edit != nil || u.unlock != nil || u.cfg != nil || u.pick != "" || u.pal != nil || u.typing(gtx) || strings.HasPrefix(u.view, "sess:") || strings.HasPrefix(u.view, "ws:") || strings.HasPrefix(u.view, "draw:")
+	return u.edit != nil || u.unlock != nil || u.exit != nil || u.cfg != nil || u.pick != "" || u.pal != nil || u.typing(gtx) || strings.HasPrefix(u.view, "sess:") || strings.HasPrefix(u.view, "ws:") || strings.HasPrefix(u.view, "draw:")
 }
 
 // typing reports whether one of the window's own editors (not a dialog's:

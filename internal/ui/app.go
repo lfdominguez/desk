@@ -84,6 +84,8 @@ type ui struct {
 	polling    bool                          // a link check is out
 	locked     map[string]*vault.LockedError // vaults waiting for a password or code, by vault.Key
 	unlock     *unlockDialog                 // asking for one, nil when closed
+	exit       *exitAsk                      // closing with cards at work: asking first, nil when not
+	exitOK     bool                          // the user said exit anyway: the next close goes through
 	cfg        *cfgDialog                    // an organization's settings, nil when closed
 	tickets    map[string][]links.Ticket     // open tickets assigned to the user, by org (with a tracker)
 	ticketErr  map[string]string             // what a tracker said instead, by org
@@ -383,6 +385,8 @@ func (u *ui) event(ev event.Event, ops *op.Ops) (done bool, err error) {
 		return true, e.Err
 	case app.ConfigEvent:
 		u.focused = e.Config.Focused
+	case *app.ClosingEvent:
+		u.closeAsked(e)
 	case app.FrameEvent:
 		u.drew = true
 		u.frame(app.NewContext(ops, e)) // loop hands the ops to e.Frame, outside u.mu
@@ -426,7 +430,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver)
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, u.exit != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver)
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click
@@ -476,6 +480,7 @@ func (u *ui) frame(gtx layout.Context) {
 	u.unlockDialog(gtx)
 	u.serverPicker(gtx)
 	u.paletteDialog(gtx)
+	u.exitDialog(gtx)
 	u.toasts(gtx)
 	if f := u.post; f != nil {
 		u.post = nil
