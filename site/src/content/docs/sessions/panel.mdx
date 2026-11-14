@@ -175,3 +175,11 @@ Sending a message moves a card in Backlog, To do or Blocked to **In progress**.
 An archived card's panel has no message box. Its header has **Restore** instead, which puts the
 card back on the board.
 :::
+
+## Closing desk while Claude works
+
+Closing desk's window stops every session. If any card is working (a Claude turn, its background
+subagents or shells, or a `!` command), desk asks first and names those cards. **Exit anyway**
+(<kbd>Enter</kbd>) closes desk; **Cancel** (<kbd>Esc</kbd>) keeps it open. When the work ends while
+the question is up, it goes away by itself. Closing a card's own window only puts its session back
+in the main one, so it never asks.
