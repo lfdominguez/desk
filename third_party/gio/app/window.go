@@ -648,6 +648,7 @@ func (w *Window) processEvent(e event.Event) bool {
 	case DestroyEvent:
 		if w.gpuErr != nil {
 			e2.Err = w.gpuErr
+			w.gpuErr = nil // a window opened again starts without it
 		}
 		w.destroyGPU()
 		w.invMu.Lock()
@@ -657,6 +658,9 @@ func (w *Window) processEvent(e event.Event) bool {
 		if q := w.timer.quit; q != nil {
 			q <- struct{}{}
 			<-q
+			// A window opened again starts its own timer goroutine: left set,
+			// scheduleInvalidate would send to the one that just returned, forever.
+			w.timer.quit, w.timer.update = nil, nil
 		}
 		w.coalesced.destroy = &e2
 	case *ClosingEvent:

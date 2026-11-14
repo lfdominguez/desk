@@ -10,6 +10,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 - **Shift+Enter** makes a new line in a message box again, as Alt+Enter does (the last release left
   it doing nothing).
+- After a monitor switched off and back on, the window desk reopened froze along with every
+  detached window: stale, stretched and deaf to clicks and keys. It now draws and responds again.
 
 ## [2026.11.12.1] - 2026-11-12
 
