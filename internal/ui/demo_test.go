@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -187,6 +188,25 @@ func TestDemo(t *testing.T) {
 }
 
 // TestDemoFails: a demo whose temp folder can't be made says so.
+// TestDemoDaysBack: the demo's archived cards land in the sections their
+// days ask for at any hour, 1 a.m. too (26 hours back was two days then).
+func TestDemoDaysBack(t *testing.T) {
+	for _, h := range []int{1, 12, 23} {
+		now := time.Date(2026, 3, 1, h, 30, 0, 0, time.UTC) // the 1st: yesterday is in the month before
+		var es []archEntry
+		for _, n := range []int{1, 3} {
+			es = append(es, archEntry{c: kanban.Card{Title: fmt.Sprint(n), Finished: daysBack(now, n)}})
+		}
+		var got []string
+		for _, g := range archGroups(es, false, now) {
+			got = append(got, g.name)
+		}
+		if want := []string{"Yesterday", "This week"}; !slices.Equal(got, want) {
+			t.Errorf("at %d:30: %v, want %v", h, got, want)
+		}
+	}
+}
+
 func TestDemoFails(t *testing.T) {
 	noTMPDIR(t)
 	newHarness(t)
