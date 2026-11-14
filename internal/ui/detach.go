@@ -224,6 +224,9 @@ func (u *ui) runDetached(d *detached, next func() event.Event) {
 		u.mu.Lock()
 		state := u.detachedEvent(d, ev)
 		u.mu.Unlock()
+		if e, ok := ev.(app.FrameEvent); ok {
+			e.Frame(&d.ops) // outside u.mu, as loop does: a swap the driver holds stalls this window only
+		}
 		switch state {
 		case winDone:
 			return
@@ -268,9 +271,7 @@ func (u *ui) detachedEvent(d *detached, ev event.Event) int {
 	case app.ConfigEvent:
 		d.p.focused = e.Config.Focused
 	case app.FrameEvent:
-		gtx := app.NewContext(&d.ops, e)
-		u.detachedFrame(gtx, d)
-		e.Frame(gtx.Ops)
+		u.detachedFrame(app.NewContext(&d.ops, e), d) // runDetached hands d.ops to e.Frame, outside u.mu
 	default: // a wakeup
 		u.drain()
 	}

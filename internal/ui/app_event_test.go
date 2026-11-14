@@ -23,7 +23,14 @@ func TestWindowEvents(t *testing.T) {
 	h := newHarness(t)
 	ran, framed := 0, false
 	fe := app.FrameEvent{Now: time.Now(), Size: image.Pt(1200, 800), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Source: h.r.Source(),
-		Frame: func(*op.Ops) { framed = true }}
+		Frame: func(*op.Ops) {
+			framed = true
+			if !h.u.mu.TryLock() { // a swap the driver holds would stall every window
+				t.Error("the frame is presented holding u.mu")
+			} else {
+				h.u.mu.Unlock()
+			}
+		}}
 	evs := []event.Event{wakeup{}, app.ConfigEvent{Config: app.Config{Focused: true}}, fe, app.DestroyEvent{}, wakeup{}}
 	checks := []func(){
 		func() { h.u.later(func() { ran++ }) },

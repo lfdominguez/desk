@@ -231,7 +231,14 @@ func TestDetachedWindowEvents(t *testing.T) {
 	ran, framed := 0, false
 	r := new(input.Router)
 	fe := app.FrameEvent{Now: time.Now(), Size: image.Pt(800, 600), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Source: r.Source(),
-		Frame: func(*op.Ops) { framed = true }}
+		Frame: func(*op.Ops) {
+			framed = true
+			if !h.u.mu.TryLock() { // a swap the driver holds would stall the main window too
+				t.Error("the detached frame is presented holding u.mu")
+			} else {
+				h.u.mu.Unlock()
+			}
+		}}
 	lost := errors.New("wayland: display file descriptor gone")
 	evs := []event.Event{app.ConfigEvent{Config: app.Config{Focused: true}}, wakeup{}, fe, app.DestroyEvent{Err: lost}}
 	i := 0

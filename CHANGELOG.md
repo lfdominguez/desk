@@ -12,6 +12,8 @@ day). A release's section here is its notes on GitHub. The format follows
   it doing nothing).
 - After a monitor switched off and back on, the window desk reopened froze along with every
   detached window: stale, stretched and deaf to clicks and keys. It now draws and responds again.
+- A window the graphics driver holds back (a detached session on a workspace that isn't on screen,
+  on NVIDIA) no longer keeps every other desk window, the main one too, from drawing or opening.
 
 ## [2026.11.12.1] - 2026-11-12
 

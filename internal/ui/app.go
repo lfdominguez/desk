@@ -305,7 +305,20 @@ func (u *ui) loop(next func() event.Event) error {
 	for {
 		ev := next()
 		u.mu.Lock() // a detached window's loop shares u; held on return, so desk's cleanup doesn't race it
+		tg, ig := u.termGen.Load(), u.infraGen()
 		done, err := u.event(ev, &ops)
+		if fe, ok := ev.(app.FrameEvent); ok {
+			u.mu.Unlock()
+			// fe.Frame swaps buffers, which a driver can hold (NVIDIA, a window not on screen):
+			// outside u.mu, so that stalls this window only, not every window.
+			fe.Frame(&ops)
+			if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
+				// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after Frame returns.
+				// ponytail: a short delay, not a hook into Gio's loop; one more Invalidate after it if 10 ms ever falls short.
+				time.AfterFunc(10*time.Millisecond, u.w.Invalidate)
+			}
+			continue
+		}
 		if !done {
 			u.mu.Unlock()
 			continue
@@ -372,15 +385,7 @@ func (u *ui) event(ev event.Event, ops *op.Ops) (done bool, err error) {
 		u.focused = e.Config.Focused
 	case app.FrameEvent:
 		u.drew = true
-		gtx := app.NewContext(ops, e)
-		tg, ig := u.termGen.Load(), u.infraGen()
-		u.frame(gtx)
-		e.Frame(gtx.Ops)
-		if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
-			// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after this returns.
-			// ponytail: a short delay, not a hook into Gio's loop; one more Invalidate after it if 10 ms ever falls short.
-			time.AfterFunc(10*time.Millisecond, u.w.Invalidate)
-		}
+		u.frame(app.NewContext(ops, e)) // loop hands the ops to e.Frame, outside u.mu
 	default: // Gio's wakeup, from later's Invalidate: a window that isn't shown gets no frames, and a Claude's tool waits on this work (onBoard)
 		u.drain()
 	}
