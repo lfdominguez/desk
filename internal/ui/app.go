@@ -547,6 +547,7 @@ func (u *ui) mainView() layout.Widget {
 // With saveAfter (desk's window: a Claude stream changes the board several
 // times a second) the write waits that long, so a burst is one write.
 func (u *ui) save() {
+	u.pilotFollow()
 	u.gen++
 	if u.saveAfter == 0 {
 		u.flush()

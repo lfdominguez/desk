@@ -464,8 +464,31 @@ func TestAutopilotSidebar(t *testing.T) {
 	}
 	h.frame() // drawn, its cards indented
 	h.u.b.Card(pid).Session.ID = ""
-	if got := rows(); len(got) != 3 || slices.Contains(got, pid) || !slices.Contains(got, kids[0]) || !slices.Contains(got, kids[1]) {
-		t.Errorf("without the autopilot's row: %v", got)
+	if got := rows(); len(got) != 4 || got[len(got)-3] != pid || !slices.Equal(got[len(got)-2:], kids) {
+		t.Errorf("an autopilot not listed still heads its cards: %v", got)
+	}
+}
+
+// TestAutopilotDone: an autopilot moved to Done takes its cards there,
+// done, whatever they were doing; the sidebar lists none of them then.
+func TestAutopilotDone(t *testing.T) {
+	h := newHarness(t)
+	pid, kids := apStart(t, h, kanban.Pilot{Level: kanban.PilotAuto})
+	apSessions(h, pid, kids[0], kids[1])
+	h.u.b.Card(kids[0]).Status = kanban.StatusBlocked
+	h.u.b.Card(kids[1]).Status = kanban.StatusReview
+	h.u.moveTo(pid, "Done")
+	h.u.save()
+	done := h.u.b.Column("Done")
+	for _, k := range kids {
+		if col, _ := h.u.b.Find(k); col != done || h.u.b.Card(k).Status != kanban.StatusDone || h.u.b.Card(k).Finished.IsZero() {
+			t.Errorf("card %s: column %d, %+v", k, col, h.u.b.Card(k))
+		}
+	}
+	for _, s := range h.u.sections() {
+		if s.title == "Agent Sessions" && len(s.items) != 0 {
+			t.Errorf("still listed: %v", s.items)
+		}
 	}
 }
 

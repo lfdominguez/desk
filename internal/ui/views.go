@@ -247,8 +247,9 @@ func (u *ui) sections() []struct {
 		}
 		byOrg[o] = out
 	}
-	for _, c := range cards { // an autopilot not listed itself: its cards stand alone
+	for _, c := range cards { // an autopilot not listed itself (finished, still with a card open): listed to head its cards, or they'd sit under another card
 		if its := kids[c.ID]; len(its) > 0 {
+			byOrg[c.Org] = append(byOrg[c.Org], sideItem{"sess:" + c.ID, c.Key() + " " + c.Title, kit.IcoCheck, kit.CGreen})
 			byOrg[c.Org] = append(byOrg[c.Org], its...)
 		}
 	}

@@ -42,6 +42,31 @@ func (u *ui) pilotHeld(c *kanban.Card) bool {
 	return col != u.b.Column("Done")
 }
 
+// pilotFollow takes the cards of every autopilot in Done there too, done:
+// an autopilot and its cards are one piece of work, so its Done is theirs
+// (however it got there: a drag, a key, its Claude's status). save runs it.
+func (u *ui) pilotFollow() {
+	done := u.b.Column("Done")
+	if done < 0 {
+		return
+	}
+	var ids []string
+	for _, c := range u.b.Columns[done].Cards {
+		if c.Pilot != nil {
+			ids = append(ids, c.ID)
+		}
+	}
+	for _, p := range ids {
+		for _, c := range u.boardCards() {
+			if col, _ := u.b.Find(c.ID); c.Parent == p && col != done {
+				u.b.MoveBefore(c.ID, done, "")
+				k := u.b.Card(c.ID)
+				k.Status, k.Note = kanban.StatusDone, ""
+			}
+		}
+	}
+}
+
 // pilotSpent is what autopilot id and its cards' sessions have cost.
 func (u *ui) pilotSpent(id string) float64 {
 	n := u.b.Card(id).Session.Cost

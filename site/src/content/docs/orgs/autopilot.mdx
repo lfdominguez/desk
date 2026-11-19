@@ -53,7 +53,9 @@ Moving a ticket changes something outside, so while the autopilot runs:
   rules above);
 - a card's column doesn't move its ticket.
 
-Once you move the autopilot's card to **Done**, or archive it, each ticket catches up with its card.
+The autopilot and its cards are one piece of work: once its card is in **Done** (moved by you or
+by its Claude), its cards go to Done too, whatever state each was in. Then, or once you archive
+it, each ticket catches up with its card.
 
 ## Budget
 
@@ -86,7 +88,7 @@ one. A card's own header reads **↑ Run by the autopilot DESK-n**, which opens 
 The board's [search](/board/search/) finds them too.
 
 In the sidebar's [Agent Sessions](/board/sidebar/#agent-sessions) its cards are listed right
-under it, indented. Its session opens on its [canvas](/sessions/canvas/), with a node for each of
+under it, indented (a finished autopilot still heads a card of its own that is open). Its session opens on its [canvas](/sessions/canvas/), with a node for each of
 its cards: wired from the autopilot's session and into Done, a click opens that card's session.
 In the [Company view](/orgs/company/#the-company-view) its cards sit next to it on the outer ring,
 each tied to it by a dashed tether.
