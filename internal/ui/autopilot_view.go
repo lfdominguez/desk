@@ -43,11 +43,12 @@ func noTint(int) color.NRGBA { return color.NRGBA{} }
 // pilotBudgets are the dialog's group budgets in USD, 0 none.
 var pilotBudgets = []float64{0, 5, 10, 25, 50}
 
-// pilotTickets is the org's checked tickets, in the view's order.
+// pilotTickets is the org's checked tickets without a card yet (one made
+// after it was checked drops out), in the view's order.
 func (u *ui) pilotTickets(org string) []links.Ticket {
 	var ts []links.Ticket
 	for _, t := range u.tickets[org] {
-		if u.tkSel[t.URL] {
+		if u.tkSel[t.URL] && u.ticketCard(t) == nil {
 			ts = append(ts, t)
 		}
 	}

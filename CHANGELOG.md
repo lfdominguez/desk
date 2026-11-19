@@ -22,6 +22,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 - Only one desk runs on a board at a time: a second one says desk is already running and quits,
   instead of each saving its own copy of the board over the other's.
+- The Tickets view offers no autopilot checkbox for a ticket that already has a card, and a ticket
+  checked before its card was made is left out of the autopilot.
 
 ### Fixed
 

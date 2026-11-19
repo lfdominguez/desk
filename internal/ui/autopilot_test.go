@@ -166,6 +166,28 @@ func TestAutopilotRunsCards(t *testing.T) {
 	}
 }
 
+// TestAutopilotSkipsCarded: a ticket that has a card shows no checkbox,
+// and one checked before its card was made drops out of the autopilot.
+func TestAutopilotSkipsCarded(t *testing.T) {
+	h := newHarness(t)
+	h.u.tickets["Globex"] = []links.Ticket{apTk1, apTk2}
+	h.u.tkSel[apTk1.URL], h.u.tkSel[apTk2.URL] = true, true
+	h.u.view = "tk:Globex"
+	h.u.b.Add(0, kanban.Card{Title: "Fix login", Org: "Globex", Links: []kanban.Link{{URL: apTk1.URL}}})
+	sz := image.Pt(900, 600)
+	view := func(gtx layout.Context) layout.Dimensions { return h.u.ticketsView(gtx) }
+	h.draw(sz, view)
+	if _, ok := h.seek("tkSel"+apTk1.URL, image.Rectangle{Max: sz}, func() { h.draw(sz, view) }); ok {
+		t.Error("a carded ticket has a checkbox")
+	}
+	if _, ok := h.seek("tkSel"+apTk2.URL, image.Rectangle{Max: sz}, func() { h.draw(sz, view) }); !ok {
+		t.Error("a free ticket has no checkbox")
+	}
+	if ts := h.u.pilotTickets("Globex"); len(ts) != 1 || ts[0].Key != "ABC-2" {
+		t.Errorf("autopilot tickets %v", ts)
+	}
+}
+
 // TestAutopilotView: tickets check into a bar whose Autopilot… opens the
 // dialog; Start makes it with the level and number picked; the cards show
 // on the autopilot's card and session, each opening its own.
@@ -234,8 +256,10 @@ func TestAutopilotView(t *testing.T) {
 	if h.u.panel != pc.ID {
 		t.Fatalf("its autopilot: panel %q", h.u.panel)
 	}
-	// esc closes it; enter in the name starts it
-	h.u.tkSel[apTk1.URL] = true
+	// esc closes it; enter in the name starts it (on a ticket with no card yet)
+	tk3 := links.Ticket{Project: "ABC", Key: "ABC-3", Title: "Docs", Status: "To Do", URL: "https://globex.atlassian.net/browse/ABC-3"}
+	h.u.tickets["Globex"] = append(h.u.tickets["Globex"], tk3)
+	h.u.tkSel[tk3.URL] = true
 	h.u.openPilot("Globex")
 	h.frame()
 	h.send(press(key.NameEscape, 0))

@@ -168,6 +168,9 @@ func (u *ui) ticketRow(gtx layout.Context, org string, t links.Ticket) layout.Di
 	return layout.Inset{Bottom: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // beside the row, not in it: a click is one or the other
+				if c != nil { // already worked on: no autopilot for it, the box's room kept so rows line up
+					return layout.Spacer{Width: 30, Height: 30}.Layout(gtx)
+				}
 				return u.archBox(gtx, "tkSel"+t.URL, u.tkSel[t.URL], func() {
 					if u.tkSel[t.URL] {
 						delete(u.tkSel, t.URL)
