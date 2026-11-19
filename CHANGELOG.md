@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.19.3] - 2026-11-19
+
+### Fixed
+
+- An autopilot moved to Done takes its cards to Done too: they are one piece of work. Its cards no
+  longer stayed behind, listed in Agent Sessions under an unrelated card.
+
 ## [2026.11.19.2] - 2026-11-19
 
 ### Added
@@ -620,7 +627,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.19.2...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.19.3...HEAD
+[2026.11.19.3]: https://github.com/lfdominguez/desk/compare/2026.11.19.2...2026.11.19.3
 [2026.11.19.2]: https://github.com/lfdominguez/desk/compare/2026.11.19.1...2026.11.19.2
 [2026.11.19.1]: https://github.com/lfdominguez/desk/compare/2026.11.19...2026.11.19.1
 [2026.11.19]: https://github.com/lfdominguez/desk/compare/2026.11.17...2026.11.19
