@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/lfdominguez/desk/internal/testwait"
 )
 
 // fakeX is an X server for one client: its clipboard offers types and holds
@@ -19,11 +22,15 @@ import (
 // (counted from 0; -1 never). Other modes misbehave: "no-owner",
 // "refuse-image", "x-error", "huge", "short-reply", "incr-hang", and the
 // setup's "refuse-setup", "cut-head", "cut-more", "bad-setup", "bad-screen".
+// A client that takes PRIMARY is asked for TARGETS, UTF8_STRING, STRING, TEXT
+// (as an obsolete client: no property) and an image it can't give; what it
+// puts in properties and tells comes on got, then it loses the selection.
 type fakeX struct {
 	types        []string
 	data, cookie string
 	mode         string
 	cut          int
+	got          chan string
 }
 
 // serve answers l's first connection as f.
@@ -90,7 +97,7 @@ func (f fakeX) run(c net.Conn) {
 	}
 	c.Write(append([]byte{1, 0, 11, 0, 0, 0, byte(len(more) / 4), 0}, more...))
 
-	atoms, names := map[string]uint32{}, map[uint32]string{}
+	atoms, names := map[string]uint32{}, map[uint32]string{xAtom: "ATOM"} // a predefined one
 	atom := func(n string) uint32 {
 		if a, ok := atoms[n]; ok {
 			return a
@@ -117,6 +124,7 @@ func (f fakeX) run(c net.Conn) {
 	props := map[uint32]prop{}
 	var chunks []string
 	incr, ended := false, false
+	answered := 0
 	for n := 0; n != f.cut; n++ {
 		h := make([]byte, 4)
 		if _, err := io.ReadFull(c, h); err != nil {
@@ -126,6 +134,34 @@ func (f fakeX) run(c net.Conn) {
 		io.ReadFull(c, body)
 		w := func(i int) uint32 { return xle.Uint32(body[4*i:]) }
 		switch h[0] {
+		case xSetSelectionOwner:
+			if f.mode == "cut-tail" { // a reply, and gone before its tail
+				c.Write(append(xle.AppendUint32([]byte{1, 0, 0, 0}, 1), make([]byte, 24)...))
+				return
+			}
+			c.Write(append(xle.AppendUint32([]byte{1, 0, 0, 0}, 1), make([]byte, 28)...)) // a stray reply, its tail too
+			for _, tg := range []string{"TARGETS", "UTF8_STRING", "STRING", "TEXT", "image/png"} {
+				p := atom("P")
+				if tg == "TEXT" {
+					p = 0
+				}
+				ev(xSelectionRequest, 0, 0, 0x200, w(1), atom(tg), p)
+			}
+		case xChangeProperty:
+			var v string
+			if body[12] == 32 {
+				for i := 20; i+4 <= len(body); i += 4 {
+					v += names[xle.Uint32(body[i:])] + " "
+				}
+			} else {
+				v = string(body[20:][:w(4)])
+			}
+			f.got <- names[w(1)] + " " + names[w(2)] + ": " + strings.TrimSpace(v)
+		case xSendEvent:
+			f.got <- "notify " + names[xle.Uint32(body[8+20:])]
+			if answered++; answered == 5 && f.mode != "keep" { // all asked: the selection goes elsewhere
+				ev(xSelectionClear, 0, 0, 0)
+			}
 		case xInternAtom:
 			if f.mode == "x-error" {
 				c.Write(append([]byte{0, 11}, make([]byte, 30)...))
@@ -357,6 +393,93 @@ func TestXauth(t *testing.T) {
 		if string(data) != tc.want || (name != "") != tc.wantFound {
 			t.Errorf("display %s tcp %v: %q %q, want %q", tc.num, tc.tcp, name, data, tc.want)
 		}
+	}
+}
+
+// TestPrimaryX11: under X, a middle click's text is PRIMARY's, as
+// UTF8_STRING; taken, desk answers each client that asks (its targets, the
+// text, TEXT as UTF8_STRING into the target-named property, an image
+// refused) until another takes it.
+func TestPrimaryX11(t *testing.T) {
+	listenX(t, fakeX{types: []string{"TARGETS", "image/png", "UTF8_STRING"}, data: "uptime", cut: -1})
+	if got := Primary(); got != "uptime" {
+		t.Errorf("primary: %q", got)
+	}
+	long := strings.Repeat("a", xPropMax-1) + "é" // its second byte past what fits: cut before the é
+	for text, string_ := range map[string][]string{
+		"café": {"P STRING: caf\xe9", "notify P"}, // Latin-1, as ICCCM's STRING is
+		"✓ ok": {"notify "},                       // no Latin-1 for it: refused
+		long:   {"P STRING: " + long[:xPropMax-1], "notify P"},
+	} {
+		got := make(chan string, 16)
+		listenX(t, fakeX{cut: -1, got: got})
+		ended := make(chan error, 1)
+		go func() { ended <- ownPrimary(text, make(chan struct{})) }()
+		utf := text
+		if text == long {
+			utf = long[:xPropMax-1]
+		}
+		want := append(append([]string{
+			"P ATOM: TARGETS UTF8_STRING STRING TEXT", "notify P",
+			"P UTF8_STRING: " + utf, "notify P",
+		}, string_...), "TEXT UTF8_STRING: "+utf, "notify TEXT",
+			"notify ", // the image: refused, no property
+		)
+		for i, w := range want {
+			select {
+			case g := <-got:
+				if g != w {
+					t.Errorf("%.12q %d: %.40q, want %.40q", text, i, g, w)
+				}
+			case <-time.After(testwait.Long):
+				t.Fatalf("%.12q %d: nothing, want %.40q", text, i, w)
+			}
+		}
+		if err := <-ended; err != nil { // the selection went elsewhere
+			t.Error(err)
+		}
+	}
+	got := make(chan string, 16)
+	listenX(t, fakeX{cut: -1, got: got})
+	done := make(chan struct{})
+	close(done)
+	if err := ownPrimary("stale", done); err != nil {
+		t.Errorf("a stopped call: %v", err)
+	}
+	select {
+	case g := <-got:
+		t.Errorf("a stopped call took it: %q", g)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// TestPrimaryX11Fails: no server, a refused atom or the server going away
+// ends serving with an error.
+func TestPrimaryX11Fails(t *testing.T) {
+	listenX(t, fakeX{mode: "x-error", cut: -1})
+	if err := ownPrimary("x", nil); err == nil {
+		t.Error("an X error on the atoms")
+	}
+	got := make(chan string, 16)
+	listenX(t, fakeX{cut: -1, got: got, mode: "keep"})
+	done := make(chan struct{})
+	ended := make(chan error, 1)
+	go func() { ended <- ownPrimary("x", done) }()
+	<-got // it serves
+	close(done)
+	if err := <-ended; err == nil {
+		t.Error("stopped: no error from the closed connection")
+	}
+	for _, f := range []fakeX{{cut: 7}, {mode: "cut-tail", cut: -1}} { // gone after the take, or inside a reply's tail
+		f.got = make(chan string, 16)
+		listenX(t, f)
+		if err := ownPrimary("x", make(chan struct{})); err == nil {
+			t.Errorf("%+v: no error", f)
+		}
+	}
+	t.Setenv("DISPLAY", ":9") // nobody there
+	if err := ownPrimary("x", nil); err == nil {
+		t.Error("no server")
 	}
 }
 

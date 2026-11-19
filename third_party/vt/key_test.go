@@ -60,3 +60,36 @@ func TestSynchronized(t *testing.T) {
 		t.Error("held past SyncMax")
 	}
 }
+
+func TestModifiedKeys(t *testing.T) {
+	for _, tc := range []struct {
+		key  uv.KeyPressEvent
+		want string
+	}{
+		{uv.KeyPressEvent{Code: uv.KeyLeft, Mod: uv.ModCtrl}, "\x1b[1;5D"},
+		{uv.KeyPressEvent{Code: uv.KeyRight, Mod: uv.ModCtrl}, "\x1b[1;5C"},
+		{uv.KeyPressEvent{Code: uv.KeyUp, Mod: uv.ModShift}, "\x1b[1;2A"},
+		{uv.KeyPressEvent{Code: uv.KeyDown, Mod: uv.ModAlt}, "\x1b[1;3B"},
+		{uv.KeyPressEvent{Code: uv.KeyLeft, Mod: uv.ModCtrl | uv.ModShift}, "\x1b[1;6D"},
+		{uv.KeyPressEvent{Code: uv.KeyHome, Mod: uv.ModCtrl}, "\x1b[1;5H"},
+		{uv.KeyPressEvent{Code: uv.KeyEnd, Mod: uv.ModShift}, "\x1b[1;2F"},
+		{uv.KeyPressEvent{Code: uv.KeyF1, Mod: uv.ModCtrl}, "\x1b[1;5P"},
+		{uv.KeyPressEvent{Code: uv.KeyDelete, Mod: uv.ModCtrl}, "\x1b[3;5~"},
+		{uv.KeyPressEvent{Code: uv.KeyPgUp, Mod: uv.ModShift}, "\x1b[5;2~"},
+		{uv.KeyPressEvent{Code: uv.KeyF5, Mod: uv.ModAlt | uv.ModCtrl}, "\x1b[15;7~"},
+		{uv.KeyPressEvent{Code: uv.KeyF12, Mod: uv.ModMeta}, "\x1b[24;9~"},
+		{uv.KeyPressEvent{Code: uv.KeyBackspace, Mod: uv.ModCtrl}, "\x08"},
+		{uv.KeyPressEvent{Code: uv.KeyBackspace, Mod: uv.ModAlt}, "\x1b\x7f"},
+		{uv.KeyPressEvent{Code: uv.KeyLeft}, "\x1b[D"}, // bare: the table's
+		{uv.KeyPressEvent{Code: 'b', Mod: uv.ModAlt, Text: "b"}, "\x1bb"},
+	} {
+		e := NewEmulator(10, 3)
+		go e.SendKey(tc.key)
+		buf := make([]byte, 16)
+		n, _ := e.Read(buf)
+		if got := string(buf[:n]); got != tc.want {
+			t.Errorf("%+v: %q, want %q", tc.key, got, tc.want)
+		}
+		e.Close()
+	}
+}

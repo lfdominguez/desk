@@ -49,12 +49,12 @@ func (u *ui) fetchOverlay(gtx layout.Context, area image.Rectangle, p guiPane, s
 			return u.label(gtx, ss[len(ss)-1].Err, 12, cRedText, monoFont, 4)
 		})))
 	}
-	row := []layout.FlexChild{u.kb("pwC", kit.Ghost, map[bool]string{true: "Close", false: "Cancel"}[failed], "C", func() {
+	row := []layout.FlexChild{u.kb(pwButton("C", p.Term), kit.Ghost, map[bool]string{true: "Close", false: "Cancel"}[failed], "C", func() {
 		p.Term.fetchHide()
 		u.wantTerm = true
 	}), spacer()}
 	if failed {
-		row = append(row, u.kb("pwR", kit.Primary, "Try again", "R", func() { u.d.press("alt+p") }))
+		row = append(row, u.kb(pwButton("R", p.Term), kit.Primary, "Try again", "R", func() { u.retryFetch(p.Term) }))
 	}
 	kids = append(kids, layout.Rigid(vgap(12)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, row...)
@@ -86,7 +86,26 @@ func (u *ui) fetchKey(p guiPane, text string, name key.Name) bool {
 		p.Term.fetchHide()
 		u.wantTerm = true
 	case failed && (text == "r" || text == "R"):
-		u.d.press("alt+p")
+		u.retryFetch(p.Term)
 	}
 	return true
+}
+
+// pwButton is a fetch box's button id, the pane's own: two panes' boxes
+// keep their clicks apart.
+func pwButton(which string, t *Term) string { return fmt.Sprintf("pw%s%p", which, t) }
+
+// retryFetch fetches term's password again, for its pane: not the focused
+// one (alt+p's), which a click on another pane's box needn't be.
+func (u *ui) retryFetch(term *Term) {
+	u.d.act(func(m *model) {
+		for _, t := range m.tabs {
+			for _, pn := range t.panes {
+				if pn.term == term {
+					u.d.run(serverPasswordCmd(pn))
+					return
+				}
+			}
+		}
+	})
 }

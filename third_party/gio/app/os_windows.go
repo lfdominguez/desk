@@ -1115,6 +1115,8 @@ func convertKeyCode(code uintptr) (key.Name, bool) {
 		r = key.NameDeleteBackward
 	case windows.VK_DELETE:
 		r = key.NameDeleteForward
+	case windows.VK_INSERT: // desk patch
+		r = key.NameInsert
 	case windows.VK_PRIOR:
 		r = key.NamePageUp
 	case windows.VK_NEXT:

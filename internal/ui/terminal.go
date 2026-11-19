@@ -440,7 +440,7 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 	}
 	if c, ok := specialKeys[e.Name]; ok {
 		k.Code = c
-		if c != uv.KeyTab && c != uv.KeyEnter { // shift+tab, and shift+enter (Claude Code's newline)
+		if c == uv.KeyBackspace || c == uv.KeyEscape || c == uv.KeySpace { // shift+enter stays: Claude Code's newline
 			k.Mod &^= uv.ModShift
 		}
 		return k, true
@@ -461,7 +461,7 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 
 var specialKeys = map[key.Name]rune{
 	key.NameReturn: uv.KeyEnter, key.NameEnter: uv.KeyEnter, key.NameEscape: uv.KeyEscape, key.NameTab: uv.KeyTab,
-	key.NameDeleteBackward: uv.KeyBackspace, key.NameDeleteForward: uv.KeyDelete, key.NameUpArrow: uv.KeyUp,
+	key.NameDeleteBackward: uv.KeyBackspace, key.NameDeleteForward: uv.KeyDelete, key.NameInsert: uv.KeyInsert, key.NameUpArrow: uv.KeyUp,
 	key.NameDownArrow: uv.KeyDown, key.NameLeftArrow: uv.KeyLeft, key.NameRightArrow: uv.KeyRight,
 	key.NameHome: uv.KeyHome, key.NameEnd: uv.KeyEnd, key.NamePageUp: uv.KeyPgUp, key.NamePageDown: uv.KeyPgDown,
 	key.NameSpace: uv.KeySpace, key.NameF1: uv.KeyF1, key.NameF2: uv.KeyF2, key.NameF3: uv.KeyF3, key.NameF4: uv.KeyF4,

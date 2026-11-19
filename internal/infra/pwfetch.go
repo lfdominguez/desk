@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"io"
 	"slices"
 	"time"
 )
@@ -52,21 +53,51 @@ func (t *Term) fetchLive(f *pwFetch) bool {
 }
 
 // fetchStep ends the fetch's running step and starts name; user marks a
-// wait on the user (the vault's master password).
-func (t *Term) fetchStep(name string, user bool) {
+// wait on the user (the vault's master password). Only while f is the pane's
+// fetch: a replaced one's late steps aren't the new one's.
+func (t *Term) fetchStep(f *pwFetch, name string, user bool) {
 	if t == nil {
 		return
 	}
-	now := time.Now()
 	t.mu.Lock()
-	if f := t.fetch; f != nil && f.end.IsZero() {
-		if n := len(f.steps); n > 0 && f.steps[n-1].End.IsZero() {
-			f.steps[n-1].End = now
-		}
-		f.steps = append(f.steps, connStep{Name: name, User: user, Start: now})
+	if t.fetch == f {
+		f.step(name, user)
 	}
 	t.mu.Unlock()
 	t.redraw()
+}
+
+// step is fetchStep with the Term's mu held.
+func (f *pwFetch) step(name string, user bool) {
+	if f == nil || !f.end.IsZero() {
+		return
+	}
+	now := time.Now()
+	if n := len(f.steps); n > 0 && f.steps[n-1].End.IsZero() {
+		f.steps[n-1].End = now
+	}
+	f.steps = append(f.steps, connStep{Name: name, User: user, Start: now})
+}
+
+// typeSecretFor types pw into the sudo prompt at the cursor, only while f is
+// the pane's live fetch and the prompt is still there: both checked under
+// the same lock as the write, so a Cancel or the prompt going away can't come
+// in between. live false: cancelled or replaced, nothing to do.
+func (t *Term) typeSecretFor(f *pwFetch, pw string) (live, typed bool) {
+	if t == nil {
+		return true, false
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.fetch != f || f.hidden {
+		return false, false
+	}
+	if _, ok := t.sudoPrompt(); !ok {
+		return true, false
+	}
+	f.step("Typing it into the prompt", false)
+	io.WriteString(t.pty, pw+"\r")
+	return true, true
 }
 
 // fetchEnd ends the fetch, its running step failed with err when there is one.

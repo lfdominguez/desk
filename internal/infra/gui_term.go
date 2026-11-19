@@ -36,6 +36,9 @@ type termView struct {
 	scroll     int
 	cols, rows int
 	sel        [2]image.Point // cell (col,row) in the view; equal = no selection
+	link       linkSpan       // the URL under the pointer while Ctrl is held (termlinks.go)
+	hover      image.Point    // the cell under the pointer, while hovering: Ctrl pressed there finds its URL
+	hovering   bool
 	selecting  bool
 	clicks     clicks
 	runs       [][]Run // last drawn, for copying
@@ -301,6 +304,18 @@ func typingTo(t *guiTab, p guiPane) []*Term {
 		}
 	}
 	return out
+}
+
+// pasteTo pastes s into terms, but not into one whose password box is up:
+// its prompt waits for the password, and a pasted line with a newline would
+// run behind the box. Checked as it pastes: a middle click's text comes
+// later, from the selection's owner.
+func pasteTo(terms []*Term, s string) {
+	for _, term := range terms {
+		if _, fetching := term.Fetch(); !fetching {
+			term.Paste(s)
+		}
+	}
 }
 
 // pane draws one terminal: header, grid with block cards, overlay.
@@ -674,6 +689,12 @@ func (u *ui) grid(gtx layout.Context, t *guiTab, i int, p guiPane, area image.Re
 		v.recorded++
 	}
 	v.cellCall.Add(gtx.Ops)
+	for _, s := range v.link.rows(v.cols) { // Ctrl over a URL: underlined, each row it's wrapped onto; it opens on a click
+		if s[0] < len(runs) {
+			y := at(s[0]) + rowH - gtx.Dp(3)
+			paint.FillShape(gtx.Ops, cAcc, clip.Rect(image.Rect(inner.Min.X+s[1]*cw, y, inner.Min.X+s[2]*cw, y+max(1, gtx.Dp(1)))).Op())
+		}
+	}
 	if cursor && cy < len(runs) {
 		x, top := inner.Min.X+cx*cw, at(cy)+(rowH-chh)/2
 		c := cAcc
@@ -704,6 +725,7 @@ func (v *termView) screen(t *Term) (sb int, runs [][]Run, meta []Row, cx, cy int
 		v.gridVer, v.gridScroll, v.gridGen = ver, v.scroll, v.gridGen+1
 		v.sb = t.Scrollback()
 		v.runs, v.meta, v.cx, v.cy, v.cursor = t.Grid(v.scroll)
+		v.link = linkSpan{} // found on the rows before: the next pointer or Ctrl event finds it again
 	}
 	return v.sb, v.runs, v.meta, v.cx, v.cy, v.cursor
 }
@@ -802,7 +824,7 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			key.FocusFilter{Target: v},
 			key.Filter{Focus: v, Name: "", Optional: mods},
 			key.Filter{Focus: v, Name: key.NameTab, Optional: mods},
-			pointer.Filter{Target: v, Kinds: pointer.Press | pointer.Drag | pointer.Release | pointer.Scroll, ScrollY: pointer.ScrollRange{Min: -1e6, Max: 1e6}},
+			pointer.Filter{Target: v, Kinds: pointer.Press | pointer.Drag | pointer.Release | pointer.Scroll | pointer.Move | pointer.Leave, ScrollY: pointer.ScrollRange{Min: -1e6, Max: 1e6}},
 			transfer.TargetFilter{Target: v, Type: "application/text"},
 		)
 		if !ok {
@@ -830,6 +852,13 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 				}
 			}
 		case key.Event:
+			if ev.Name == key.NameCtrl { // Ctrl alone over a URL underlines it, as moving with it held does
+				v.link = linkSpan{}
+				if ev.State == key.Press && v.hovering {
+					v.link = v.linkAt(v.hover.X, v.hover.Y)
+				}
+				continue
+			}
 			if u.shortcut(ev) {
 				continue
 			}
@@ -851,6 +880,10 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			if ev.State == key.Press && ev.Modifiers == 0 && u.blockKey(p, v, ev.Name, "") {
 				continue
 			}
+			if page := pageKey(ev); page != 0 && !p.Term.AltScreen() { // Shift+PgUp/PgDn: the scrollback, as Konsole and Kitty
+				v.scroll = max(0, min(p.Term.Scrollback(), v.scroll+page*max(1, v.rows-1)))
+				continue
+			}
 			if k, ok := termKey(ev); ok {
 				v.scroll, v.sel = 0, [2]image.Point{}
 				for _, term := range typingTo(t, p) {
@@ -859,10 +892,31 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			}
 		case pointer.Event:
 			switch ev.Kind {
+			case pointer.Move, pointer.Leave:
+				v.link, v.hovering = linkSpan{}, ev.Kind == pointer.Move
+				v.hover = image.Pt((ev.Position.Round().X-inner.Min.X)/cw, cell(ev.Position.Round()).Y)
+				if v.hovering && ev.Modifiers.Contain(key.ModCtrl) {
+					v.link = v.linkAt(v.hover.X, v.hover.Y)
+				}
 			case pointer.Press:
 				gtx.Execute(key.FocusCmd{Tag: v})
 				if !p.Focused {
 					u.d.focusPane(i)
+				}
+				if ev.Buttons.Contain(pointer.ButtonTertiary) { // a middle click pastes the primary selection, as X terminals do
+					terms := typingTo(t, p)
+					go func() { // reading it asks its owner: off the frame
+						if s := readPrimary(); s != "" {
+							pasteTo(terms, s)
+						}
+					}()
+					continue
+				}
+				if ev.Modifiers.Contain(key.ModCtrl) {
+					if l := v.linkAt((ev.Position.Round().X-inner.Min.X)/cw, cell(ev.Position.Round()).Y); l.url != "" {
+						openLocal(l.url) //nolint:errcheck // the desktop says when it can't
+						continue
+					}
 				}
 				u.clearSelections()
 				c := cell(ev.Position.Round())
@@ -902,9 +956,7 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			if r := ev.Open(); r != nil {
 				b, _ := io.ReadAll(r)
 				r.Close()
-				for _, term := range typingTo(t, p) {
-					term.Paste(string(b))
-				}
+				pasteTo(typingTo(t, p), string(b))
 			}
 		}
 	}
@@ -923,7 +975,11 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 	}
 	st := clip.Rect(inner.Inset(-gtx.Dp(8))).Push(gtx.Ops)
 	event.Op(gtx.Ops, v)
-	pointer.CursorText.Add(gtx.Ops)
+	if v.link.url != "" {
+		pointer.CursorPointer.Add(gtx.Ops)
+	} else {
+		pointer.CursorText.Add(gtx.Ops)
+	}
 	st.Pop()
 }
 
@@ -1174,7 +1230,7 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 	}
 	if c, ok := specialKeys[e.Name]; ok {
 		k.Code = c
-		if c != uv.KeyTab {
+		if !keepsShift(c) {
 			k.Mod &^= uv.ModShift
 		}
 		return k, true
@@ -1193,9 +1249,35 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 	return k, true
 }
 
+// pageKey is Shift+PgUp (+1, a page back into the scrollback) or
+// Shift+PgDn (-1); 0 for any other key.
+func pageKey(e key.Event) int {
+	if e.State != key.Press || e.Modifiers != key.ModShift {
+		return 0
+	}
+	switch e.Name {
+	case key.NamePageUp:
+		return 1
+	case key.NamePageDown:
+		return -1
+	}
+	return 0
+}
+
+// keepsShift says Shift+c means something of its own to a terminal: shift+tab,
+// and the cursor, editing and function keys xterm sends with a modifier
+// (Shift+↑ = CSI 1;2A); Enter, Backspace, Esc and Space drop it.
+func keepsShift(c rune) bool {
+	switch c {
+	case uv.KeyEnter, uv.KeyBackspace, uv.KeyEscape, uv.KeySpace:
+		return false
+	}
+	return true
+}
+
 var specialKeys = map[key.Name]rune{
 	key.NameReturn: uv.KeyEnter, key.NameEnter: uv.KeyEnter, key.NameEscape: uv.KeyEscape, key.NameTab: uv.KeyTab,
-	key.NameDeleteBackward: uv.KeyBackspace, key.NameDeleteForward: uv.KeyDelete, key.NameUpArrow: uv.KeyUp,
+	key.NameDeleteBackward: uv.KeyBackspace, key.NameDeleteForward: uv.KeyDelete, key.NameInsert: uv.KeyInsert, key.NameUpArrow: uv.KeyUp,
 	key.NameDownArrow: uv.KeyDown, key.NameLeftArrow: uv.KeyLeft, key.NameRightArrow: uv.KeyRight,
 	key.NameHome: uv.KeyHome, key.NameEnd: uv.KeyEnd, key.NamePageUp: uv.KeyPgUp, key.NamePageDown: uv.KeyPgDown,
 	key.NameSpace: uv.KeySpace, key.NameF1: uv.KeyF1, key.NameF2: uv.KeyF2, key.NameF3: uv.KeyF3, key.NameF4: uv.KeyF4,

@@ -90,15 +90,29 @@ is running, or when your question mentions the screen, a snapshot, `top` or `hto
 ## Scrollback, find and copy
 
 - Each pane keeps 10,000 lines of scrollback. The mouse wheel scrolls it, unless a full-screen
-  program asked for the mouse.
+  program asked for the mouse. <kbd>Shift</kbd>+<kbd>Page Up</kbd> and
+  <kbd>Shift</kbd>+<kbd>Page Down</kbd> page through it, as in Konsole or Kitty; in a full-screen
+  program (`less`, `vim`) they're the program's.
 - <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> opens **Find in scrollback**, with the same
   [fzf syntax](/board/search/) as the board. Typing jumps to the newest match; **↵** goes to
   the next older one; **esc** closes. It shows "N of M", "no matches" or "type to search".
-- **Drag** to select: it's copied when you let go ("Copied").
+- **Drag** to select: it's copied when you let go ("Copied"), and becomes the primary selection,
+  as in X terminals: a middle click in any window pastes it.
 - **Double-click** selects a word (a path, a URL or a `host:port` counts as one word);
   **triple-click** selects the line.
-- <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> copies the selection and
-  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> pastes.
+- <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> (or <kbd>Ctrl</kbd>+<kbd>Insert</kbd>) copies the
+  selection and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> (or
+  <kbd>Shift</kbd>+<kbd>Insert</kbd>) pastes.
+- A **middle click** pastes the primary selection: the text last selected with the mouse, in
+  desk or in any other window, as X terminals do. On macOS, Windows, and Wayland desktops whose
+  compositor shares no primary selection (GNOME), it pastes what you last selected in desk.
+- Hold <kbd>Ctrl</kbd> over a URL (http, https, ftp), or press it with the pointer on one, and
+  it's underlined; <kbd>Ctrl</kbd>+click opens it in your browser. A URL the terminal wrapped
+  over several rows opens whole, from any of them, as long as all its rows are on screen: one
+  running past the top or bottom of the pane opens cut there.
+- Keys with modifiers reach the shell as in any xterm-like terminal: <kbd>Ctrl</kbd>+<kbd>←</kbd>
+  and <kbd>→</kbd> move a word, <kbd>Ctrl</kbd>+<kbd>Backspace</kbd> sends `^H`, and Shift, Alt
+  or Ctrl with the arrows, Home, End, Delete and the F-keys get through.
 
 ## Resizing
 

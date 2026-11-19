@@ -32,6 +32,10 @@ func (e *Emulator) SendKey(k uv.KeyEvent) {
 	// TODO: Support Kitty, CSI u, and XTerm modifyOtherKeys.
 	switch key := k.(type) {
 	case KeyPressEvent:
+		if s, ok := modifiedKey(key); ok {
+			io.WriteString(e.pw, s) //nolint:errcheck,gosec
+			return
+		}
 		if key.Mod&ModAlt != 0 {
 			// Handle alt-modified keys
 			seq = "\x1b" + seq
@@ -299,6 +303,8 @@ func (e *Emulator) SendKey(k uv.KeyEvent) {
 
 		case KeyPressEvent{Code: KeyTab, Mod: ModShift}:
 			seq += "\x1b[Z"
+		case KeyPressEvent{Code: KeyBackspace, Mod: ModCtrl}:
+			seq += "\x08" // xterm's: ^H, which shells and editors bind to delete a word
 
 		default:
 			// Handle the rest of the keys. Printable keys carry their

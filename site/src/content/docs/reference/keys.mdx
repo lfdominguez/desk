@@ -8,7 +8,7 @@ the default keys: you can [change them](#changing-shortcuts), and the buttons sh
 
 Every key with a modifier has <kbd>Ctrl</kbd> or <kbd>Alt</kbd> in it (<kbd>⌘</kbd> on macOS counts
 as <kbd>Ctrl</kbd>). <kbd>Shift</kbd> alone types: <kbd>Shift</kbd>+<kbd>2</kbd> is `@` on many
-layouts.
+layouts. Insert neither types nor edits, so <kbd>Shift</kbd> alone goes with it.
 
 :::note
 Board keys work on the board only: not while you type in a field, not in a dialog, and not in the full-window session view. A card's terminal takes every key, <kbd>Esc</kbd> included, for Claude Code. The infra workspace has its own keys, on <kbd>Ctrl</kbd>+<kbd>Shift</kbd>.
@@ -213,8 +213,10 @@ In an organization's **Servers** view. These work everywhere in the workspace, t
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> | Show or hide the files split. |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> | Find in the pane's scrollback. |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> | Pick the previous / next command block in the pane. |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> | Copy the selection (the chat's, else the terminal's). |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> | Paste into the terminal. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> or <kbd>Ctrl</kbd>+<kbd>Insert</kbd> | Copy the selection (the chat's, else the terminal's). |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> or <kbd>Shift</kbd>+<kbd>Insert</kbd> | Paste into the terminal; a middle click pastes the primary selection (the text last selected with the mouse). |
+| <kbd>Shift</kbd>+<kbd>Page Up</kbd> / <kbd>Page Down</kbd> | Page through the pane's scrollback (a full-screen program gets them instead). |
+| <kbd>Ctrl</kbd>+click | Open the URL under the pointer (underlined while <kbd>Ctrl</kbd> is held over it). |
 
 <kbd>Shift</kbd>+click a block's number in the gutter to copy that block's output.
 

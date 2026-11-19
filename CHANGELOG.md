@@ -11,6 +11,12 @@ day). A release's section here is its notes on GitHub. The format follows
 - An autopilot's cards show under it: indented right below it in the sidebar's Agent Sessions, as
   nodes wired from its session on its canvas (where it now opens; a click opens a card's session),
   and next to it in the Company view, tied to it by dashed tethers.
+- **Server panes act like Konsole or Kitty**: Shift+Page Up/Down page through the scrollback,
+  Shift+Insert pastes and Ctrl+Insert copies, and Ctrl+click opens a URL (underlined while Ctrl
+  is held over it), whole even when the terminal wrapped it over several rows.
+- **The primary selection, as in X terminals**: what you select in a pane can be pasted with a
+  middle click in any window, and a middle click in a pane pastes the text last selected with the
+  mouse anywhere. On macOS, Windows and GNOME, it pastes what you last selected in desk.
 
 ### Changed
 
@@ -22,6 +28,13 @@ day). A release's section here is its notes on GitHub. The format follows
 - A power cut while saving can no longer leave the board empty: it is synced to disk before it
   replaces the old one. desk also keeps an earlier copy, `board.json.bak` (at most about an hour
   older), and opens it when `board.json` doesn't read.
+- Ctrl+← and Ctrl+→ move a word in a server pane and a card's terminal, as in any terminal.
+  Shift, Alt and Ctrl with the arrows, Home, End, Delete, Page Up/Down and the F-keys reach the
+  program now instead of sending nothing, and Ctrl+Backspace sends `^H`.
+- While a pane shows the server password's box, nothing pasted reaches its prompt (a pasted line
+  could have run behind the box), and the password is never typed once the prompt has gone or
+  you cancelled, however close the timing. With boxes on two panes, each one's Cancel and Try
+  again act on its own pane.
 
 ### Security
 

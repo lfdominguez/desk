@@ -197,6 +197,7 @@ const (
 	NameEnd            Name = "⇲"
 	NameDeleteBackward Name = "⌫"
 	NameDeleteForward  Name = "⌦"
+	NameInsert         Name = "⎀" // desk patch: Shift+Insert and Ctrl+Insert, a terminal's paste and copy
 	NamePageUp         Name = "⇞"
 	NamePageDown       Name = "⇟"
 	NameTab            Name = "Tab"

@@ -1246,7 +1246,8 @@ func serverPasswordCmd(p *Pane) tea.Cmd {
 	f := p.term.fetchStart(cancel) // now: the box shows before the goroutine runs
 	return func() tea.Msg {
 		defer cancel()
-		pw, err := serverPasswordCtx(withStep(ctx, p.term.fetchStep), p.dir, p.password)
+		step := func(name string, user bool) { p.term.fetchStep(f, name, user) }
+		pw, err := serverPasswordCtx(withStep(ctx, step), p.dir, p.password)
 		return passwordMsg{p.term, pw, err, f}
 	}
 }
@@ -1254,22 +1255,24 @@ func serverPasswordCmd(p *Pane) tea.Cmd {
 // usePassword types the password into a sudo prompt that is still waiting,
 // or else copies it to the clipboard; nothing for a fetch the user cancelled.
 func (m *model) usePassword(msg passwordMsg) tea.Cmd {
-	if !msg.term.fetchLive(msg.fetch) {
-		return nil
-	}
-	switch {
-	case msg.err != nil:
+	if msg.err != nil {
+		if !msg.term.fetchLive(msg.fetch) {
+			return nil
+		}
 		msg.term.fetchEnd(msg.err)
 		m.flash = "! " + msg.err.Error()
 		return nil
-	case func() bool { _, ok := msg.term.SudoPrompt(); return ok }():
-		msg.term.fetchStep("Typing it into the prompt", false)
-		msg.term.TypeSecret(msg.pw) // checked again now: never into a shell
+	}
+	live, typed := msg.term.typeSecretFor(msg.fetch, msg.pw) // checked again as it types: never into a shell
+	switch {
+	case !live:
+		return nil
+	case typed:
 		msg.term.fetchEnd(nil)
 		m.flash = "✓ sudo password sent"
 		return nil
 	}
-	msg.term.fetchStep("Copying it: no prompt waits for it", false)
+	msg.term.fetchStep(msg.fetch, "Copying it: no prompt waits for it", false)
 	msg.term.fetchEnd(nil)
 	m.flash = "⧉ server password copied"
 	return tea.SetClipboard(msg.pw)

@@ -128,8 +128,8 @@ var All = []Binding{
 	{ID: "infra.find", Scope: "Infra workspace", What: "Find in the scrollback", Def: []Chord{ws("H")}},
 	{ID: "infra.blockup", Scope: "Infra workspace", What: "Pick the previous command block", Def: []Chord{ws(key.NameUpArrow)}},
 	{ID: "infra.blockdown", Scope: "Infra workspace", What: "Pick the next command block", Def: []Chord{ws(key.NameDownArrow)}},
-	{ID: "infra.copy", Scope: "Infra workspace", What: "Copy the selection", Def: []Chord{ws("C")}},
-	{ID: "infra.paste", Scope: "Infra workspace", What: "Paste into the terminal", Def: []Chord{ws("V")}},
+	{ID: "infra.copy", Scope: "Infra workspace", What: "Copy the selection", Def: []Chord{ws("C"), {key.NameInsert, key.ModCtrl}}},
+	{ID: "infra.paste", Scope: "Infra workspace", What: "Paste into the terminal; a middle click pastes too", Def: []Chord{ws("V"), {key.NameInsert, key.ModShift}}},
 
 	{ID: "block.pin", Scope: "Command blocks", What: "Pin the block for Claude", Fixed: "Space"},
 	{ID: "block.copy", Scope: "Command blocks", What: "Copy its output", Fixed: "Y"},

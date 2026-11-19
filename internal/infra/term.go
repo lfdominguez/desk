@@ -117,6 +117,7 @@ type Row struct {
 	Running bool // inside the command still running
 	Typed   bool // prompt line holding a command Claude wrote
 	PX      int  // on a block's first line: where the command starts (Grid only)
+	Wrap    bool // the terminal wrapped it onto the next row (autowrap; Grid only)
 }
 
 // shellIntegration makes bash, zsh and fish emit OSC 133 marks: B after the
@@ -787,6 +788,7 @@ func (t *Term) Grid(scroll int) (runs [][]Run, rows []Row, cx, cy int, cursor bo
 	runs, rows = make([][]Run, h), make([]Row, h)
 	for i := range h {
 		abs := top + i
+		rows[i].Wrap = t.wrapped(abs, sb)
 		if !alt {
 			r := &rows[i]
 			r.Running = t.c != nil && abs >= t.b.line
@@ -924,6 +926,14 @@ func (t *Term) ScrollFor(abs int) int {
 	defer t.mu.Unlock()
 	sb := t.emu.ScrollbackLen()
 	return max(0, min(sb, sb-(abs-t.emu.Height()/3)))
+}
+
+// AltScreen says a full-screen program (htop, less, vim…) has the screen:
+// no scrollback to page through, its keys are its own.
+func (t *Term) AltScreen() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.emu.IsAltScreen()
 }
 
 // Scrollback is how many lines sit above the live screen.
@@ -1073,6 +1083,11 @@ var sudoPrompt = regexp.MustCompile(`(?i)(?:^|\]\s*|\)\s*)(?:password|contraseñ
 func (t *Term) SudoPrompt() (string, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	return t.sudoPrompt()
+}
+
+// sudoPrompt is SudoPrompt with mu held.
+func (t *Term) sudoPrompt() (string, bool) {
 	if t.emu.IsAltScreen() {
 		return "", false
 	}

@@ -16,6 +16,8 @@ import (
 	"gioui.org/unit"
 	"gioui.org/x/styledtext"
 	"golang.org/x/image/math/fixed"
+
+	deskclip "github.com/lfdominguez/desk/internal/clip"
 )
 
 // selText is a chat text block the mouse can select. It lays out its own
@@ -296,6 +298,14 @@ func (u *ui) clearSelections() {
 func (u *ui) copyOnSelect(s string) {
 	if s != "" {
 		u.setClipboard(s)
+		setPrimary(s) // and the primary selection, as an X terminal: a middle click anywhere pastes it
 		u.showToast("Copied", false)
 	}
 }
+
+// setPrimary and readPrimary are the system's primary selection
+// (internal/clip); tests replace them so they never take the desktop's.
+var (
+	setPrimary  = deskclip.SetPrimary
+	readPrimary = deskclip.Primary
+)

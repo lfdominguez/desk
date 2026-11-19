@@ -831,7 +831,7 @@ func TestGMShortcut(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("4 is past the org's tabs")
 	}
-	if n := map[bool]int{true: 24, false: 26}[keys.Mod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
+	if n := map[bool]int{true: 24, false: 28}[keys.Mod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'; elsewhere Ctrl+Insert, Shift+Insert too
 		t.Error("filters")
 	}
 	if u.shortcut(key.Event{Name: "3", Modifiers: mod, State: key.Release}) || u.shortcut(key.Event{Name: "3", Modifiers: key.ModCtrl, State: key.Press}) || u.shortcut(key.Event{Name: "0", Modifiers: mod, State: key.Press}) {
@@ -1993,6 +1993,11 @@ func TestGMTermHelpers(t *testing.T) {
 		{press("B", key.ModAlt), uv.KeyPressEvent{Code: 'b', Mod: uv.ModAlt, Text: "b"}, true},
 		{press("Fx", key.ModCtrl), uv.KeyPressEvent{}, false},
 		{press(key.NameF5, 0), uv.KeyPressEvent{Code: uv.KeyF5}, true},
+		{press(key.NameLeftArrow, key.ModCtrl), uv.KeyPressEvent{Code: uv.KeyLeft, Mod: uv.ModCtrl}, true},
+		{press(key.NameRightArrow, key.ModCtrl|key.ModShift), uv.KeyPressEvent{Code: uv.KeyRight, Mod: uv.ModCtrl | uv.ModShift}, true},
+		{press(key.NameUpArrow, key.ModShift), uv.KeyPressEvent{Code: uv.KeyUp, Mod: uv.ModShift}, true},
+		{press(key.NameDeleteBackward, key.ModShift|key.ModCtrl), uv.KeyPressEvent{Code: uv.KeyBackspace, Mod: uv.ModCtrl}, true},
+		{press(key.NameEscape, key.ModShift), uv.KeyPressEvent{Code: uv.KeyEscape}, true},
 	}
 	for i, c := range cases {
 		if got, ok := termKey(c.e); ok != c.ok || got != c.want {

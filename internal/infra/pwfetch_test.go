@@ -21,26 +21,34 @@ import (
 func TestFetchSteps(t *testing.T) {
 	var none *Term
 	none.fetchStart(nil)
-	none.fetchStep("x", false)
+	none.fetchStep(nil, "x", false)
 	none.fetchEnd(nil)
 	none.fetchHide()
 	if _, ok := none.Fetch(); ok {
 		t.Error("no Term, no box")
 	}
+	if live, typed := none.typeSecretFor(nil, "pw"); !live || typed {
+		t.Error("no Term: nothing to cancel, nowhere to type")
+	}
 	term := &Term{}
 	if _, ok := term.Fetch(); ok {
 		t.Error("no fetch yet, no box")
 	}
-	term.fetchStep("before", false) // no fetch started: nothing to add to
-	term.fetchStart(nil)
-	term.fetchStep("Looking up", false)
-	term.fetchStep("Waiting for you", true)
+	term.fetchStep(nil, "before", false) // no fetch started: nothing to add to
+	old := term.fetchStart(nil)
+	f := term.fetchStart(nil)
+	term.fetchStep(f, "Looking up", false)
+	term.fetchStep(old, "a replaced one's", false) // not the new one's step
+	term.fetchStep(f, "Waiting for you", true)
 	ss, ok := term.Fetch()
 	if !ok || !slices.Equal(stepNames(ss), []string{"Looking up", "Waiting for you"}) || ss[0].End.IsZero() || !ss[1].End.IsZero() || !ss[1].User {
 		t.Fatalf("running: %+v %t", ss, ok)
 	}
+	if live, _ := term.typeSecretFor(old, "pw"); live {
+		t.Error("a replaced fetch types")
+	}
 	term.fetchEnd(nil)
-	term.fetchStep("after", false) // an ended fetch takes no more
+	term.fetchStep(f, "after", false) // an ended fetch takes no more
 	if _, ok := term.Fetch(); ok {
 		t.Error("a fetch that went well goes at once")
 	}
@@ -153,10 +161,10 @@ func TestGMFetchBox(t *testing.T) {
 	p.Term = term
 
 	term.fetchStart(nil)
-	term.fetchStep("Looking up srv in pb", false)
+	term.fetchStep(term.fetch, "Looking up srv in pb", false)
 	u.clicks = map[string]*widget.Clickable{}
 	h.draw(draw)
-	if u.clicks["pwC"] == nil || u.clicks["pwR"] != nil {
+	if u.clicks[pwButton("C", term)] == nil || u.clicks[pwButton("R", term)] != nil {
 		t.Fatal("running: Cancel only")
 	}
 	if !u.fetchKey(p, "x", "") || !u.fetchKey(p, "", "X") {
@@ -187,7 +195,7 @@ func TestGMFetchBox(t *testing.T) {
 	term.fetchStart(func() { stopped = true })
 	stopped = false
 	h.draw(draw)
-	u.click("pwC").Click() // the button does the same
+	u.click(pwButton("C", term)).Click() // the button does the same
 	h.draw(draw)
 	if _, ok := term.Fetch(); ok || !stopped || !u.wantTerm {
 		t.Fatalf("Cancel: box %t, stopped %t", ok, stopped)
@@ -197,18 +205,30 @@ func TestGMFetchBox(t *testing.T) {
 	term.fetchEnd(errors.New("no item \"srv\""))
 	u.clicks = map[string]*widget.Clickable{}
 	h.draw(draw)
-	if u.clicks["pwC"] == nil || u.clicks["pwR"] == nil {
+	if u.clicks[pwButton("C", term)] == nil || u.clicks[pwButton("R", term)] == nil {
 		t.Fatal("failed: Close and Try again")
 	}
 	h.acts()
 	if !u.fetchKey(p, "r", "") || len(h.acts()) != 1 {
 		t.Error("R tries again")
 	}
-	u.click("pwR").Click()
+	u.click(pwButton("R", term)).Click()
 	h.draw(draw)
-	if len(h.acts()) != 1 {
-		t.Error("Try again tries again")
+	acts := h.acts()
+	if len(acts) != 1 {
+		t.Fatal("Try again tries again")
 	}
+	other := &Pane{term: &Term{}} // the focused pane: not the one retried
+	acts[0](&model{tabs: []*Tab{{panes: []*Pane{other, {term: term}}}}})
+	if _, ok := term.Fetch(); !ok || other.term.fetch != nil {
+		t.Error("Try again fetches for its own pane")
+	}
+	acts[0](&model{}) // its pane gone: nothing
+	if !u.fetchKey(p, "c", "") {
+		t.Error("C closes")
+	}
+	term.fetchStart(nil)
+	term.fetchEnd(errors.New("no item \"srv\""))
 	if !u.fetchKey(p, "c", "") {
 		t.Error("C closes")
 	}
@@ -220,7 +240,7 @@ func TestGMFetchBox(t *testing.T) {
 	term.fetchEnd(nil)
 	u.clicks = map[string]*widget.Clickable{}
 	h.draw(draw)
-	if u.clicks["pwC"] != nil {
+	if u.clicks[pwButton("C", term)] != nil {
 		t.Error("done: the box is gone at once")
 	}
 	if u.fetchKey(p, "x", "") {

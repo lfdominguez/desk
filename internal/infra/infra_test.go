@@ -986,6 +986,13 @@ func TestPasswordCancel(t *testing.T) {
 	if _, ok := term.Fetch(); !ok {
 		t.Error("the new fetch's box went with the old one")
 	}
+	pane.password = &SecretRef{Raw: "pw"} // a password that came, its box cancelled meanwhile
+	cmd = serverPasswordCmd(pane)
+	msg = cmd().(passwordMsg)
+	term.fetchHide()
+	if msg.err != nil || m.usePassword(msg) != nil || m.flash != "" {
+		t.Errorf("a cancelled fetch's password used: %v %q", msg.err, m.flash)
+	}
 }
 
 // TestConnectUnreachable: connect on a server already stuck in its "can't
@@ -1463,6 +1470,8 @@ func TestMain(m *testing.M) {
 		os.Exit(255)
 	}
 	desktopNotify = func(string, string) {} // tests never reach the desktop
+	// nor take or read its selection
+	setPrimary, readPrimary = func(string) {}, func() string { return "" }
 	state, _ := testtmp.Dir("desk-test-state")
 	os.Setenv("XDG_STATE_HOME", state)  // nor the user's state: recordings, audit, session
 	os.Setenv("XDG_CONFIG_HOME", state) // nor desk's settings: the folders to search

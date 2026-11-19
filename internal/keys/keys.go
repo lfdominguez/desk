@@ -188,13 +188,18 @@ func Load(m map[string]string) error {
 
 // Check is the rule every shortcut keeps: a modifier comes with Ctrl or
 // Alt (⌘ counts as Ctrl), since Shift alone types: Shift+2 is "@" on many
-// layouts. A bare printable key only runs a binding that fires outside text
-// fields (Bare).
+// layouts; and with arrows, Home, PgUp, Tab… it selects or moves in a text
+// field. Shift alone does go with Insert, which neither types nor edits
+// (shiftOK: Shift+Insert, a terminal's paste). A bare printable key only runs a binding
+// that fires outside text fields (Bare).
 func Check(b *Binding, c Chord) error {
 	if c.Name == "" || modName(c.Name) {
 		return errors.New("press a key with the modifiers")
 	}
 	if c.Mods&(key.ModCtrl|key.ModAlt|key.ModCommand) != 0 {
+		return nil
+	}
+	if c.Mods == key.ModShift && shiftOK(c.Name) {
 		return nil
 	}
 	if c.Mods&key.ModShift != 0 {
@@ -218,6 +223,11 @@ func printable(n key.Name) bool {
 	r, size := utf8.DecodeRuneInString(string(n))
 	return !named(n) && size == len(n) && r != utf8.RuneError
 }
+
+// shiftOK is a key Shift alone may go with: one that neither types nor
+// moves or edits in a text field. Not PgUp/PgDn: Shift with them selects a
+// page there (a pane pages its scrollback with them itself: infra's pageKey).
+func shiftOK(n key.Name) bool { return n == key.NameInsert }
 
 // named is one of Gio's names for a key that doesn't type.
 func named(n key.Name) bool {
@@ -285,6 +295,7 @@ var names = []struct {
 	{key.NameSpace, "Space", "Space", nil},
 	{key.NameDeleteBackward, "Backspace", "Backspace", []string{"⌫"}},
 	{key.NameDeleteForward, "Delete", "Del", []string{"del", "⌦"}},
+	{key.NameInsert, "Insert", "Ins", []string{"ins", "⎀"}},
 	{key.NameUpArrow, "Up", "↑", []string{"↑"}},
 	{key.NameDownArrow, "Down", "↓", []string{"↓"}},
 	{key.NameLeftArrow, "Left", "←", []string{"←"}},

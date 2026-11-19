@@ -252,3 +252,23 @@ func TestGetUnknown(t *testing.T) {
 	}()
 	Of("nope")
 }
+
+// TestShiftAlone: Shift alone goes with a key that neither types nor edits
+// (Shift+Insert, a terminal's paste), not with one that does.
+func TestShiftAlone(t *testing.T) {
+	b := &Binding{ID: "x"}
+	if err := Check(b, Chord{key.NameInsert, key.ModShift}); err != nil {
+		t.Errorf("Shift+Insert: %v", err)
+	}
+	for _, n := range []key.Name{"A", "2", key.NameTab, key.NameLeftArrow, key.NameHome, key.NameDeleteForward, key.NamePageUp, key.NamePageDown} {
+		if err := Check(b, Chord{n, key.ModShift}); err == nil {
+			t.Errorf("Shift+%s must need Ctrl or Alt", n)
+		}
+	}
+	if err := Check(b, Chord{key.NameInsert, key.ModShift | key.ModSuper}); err == nil {
+		t.Error("Shift+Super+Insert: Super still needs Ctrl or Alt")
+	}
+	if c, err := Parse("Shift+Insert"); err != nil || c != (Chord{key.NameInsert, key.ModShift}) || c.String() != "Shift+Insert" {
+		t.Errorf("parse: %+v %v %q", c, err, c.String())
+	}
+}
