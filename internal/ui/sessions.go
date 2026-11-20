@@ -124,10 +124,10 @@ const startWork = "Start working on this card."
 // imageHint goes with a message holding pasted images.
 const imageHint = "(The ![image](path) lines are screenshots the user pasted: Read them.)"
 
-// ticketOf is the ticket card c tracks (a Jira issue or a GitHub issue), nil none.
+// ticketOf is the ticket card c tracks (a Jira, Linear or GitHub issue), nil none.
 func ticketOf(c *kanban.Card) *kanban.Link {
 	for i, l := range c.Links {
-		if l.Kind == links.KindJira || l.Kind == links.KindGitHubIssue {
+		if ticket(l) {
 			return &c.Links[i]
 		}
 	}

@@ -3,8 +3,8 @@ title: Links
 description: The pull requests, merge requests and tickets on a card, their live state, and how tickets follow their card's column.
 ---
 
-A card can link the work around it: pull requests, merge requests, issues and Jira
-tickets. desk asks each provider how they stand and shows it on the card, so you
+A card can link the work around it: pull requests, merge requests, issues, and Jira
+and Linear tickets. desk asks each provider how they stand and shows it on the card, so you
 see what needs you without opening anything.
 
 <figure class="cut">
@@ -33,13 +33,21 @@ see what needs you without opening anything.
 | Bitbucket pull request | `PR #n` | `https://bitbucket.org/team/repo/pull-requests/4` |
 | Jira issue | its key | `https://acme.atlassian.net/browse/ABC-131` |
 | A bare Jira key | its key | `ABC-131` |
+| Linear issue | its key | `https://linear.app/globex/issue/ENG-12/some-slug` |
+| A bare Linear key | its key | `ENG-12` |
 
 GitHub links are recognized on github.com, and on the host of any GitHub account
-in the organization's `desk.toml`. Jira links are recognized on `*.atlassian.net` and on your Jira accounts' hosts.
+in the organization's `desk.toml`. Jira links are recognized on `*.atlassian.net` and on your Jira accounts' hosts. Linear links are recognized on linear.app.
 
-A bare key like `ABC-131` needs a Jira account to go with: one whose `projects`
-list `ABC`, or the organization's only Jira account. desk turns it into that
-account's `/browse/ABC-131` URL.
+A bare key like `ABC-131` needs an account to go with, tried in this order:
+
+1. a Linear account whose `teams` list `ABC` and that has a `workspace`: desk turns it into
+   `https://linear.app/<workspace>/issue/ABC-131`;
+2. a Jira account whose `projects` list `ABC`, or the organization's only Jira account: that
+   account's `/browse/ABC-131` URL;
+3. the organization's only Linear account, if it has a `workspace`.
+
+In an organization with both Jira and Linear, list Linear's teams so bare keys go to the right one.
 
 Any other URL is kept as a plain link. desk doesn't check it.
 
@@ -50,9 +58,9 @@ Each link shows its state next to its reference, in a color that says how it's g
 | Color | Means | For example |
 |---|---|---|
 | Green | good to go | `approved — merge`, `CI passed` |
-| Gray | waiting | `open`, `draft`, `waiting`, a Jira status like `In Review` |
+| Gray | waiting | `open`, `draft`, `waiting`, a Jira status or Linear state like `In Review` |
 | Red | needs you | `changes requested`, `closed` (unmerged), `CI failed`, an error |
-| Purple | done | `merged`, a closed issue, a Jira issue in a done status |
+| Purple | done | `merged`, a closed issue, a Jira issue in a done status, a Linear issue completed, canceled or a duplicate |
 
 An open pull or merge request adds its CI: "approved — merge · CI failed". A failed CI turns
 the chip red whatever the review says. Its runs are in the organization's [CI view](/orgs/ci/).
@@ -79,7 +87,7 @@ title, checks them all at once.
 
 desk only asks a provider through one of the organization's accounts. A link whose
 organization has no account (with a token) for its host and owner shows
-**no GitHub account** (or GitLab, Bitbucket) and is never fetched. Its CI stays out
+**no GitHub account** (or GitLab, Bitbucket, Linear) and is never fetched. Its CI stays out
 of the CI view too. Anonymous calls would see no private repositories, and run out fast.
 
 Add the account in [Settings](/orgs/settings/), or by hand in `desk.toml`.
@@ -93,10 +101,16 @@ Other states you may see:
 
 ## Tickets follow their card
 
-When a card moves to another column, its Jira and GitHub issues move to match:
+When a card moves to another column, its Jira, Linear and GitHub issues move to match:
 
 - A Jira issue takes the transition to the column's status category. For Blocked,
   that's a status named Blocked, if the issue's workflow has one. Review counts as in progress. An account's `status` table in `desk.toml` can name the status for each column instead.
+- A Linear issue assigned to you moves to a state of its team by the state's type: Backlog to a
+  backlog state (else unstarted, then triage), To do to an unstarted one (else backlog, then
+  triage), In progress and Review to started, Done to completed. For Blocked, that's a state named
+  Blocked, if the team has one; otherwise the issue stays, or goes to started. `[linear.status]`
+  in `desk.toml` can name the state for each column instead. Issues assigned to someone else
+  aren't moved.
 - A GitHub issue closes in Done, and reopens when the card leaves Done.
 - Pull and merge requests are left alone.
 

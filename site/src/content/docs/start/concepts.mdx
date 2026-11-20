@@ -18,7 +18,7 @@ An organization is a folder: `~/Work/Acme`, `~/Work/Globex`. desk finds them in 
 An organization can have:
 
 - **its own Claude account**: a profile in `~/Secure/Claudes/<Org>/`, which its sessions run under (sandboxed with `bwrap` on Linux, through `CLAUDE_CONFIG_DIR` on macOS and Windows). Without one, they use your login.
-- **a `desk.toml`** (in its `.desk/` folder): its GitHub, GitLab, Bitbucket, Jira and Nagios accounts, the vaults their tokens come from, its servers file and more. Edit it in **Settings** or by hand. See the [desk.toml reference](/reference/desk-toml/).
+- **a `desk.toml`** (in its `.desk/` folder): its GitHub, GitLab, Bitbucket, Jira, Linear and Nagios accounts, the vaults their tokens come from, its servers file and more. Edit it in **Settings** or by hand. See the [desk.toml reference](/reference/desk-toml/).
 - **nested organizations**: a folder inside it with its own `desk.toml` (`~/Work/Acme/billing`) is an organization of its own, whose sessions run under the outer one's Claude account.
 
 ## Statuses
@@ -45,7 +45,7 @@ A card with no session yet, or nothing going on, has no status. You get a deskto
 
 ## Links
 
-A card's links are its pull requests (GitHub, Bitbucket), merge requests (GitLab), issues (GitHub, Jira) and commits. desk shows each one's live state on the card ("PR #609 · approved — merge", "ABC-1317 · In Review"), and an open PR's CI. Their state refreshes every 3 minutes, through the organization's own accounts. A link whose organization has no account for it says **no GitHub account** (or GitLab, Bitbucket) and is never fetched.
+A card's links are its pull requests (GitHub, Bitbucket), merge requests (GitLab), issues (GitHub, Jira, Linear) and commits. desk shows each one's live state on the card ("PR #609 · approved — merge", "ABC-1317 · In Review"), and an open PR's CI. Their state refreshes every 3 minutes, through the organization's own accounts. A link whose organization has no account for it says **no GitHub account** (or GitLab, Bitbucket) and is never fetched.
 
 Claude adds links itself when it opens a PR, and tickets follow their card: moving a card to another column moves the tickets you're assigned to match.
 
@@ -72,7 +72,7 @@ Claude Code sessions outside desk can do the same through desk's bundled plugin.
 | **Improve with Claude** | The new-card dialog's optional step: Haiku turns your request into a full brief. |
 | **Status** | Where a card's session stands: working, your turn, blocked, failed, ready for review, done. |
 | **Link** | A PR, MR, issue or commit attached to a card, with its live state. |
-| **Account** | A GitHub, GitLab, Bitbucket, Jira or Nagios login in an organization's `desk.toml`. |
+| **Account** | A GitHub, GitLab, Bitbucket, Jira, Linear or Nagios login in an organization's `desk.toml`. |
 | **Vault** | A Bitwarden, Vaultwarden or Passbolt account the tokens come from. |
 | **Servers file** | An organization's OpenSSH config listing its servers. |
 | **Infra workspace** | An organization's SSH panes and infra Claude, under **Servers**. |

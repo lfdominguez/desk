@@ -6,6 +6,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Linear**: a `[[linear]]` account (Settings → + Linear) with a personal API key makes Linear
+  issues tickets like Jira's: links and bare keys (ENG-12), their state on the chip, your
+  assigned issues in Tickets, a card's ticket created in its first team, issues following their
+  card's column (`[linear.status]`, `ignore`, `sync`), `ticket_status`, and Learn reading its
+  teams' states.
+
 ### Fixed
 
 - A card's Claude that asks for a new card (when its own card already has a ticket) is now told

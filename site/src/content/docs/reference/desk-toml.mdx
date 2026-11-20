@@ -48,7 +48,7 @@ writes it, from `instructions`.
 | `summary` | string | What Learn understood. |
 | `rules` | string | Told to every card's Claude, with the `ticket_status` tool to follow them. |
 | `learned` | string | The day Learn ran. |
-| `[workflow.status]` | table | A column → the status its ticket goes to there, under an account's own `[jira.status]`. |
+| `[workflow.status]` | table | A column → the status its ticket goes to there, under an account's own `[jira.status]` or `[linear.status]`. |
 | `[workflow.follow]` | table | A status others move tickets to → the column the card follows to. |
 
 With a workflow, the check every 3 minutes never moves a ticket back: a ticket in a status these
@@ -76,7 +76,7 @@ An Anthropic-compatible endpoint desk's Claudes can run on (see [Model providers
 
 ## Tokens
 
-Every account that needs a token (`[[github]]`, `[[jira]]`, `[[bitbucket]]`, `[[gitlab]]`, `[[nagios]]`, `[[metrics]]`) takes these keys, right in its table:
+Every account that needs a token (`[[github]]`, `[[jira]]`, `[[linear]]`, `[[bitbucket]]`, `[[gitlab]]`, `[[nagios]]`, `[[metrics]]`) takes these keys, right in its table:
 
 | Key | Type | What it does |
 |---|---|---|
@@ -89,7 +89,7 @@ Every account that needs a token (`[[github]]`, `[[jira]]`, `[[bitbucket]]`, `[[
 
 desk uses the first one set, in this order: `vault`, `token_env`, `token_cmd`, `token`. A `token_env` naming an unset variable is an error; desk doesn't fall back to the next one. Vault values are cached for 10 minutes.
 
-desk never calls a provider without a token. An account with none is skipped, and the links it would have checked say **no GitHub account** (or GitLab, Bitbucket).
+desk never calls a provider without a token. An account with none is skipped, and the links it would have checked say **no GitHub account** (or GitLab, Bitbucket, Linear).
 
 ## [[vault]]
 
@@ -144,6 +144,22 @@ Jira issues, and bare keys like `ABC-12`.
 | token keys | | | See [Tokens](#tokens). |
 
 `[jira.status]` goes right after the `[[jira]]` it belongs to.
+
+## [[linear]]
+
+Linear issues, and bare keys like `ENG-12`, over Linear's GraphQL API.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | | A label for you. |
+| `workspace` | string | | The workspace's URL key: `globex` for `linear.app/globex`. Bare keys link there; without it, they don't. |
+| `teams` | list of strings | every team | Team keys. Bare keys of these teams link here. Cards create their tickets in the first one. Your assigned tickets list only these teams. |
+| `sync` | bool | `true` | `false`: moving a card doesn't move its issues. |
+| `ignore` | list of strings | | States desk leaves alone when a card moves (any case). |
+| `[linear.status]` | table | | The state a column moves issues to, by name: `Done = "In Review"`. Without it, desk picks by the state's type (Backlog: backlog; To do: unstarted; In progress and Review: started; Blocked: a state named blocked; Done: completed). |
+| token keys | | | A personal API key (Linear: **Settings → Security & access → Personal API keys**). An OAuth token works too. See [Tokens](#tokens). |
+
+`[linear.status]` goes right after the `[[linear]]` it belongs to.
 
 ## [[bitbucket]]
 
@@ -259,6 +275,15 @@ projects = ["ABC"]                # bare keys like ABC-12 link here; tickets are
 token_env = "JIRA_GLOBEX_TOKEN"
 [jira.status]                     # the status a column moves issues to, by name
 Review = "In Review"
+
+[[linear]]
+workspace = "globex"              # linear.app/globex
+teams = ["ENG"]                   # bare keys like ENG-12 link here; tickets are created in the first
+# sync = false                    # moving cards doesn't move these issues
+# ignore = ["QA"]                 # states desk leaves alone
+token_env = "LINEAR_API_KEY"      # a personal API key
+[linear.status]                   # the state a column moves issues to, by name
+Done = "In Review"
 
 [[bitbucket]]
 workspace = "globex"

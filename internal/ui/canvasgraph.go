@@ -51,7 +51,7 @@ func (u *ui) cardGraph(c *kanban.Card, now time.Time) cvGraph {
 	tickets := false
 	for _, l := range c.Links {
 		switch l.Kind {
-		case links.KindJira, links.KindGitHubIssue:
+		case links.KindJira, links.KindLinear, links.KindGitHubIssue:
 			g.nodes = append(g.nodes, cvNode{id: "link:" + l.URL, title: "Ticket · " + cmp.Or(l.Ref, l.URL), fam: famDesk, open: "url:" + l.URL,
 				rows: []cvRow{{name: "state", value: cmp.Or(l.State, "unknown"), tone: toneColor(l.Tone)}, {name: "Ticket", out: true, sock: sockLink}}})
 			wire("link:"+l.URL, "Ticket", "main", "Ticket")

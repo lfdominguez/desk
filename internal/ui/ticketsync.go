@@ -16,7 +16,10 @@ import (
 var pushTicket = links.Push
 
 // ticket is a link the card's column can move: a Jira issue, a GitHub issue.
-func ticket(l kanban.Link) bool { return l.Kind == links.KindJira || l.Kind == links.KindGitHubIssue }
+func ticket(l kanban.Link) bool { return tracked(l) || l.Kind == links.KindGitHubIssue }
+
+// tracked says l is a tracker's issue (Jira, Linear): one with a key.
+func tracked(l kanban.Link) bool { return l.Kind == links.KindJira || l.Kind == links.KindLinear }
 
 // syncTickets moves, off the UI goroutine, the tickets of every card whose
 // column differs from the one they were last moved to match (Pushed), or of

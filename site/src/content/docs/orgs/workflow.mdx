@@ -17,12 +17,13 @@ In [Settings](/orgs/settings/), an organization's page has **Ticket workflow** u
    "Test" means deployed to the testing environment; only QA moves a ticket to Done.* Paths start
    at the organization's folder.
 2. **Learn** has Haiku read it, and every file it points at (read-only), next to the statuses of
-   the organization's Jira projects, which desk fetches. It runs on the provider set for **Learn
+   the organization's Jira projects and the states (with their types) of its Linear teams, which
+   desk fetches. It runs on the provider set for **Learn
    workflow** in [Models](/orgs/models/). **Stop** ends it.
 3. What it understood fills the fields below, for you to check and change:
    - **What Haiku understood**: its summary, and what was unclear or missing.
    - **Card in \<column\>**: the status its ticket goes to when a card moves there. Empty: the
-     status category's guess, as without a workflow. An account's own `[jira.status]` still wins.
+     status category's guess, as without a workflow. An account's own `[jira.status]` or `[linear.status]` still wins.
    - **Statuses others move tickets to**: one `Status → Column` per line. When someone puts a
      ticket in one of them, the card follows to that column.
    - **Rules for the card's Claude**: what each status means here, when Claude moves a ticket
@@ -34,7 +35,7 @@ Save refuses a line of the statuses others move to that doesn't name a column of
 ## What changes
 
 - **Every card's Claude** of the organization is told the rules, and gets a `ticket_status` tool to
-  move a ticket of its card by the status's name when the rules say so (after it deploys to
+  move a ticket of its card by the status's name (a Linear issue: a state of its team) when the rules say so (after it deploys to
   testing, say). A status it can't reach comes back with the ones it can. Only your own tickets
   move, never through an account with `sync = false`, nor out of a status its `ignore` leaves to
   others.
@@ -68,5 +69,8 @@ Review = "Code Review"
 Test = "Review"
 Deployed = "Done"
 ```
+
+The statuses are names: a Jira status, or a Linear state of the issue's team. They apply to an
+organization's Jira and Linear tickets alike.
 
 See [desk.toml](/reference/desk-toml/#workflow).

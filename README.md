@@ -35,7 +35,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS and Windows), its skills, its agents. Its sessions are walled into it: other orgs' folders and desk's own data stay out of reach. |
 | 👥 **The company** | Every card's Claude can hand work to desk's roles: a tech lead, an architect, a senior developer, QA, DevOps, security, and the org's CTO, CISO and CFO, with briefs and verdicts; each org's Engineering, Security and Finance leads remember its decisions; budgets pause a session that spends too much. The org's own agents, skills and workflows come first. The **Company** view draws it all as a solar system around you. |
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
-| 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira issues on each card, with their state and CI. Tickets follow their card's column. |
+| 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira and Linear issues on each card, with their state and CI. Tickets follow their card's column. |
 | 🎫 **My tickets, CI, alerts** | Per org: tickets assigned to you, failing pipelines, and Nagios alerts. One click turns any of them into a card. |
 | 🛩️ **Autopilot** | Check several tickets and one Claude runs a card for each: it starts them, answers their questions and permissions, and brings you only what it can't decide. Changes outside the cards' folders always ask you, unless you allowed them. |
 | 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config (or imported from Ásbrú), shared with an infrastructure Claude that asks before every change. |
@@ -225,7 +225,7 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   (Done, Archived, organizations, top labels) and the search, a click previews a card beside the
   list (notes, numbers, last messages; Open session, Restore or Archive, Delete), and checkboxes act on
   many at once with one undo. The box in the toolbar archives every Done card.
-- **My tickets**: under each organization with a Jira, GitHub or GitLab account, **Tickets** lists
+- **My tickets**: under each organization with a Jira, Linear, GitHub or GitLab account, **Tickets** lists
   the open issues assigned to you there, by project. Click one to open its card, or to make one
   linked to it. Check several for an **autopilot**: a card each, run by one Claude (Supervised or
   Autopilot level, how many at once, what it may change outside without asking, a budget for the
@@ -273,9 +273,10 @@ holds now. What you wrote is kept: **Use mine** or **Discard suggestions** goes 
   pasteboard (⌘V), on Windows from the clipboard (a PNG or a screenshot's bitmap), nothing to
   install.
 - **Tickets**: when the organization has somewhere to create them (its first `[[jira]]` project,
-  else a `[[github]]` account's `repo`), the **Ticket** switch has the card's Claude create its
-  ticket before any work, assigned to you, with the Markdown description converted to Atlassian's
-  format by [go-adf](https://github.com/nyactl/go-adf).
+  else its first `[[linear]]` team, else a `[[github]]` account's `repo`), the **Ticket** switch
+  has the card's Claude create its ticket before any work, assigned to you, with the Markdown
+  description (converted to Atlassian's format for Jira by
+  [go-adf](https://github.com/nyactl/go-adf)).
 
 ### Sessions
 
@@ -353,8 +354,9 @@ excalidraw.com.
 
 ### Links and organizations
 
-Add links in the card's sheet (E): GitHub PRs and issues, Bitbucket PRs, GitLab MRs, Jira issues,
-or bare Jira keys. Their state refreshes every 3 minutes through the organization's own accounts in
+Add links in the card's sheet (E): GitHub PRs and issues, Bitbucket PRs, GitLab MRs, Jira and Linear issues,
+or bare keys (`ABC-12`: a Linear account listing that team, else Jira, else the only Linear
+account). Their state refreshes every 3 minutes through the organization's own accounts in
 `<Org>/.desk/desk.toml`: any number of each kind. Edit them in **Settings** or by hand (the dialog keeps
 keys it doesn't show, but not the file's comments). **Reload** looks for organizations again and
 rechecks every link. desk keeps everything of its own in an org's `.desk/` (Claude Code's
@@ -368,16 +370,17 @@ sessions run under the outer org's Claude account.
 
 **Tickets follow their card**: when a card moves column, its tickets you're assigned move to
 match. A Jira issue takes the transition to the column's status category (Blocked: a status named
-blocked; Review counts as in progress), a GitHub issue closes in Done and reopens out of it. Pull
+blocked; Review counts as in progress), a Linear issue goes to its team's state of the column's
+type (backlog, unstarted, started, completed; Blocked: a state named blocked), a GitHub issue closes in Done and reopens out of it. Pull
 and merge requests are left alone. At start and every 3 minutes, tickets that drifted are brought back in line.
 An organization whose statuses mean something of their own (its "Test" is "deployed to the testing
 environment") gets a **ticket workflow** in its settings: write how its tickets move, or where to
-read it, and **Learn** has Haiku turn it, with the Jira projects' statuses, into each column's
+read it, and **Learn** has Haiku turn it, with the Jira projects' statuses and the Linear teams' states, into each column's
 status, the statuses others move tickets to (the card follows them instead of pulling the ticket
 back), and rules every card's Claude follows, moving tickets itself with its `ticket_status` tool.
 
 desk only asks a provider through an account: a link whose organization has no account (with a
-token) for its host and owner shows **no GitHub account** (or GitLab, Bitbucket) and is never
+token) for its host and owner shows **no GitHub account** (or GitLab, Bitbucket, Linear) and is never
 fetched, and its CI stays out of the CI view. Anonymous API calls would see no private repos and
 run out fast (GitHub allows 60 an hour per address).
 
@@ -428,6 +431,14 @@ projects = ["ABC"]              # bare keys like ABC-12 link here; cards create 
 token_env = "JIRA_GLOBEX_TOKEN"
 [jira.status]                   # optional: the status a column moves issues to, by name
 Review = "In Review"            # cards waiting on your review put their issues there
+
+[[linear]]
+workspace = "globex"            # linear.app/globex: bare keys link there
+teams = ["ENG"]                 # bare keys like ENG-12 link here; cards create their tickets in the first
+# sync = false                  # cards' column moves don't move these issues
+token_env = "LINEAR_API_KEY"    # a personal API key (Settings → Security & access)
+[linear.status]                 # optional: the state a column moves issues to, by name
+Done = "In Review"
 
 [[bitbucket]]
 workspace = "team"

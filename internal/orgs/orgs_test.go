@@ -30,12 +30,21 @@ projects = ["TB"]
 [[jira]]
 url = "https://b.atlassian.net"
 token_cmd = "echo  s3cret "
+[[linear]]
+workspace = "globex"
+teams = ["ENG"]
+token_env = "LINEAR_API_KEY"
+[linear.status]
+Done = "In Review"
 `), 0o644)
 	if got := List(root); !slices.Equal(got, []string{"acme", "Globex"}) {
 		t.Fatalf("orgs: %v", got)
 	}
 	c, err := Load(root, "Globex")
 	if err != nil || len(c.Jira) != 2 || c.GitHub[0].TokenEnv != "X_TOKEN" || c.Jira[0].Projects[0] != "TB" {
+		t.Fatalf("%+v %v", c, err)
+	}
+	if l := c.Linear; len(l) != 1 || l[0].Workspace != "globex" || l[0].Teams[0] != "ENG" || l[0].TokenEnv != "LINEAR_API_KEY" || l[0].Status["Done"] != "In Review" {
 		t.Fatalf("%+v %v", c, err)
 	}
 	if tok, err := c.Jira[1].Get(); err != nil || tok != "s3cret" {

@@ -215,7 +215,7 @@ func (u *ui) commit() {
 	for _, raw := range strings.FieldsFunc(s.links.Text(), func(r rune) bool { return r == '\n' || r == ',' || r == ' ' }) {
 		l, ok := links.Parse(raw, cfg)
 		if !ok {
-			u.showToast("Not a link: "+raw+" (a URL, or a Jira key of a project in desk.toml)", true)
+			u.showToast("Not a link: "+raw+" (a URL, or a Jira or Linear key of a project or team in desk.toml)", true)
 			return
 		}
 		if old != nil {
@@ -654,7 +654,7 @@ func (u *ui) sheetRows() []sheetRow {
 		ticket,
 		agent,
 		lang,
-		row(eds(&s.links), small("LINKS"), layout.Rigid(k.Field(&s.links, "PR, MR or ticket URLs, or Jira keys like ABC-1317; one per line", 40))),
+		row(eds(&s.links), small("LINKS"), layout.Rigid(k.Field(&s.links, "PR, MR or ticket URLs, or Jira or Linear keys like ABC-1317; one per line", 40))),
 		row(eds(&s.labels, &s.due), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {

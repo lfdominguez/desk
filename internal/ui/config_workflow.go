@@ -237,7 +237,7 @@ func (u *ui) cfgWorkflow(gtx layout.Context) layout.Dimensions {
 		note, tone := "", kit.CText3
 		switch {
 		case d.wfBusy:
-			note = "Haiku reads the instructions, what they point at and the Jira projects' statuses…"
+			note = "Haiku reads the instructions, what they point at and the Jira projects' and Linear teams' statuses…"
 		case d.wfErr != "":
 			note, tone = d.wfErr, kit.CRedText
 		case e.text("learned") != "":
@@ -251,7 +251,7 @@ func (u *ui) cfgWorkflow(gtx layout.Context) layout.Dimensions {
 	kids := []layout.FlexChild{
 		layout.Rigid(kit.VGap(18)), layout.Rigid(k.Caption("Ticket workflow")), layout.Rigid(kit.VGap(4)),
 		layout.Rigid(text("How this organization's tickets move, as its people use them: what each status means, who moves tickets where. "+
-			"Write it, or say where to read it; Learn has Haiku read it with the Jira projects' statuses and fills in what's below. "+
+			"Write it, or say where to read it; Learn has Haiku read it with the Jira projects' and Linear teams' statuses and fills in what's below. "+
 			"Check it, then Save: card sessions follow the rules, and tickets someone else moves lead their cards.", 12, kit.CText3)),
 		layout.Rigid(kit.VGap(12)),
 		labeled("Instructions", k.Field(e.ed("instructions"), "e.g. Read ./docs/process. \"Test\" means deployed to the testing environment; only QA moves a ticket to Done.", 60)),

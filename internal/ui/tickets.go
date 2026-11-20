@@ -29,7 +29,7 @@ var assigned = links.Assigned
 func (u *ui) checkTickets() {
 	for _, org := range orgs.List(u.root) {
 		cfg, err := orgs.Load(u.root, org)
-		if err == nil && len(cfg.Jira)+len(cfg.GitHub)+len(cfg.GitLab) == 0 {
+		if err == nil && len(cfg.Jira)+len(cfg.Linear)+len(cfg.GitHub)+len(cfg.GitLab) == 0 {
 			u.later(func() { delete(u.tickets, org); u.tkGen++ }) // its trackers were removed
 			continue
 		}
@@ -91,7 +91,7 @@ func (u *ui) reloadConfig() {
 // ticketCard is the board card linking t, if any.
 func (u *ui) ticketCard(t links.Ticket) *kanban.Card {
 	for _, c := range u.boardCards() {
-		if slices.ContainsFunc(c.Links, func(l kanban.Link) bool { return l.URL == t.URL || (l.Kind == links.KindJira && l.Ref == t.Key) }) {
+		if slices.ContainsFunc(c.Links, func(l kanban.Link) bool { return l.URL == t.URL || (tracked(l) && l.Ref == t.Key) }) {
 			return u.b.Card(c.ID)
 		}
 	}

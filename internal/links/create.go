@@ -15,11 +15,14 @@ import (
 )
 
 // Tracker is where a card of cfg's organization creates its ticket: the
-// first Jira account's first project, else the first GitHub account with a
-// repo; "" when it has neither.
+// first Jira account's first project, else the first Linear account's first
+// team, else the first GitHub account with a repo; "" when it has none.
 func Tracker(cfg orgs.Config) string {
 	if j, ok := jiraTracker(cfg); ok {
 		return j.Projects[0] + " (Jira)"
+	}
+	if a, ok := linearTracker(cfg); ok {
+		return a.Teams[0] + " (Linear)"
 	}
 	if g, ok := githubTracker(cfg); ok {
 		return g.Repo + " (GitHub)"
@@ -51,10 +54,12 @@ func Create(ctx context.Context, cfg orgs.Config, title, body string) (kanban.Li
 	var err error
 	if j, ok := jiraTracker(cfg); ok {
 		at, err = createJira(ctx, cfg, j, title, body)
+	} else if a, ok := linearTracker(cfg); ok {
+		at, err = createLinear(ctx, cfg, a, title, body)
 	} else if g, ok := githubTracker(cfg); ok {
 		at, err = createGitHub(ctx, cfg, g, title, body)
 	} else {
-		return kanban.Link{}, fmt.Errorf("no tracker to create it in: give a Jira account projects, or a GitHub account a repo, in desk.toml")
+		return kanban.Link{}, fmt.Errorf("no tracker to create it in: give a Jira account projects, a Linear account teams, or a GitHub account a repo, in desk.toml")
 	}
 	if err != nil {
 		return kanban.Link{}, err

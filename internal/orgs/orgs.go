@@ -24,6 +24,12 @@
 //	projects = ["ABC"]                    # bare keys like ABC-12 link here
 //	token_env = "JIRA_GLOBEX_TOKEN"
 //
+//	[[linear]]
+//	name = "globex"
+//	workspace = "globex"                  # linear.app/globex
+//	teams = ["ENG"]                       # bare keys like ENG-12 link here; cards create tickets in the first
+//	token_env = "LINEAR_API_KEY"          # a personal API key
+//
 //	[[bitbucket]]
 //	workspace = "globex"
 //	user = "me"                           # with an app password; without, token is a bearer token
@@ -134,6 +140,19 @@ type Jira struct {
 	// IssueType is what a card's new ticket is created as, in the first of
 	// Projects; "" Task (or Tarea), else the project's first non-subtask.
 	IssueType string `toml:"issue_type"`
+	Secret
+}
+
+// Linear is a linear.app workspace, read and written with a personal API key.
+type Linear struct {
+	Name      string   `toml:"name"`
+	Workspace string   `toml:"workspace"` // its URL key (linear.app/<workspace>): where bare keys link
+	Teams     []string `toml:"teams"`     // team keys: bare keys of theirs link here, cards create tickets in the first
+	Sync      *bool    `toml:"sync"`      // false: cards' column moves don't move its issues
+	// Status names the workflow state a column moves issues to, over the
+	// state type guess; Ignore the states sync leaves an issue in. As Jira's.
+	Status map[string]string `toml:"status"`
+	Ignore []string          `toml:"ignore"`
 	Secret
 }
 
@@ -303,6 +322,7 @@ type Config struct {
 	Company   Company     `toml:"company"`
 	GitHub    []GitHub    `toml:"github"`
 	Jira      []Jira      `toml:"jira"`
+	Linear    []Linear    `toml:"linear"`
 	Bitbucket []Bitbucket `toml:"bitbucket"`
 	GitLab    []GitLab    `toml:"gitlab"`
 	Nagios    []Nagios    `toml:"nagios"`

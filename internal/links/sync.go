@@ -57,6 +57,12 @@ func push(ctx context.Context, l kanban.Link, column string, cfg orgs.Config, fo
 			return Synced{}, nil
 		}
 		return pushJira(ctx, u, l, column, j, cfg, follow)
+	case KindLinear:
+		a, ok := linearAcct(cfg, l)
+		if !ok || off(a.Sync) {
+			return Synced{}, nil
+		}
+		return pushLinear(ctx, l, column, a, cfg, follow)
 	case KindGitHubIssue:
 		p, ok := githubIssue(u, cfg)
 		if !ok {
@@ -296,6 +302,12 @@ func Transition(ctx context.Context, l kanban.Link, status string, cfg orgs.Conf
 			return "", err
 		}
 		return ts[i].To.Name, nil
+	case KindLinear:
+		a, ok := linearAcct(cfg, l)
+		if !ok {
+			return "", &NoAccountError{Provider: "Linear", Owner: l.Ref}
+		}
+		return transitionLinear(ctx, l, status, a, cfg)
 	case KindGitHubIssue:
 		p, ok := githubIssue(u, cfg)
 		col := map[string]string{"closed": "Done", "open": "In progress"}[strings.ToLower(status)]
@@ -307,14 +319,23 @@ func Transition(ctx context.Context, l kanban.Link, status string, cfg orgs.Conf
 		}
 		return strings.ToLower(status), nil
 	}
-	return "", fmt.Errorf("%s is no ticket: a Jira or GitHub issue", l.URL)
+	return "", fmt.Errorf("%s is no ticket: a Jira, Linear or GitHub issue", l.URL)
 }
 
 // Statuses lists, for Haiku learning the organization's workflow, every
-// status of its Jira projects (the first account's of each), with its
-// category: one line per project, "" without any.
+// status of its Jira projects (the first account's of each) and Linear
+// teams, with its category or state type: one line per project or team,
+// "" without any.
 func Statuses(ctx context.Context, cfg orgs.Config) (string, error) {
 	var b strings.Builder
+	for _, a := range cfg.Linear {
+		if len(a.Teams) == 0 {
+			continue
+		}
+		if err := linearStatuses(ctx, a, cfg, &b); err != nil {
+			return "", err
+		}
+	}
 	for _, j := range cfg.Jira {
 		if j.URL == "" || len(j.Projects) == 0 {
 			continue

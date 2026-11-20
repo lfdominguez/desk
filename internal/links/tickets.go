@@ -14,9 +14,9 @@ import (
 )
 
 // Ticket is an open issue assigned to the user, in one of the org's Jira,
-// GitHub or GitLab accounts.
+// Linear, GitHub or GitLab accounts.
 type Ticket struct {
-	Project string // Jira's project key, GitHub's owner/repo, GitLab's group/project
+	Project string // Jira's project key, Linear's team key, GitHub's owner/repo, GitLab's group/project
 	Key     string // ABC-12, #34
 	Title   string
 	Status  string
@@ -39,6 +39,9 @@ func Assigned(ctx context.Context, cfg orgs.Config) ([]Ticket, error) {
 	}
 	for _, j := range cfg.Jira {
 		add(jiraAssigned(ctx, j, cfg))
+	}
+	for _, a := range cfg.Linear {
+		add(linearAssigned(ctx, a, cfg))
 	}
 	for _, g := range cfg.GitHub {
 		add(githubAssigned(ctx, g, cfg))

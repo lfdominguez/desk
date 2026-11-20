@@ -410,14 +410,14 @@ var cardTools = []map[string]any{
 	},
 	{
 		"name":        "tickets",
-		"description": "The user's open tickets assigned in the card organization's trackers (Jira, GitHub, GitLab): key, title, status, URL.",
+		"description": "The user's open tickets assigned in the card organization's trackers (Jira, Linear, GitHub, GitLab): key, title, status, URL.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
 		"annotations": map[string]any{"readOnlyHint": true},
 	},
 	{
 		"name": "link",
-		"description": "A ticket, issue, pull or merge request or commit (URL, or a Jira key): its state now (review, CI) and, " +
-			"for Jira and GitHub, its title and description. Without url, every link on the card.",
+		"description": "A ticket, issue, pull or merge request or commit (URL, or a Jira or Linear key): its state now (review, CI) and, " +
+			"for Jira, Linear and GitHub, its title and description. Without url, every link on the card.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{"url": map[string]any{"type": "string"}}},
 		"annotations": map[string]any{"readOnlyHint": true},
 	},
@@ -469,7 +469,7 @@ var cardTools = []map[string]any{
 	},
 	{
 		"name": "ticket_status",
-		"description": "Move one of the card's tickets (Jira issue, or a GitHub issue: open or closed) to a status by its name, when the organization's " +
+		"description": "Move one of the card's tickets (a Jira or Linear issue, or a GitHub issue: open or closed) to a status by its name, when the organization's " +
 			"ticket workflow says it should; desk moves the card to the column the workflow gives that status. Only for organizations " +
 			"with a workflow in desk, and only the user's own tickets, through an account that syncs. Without url, the card's one ticket.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{

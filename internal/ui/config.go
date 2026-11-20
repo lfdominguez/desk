@@ -60,6 +60,12 @@ var cfgKinds = []cfgKind{
 		{key: "projects", label: "Projects", hint: "keys like ABC, comma separated: bare keys link here", list: true},
 		{key: "token", label: "API token", secret: "."},
 	}},
+	{"linear", "Linear", []cfgField{
+		{key: "name", label: "Name", hint: "optional"},
+		{key: "workspace", label: "Workspace", hint: "acme in linear.app/acme: bare keys link there"},
+		{key: "teams", label: "Teams", hint: "keys like ENG, comma separated: bare keys link here, new tickets go in the first", list: true},
+		{key: "token", label: "API key", secret: "."},
+	}},
 	{"bitbucket", "Bitbucket", []cfgField{
 		{key: "name", label: "Name", hint: "optional"},
 		{key: "workspace", label: "Workspace", hint: "empty: all"},
@@ -89,7 +95,7 @@ var cfgKinds = []cfgKind{
 }
 
 // cfgAbbr is each kind's tile on its card.
-var cfgAbbr = map[string]string{"bitwarden": "BW", "passbolt": "PB", "github": "GH", "jira": "JI", "bitbucket": "BB", "gitlab": "GL", "nagios": "NG", "provider": "AI"}
+var cfgAbbr = map[string]string{"bitwarden": "BW", "passbolt": "PB", "github": "GH", "jira": "JI", "linear": "LN", "bitbucket": "BB", "gitlab": "GL", "nagios": "NG", "provider": "AI"}
 
 var vaultKinds = []string{"bitwarden", "passbolt"}
 
@@ -328,7 +334,7 @@ func (u *ui) openConfig(org string) {
 	s := &cfgSet{pages: map[string]*cfgDialog{}, state: map[string]int{}, parent: map[string]string{}, nav: layout.List{Axis: layout.Vertical}}
 	for _, o := range u.orgList {
 		c, err := orgs.Load(u.root, o)
-		accounts := len(c.Vaults) + len(c.GitHub) + len(c.Jira) + len(c.Bitbucket) + len(c.GitLab) + len(c.Nagios) + len(c.Providers)
+		accounts := len(c.Vaults) + len(c.GitHub) + len(c.Jira) + len(c.Linear) + len(c.Bitbucket) + len(c.GitLab) + len(c.Nagios) + len(c.Providers)
 		switch {
 		case err != nil:
 			s.state[o] = orgBroken
@@ -846,7 +852,7 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: 8, Bottom: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			kids := []layout.FlexChild{}
 			if n == 0 {
-				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Bitbucket, GitLab, Nagios or a model provider.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
+				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Linear, Bitbucket, GitLab, Nagios or a model provider.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
 			}
 			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgMe), layout.Rigid(u.cfgWorkflow), layout.Rigid(u.cfgModels))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
@@ -867,7 +873,7 @@ func (e *cfgEntry) summary() string {
 		case f.secret == "." || f.secret == "password": // the main one: an API key's secret is detail
 			parts = append(parts, e.source(f))
 		case f.secret != "":
-		case v == "" || !slices.Contains([]string{"host", "url", "base_url", "email", "workspace", "user", "owners", "projects", "groups"}, f.key):
+		case v == "" || !slices.Contains([]string{"host", "url", "base_url", "email", "workspace", "user", "owners", "projects", "teams", "groups"}, f.key):
 		case f.list:
 			parts = append(parts, strings.ToLower(f.label)+" "+v)
 		default:

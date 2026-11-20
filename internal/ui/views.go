@@ -46,7 +46,7 @@ func inView(v string, c kanban.Card, now time.Time) bool {
 			case "changes":
 				return pr && l.Tone == links.ToneBad
 			case "tickets":
-				return l.Kind == links.KindJira && l.Tone != links.ToneDone
+				return tracked(l) && l.Tone != links.ToneDone
 			}
 			return false
 		})

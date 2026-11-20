@@ -10,7 +10,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 - **Linux under Wayland** (Hyprland, Sway, KDE, GNOME and other Wayland compositors; the AppImage also opens under X11, the other packages will later), **macOS 12 or later** (Apple silicon or Intel), or **Windows 10 or 11** (x64).
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`, or where its native installer puts it (`~/.local/bin`, on Windows `%USERPROFILE%\.local\bin\claude.exe`). Every card runs it.
 - **Optional, on Linux: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login. macOS and Windows need nothing for that: there each profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`.
-desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios, the password vaults and your servers (SSH) itself. You don't need `gh`, `glab`, `bw`, `wl-paste` or `ssh`: the infra workspace reads your OpenSSH config and keys, and uses your `ssh-agent` when one runs, but never runs the `ssh` program.
+desk talks to GitHub, GitLab, Bitbucket, Jira, Linear, Nagios, the password vaults and your servers (SSH) itself. You don't need `gh`, `glab`, `bw`, `wl-paste` or `ssh`: the infra workspace reads your OpenSSH config and keys, and uses your `ssh-agent` when one runs, but never runs the `ssh` program.
 
 ## Install it
 

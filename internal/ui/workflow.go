@@ -122,7 +122,7 @@ func (u *ui) ticketTool(id string, raw json.RawMessage) (string, bool) {
 			}
 		}
 		if len(refs) == 0 {
-			return "the card has no ticket (a Jira or GitHub issue) linked", false
+			return "the card has no ticket (a Jira, Linear or GitHub issue) linked", false
 		}
 		return "which ticket? Give its url: " + strings.Join(refs, "; "), false
 	}

@@ -65,7 +65,7 @@ one as a pill under the box:
 | `#label` | a label | `#infra` |
 | `!priority` | the priority: `!low`, `!medium`, `!high` (also `!lo`, `!med`, `!hi`, `!urgent`) | `!high` |
 | a day | the due date: `today`, `tomorrow`, a weekday (the next one), `next week`, or a date `2026-11-06` | `friday` |
-| a ticket key | a link to that Jira issue | `ABC-123` |
+| a ticket key | a link to that Jira or Linear issue | `ABC-123` |
 | a URL | a link: a pull request, an issue, a merge request… | `https://github.com/acme-corp/api/pull/612` |
 
 <figure class="cut">
@@ -83,9 +83,10 @@ Days, keys and URLs stay in it: they read as part of the sentence.
 **Meant the word, not the field?** Click its pill. The word goes back to plain text,
 and the pill goes away.
 
-A ticket key only becomes a link when the organization has a Jira account for it:
-one whose `projects` in `desk.toml` list the key's project, or the organization's
-only Jira account. See [Accounts](/orgs/accounts/).
+A ticket key only becomes a link when the organization has an account for it: a
+Linear account whose `teams` in `desk.toml` list the key's team, a Jira account whose
+`projects` list its project, or the organization's only Jira account (else its only
+Linear account). See [Which account a link uses](/orgs/accounts/#which-account-a-link-uses).
 
 ## The organization and folder
 
@@ -133,7 +134,7 @@ The fields, from the top:
 - **Card and ticket in** and **Claude speaks with you in**: the languages the card
   (and its ticket) are written in, and the one Claude uses with you. They start as
   the ones in your [settings](/orgs/settings/).
-- **Links**: pull request, merge request or ticket URLs, or Jira keys, one per line.
+- **Links**: pull request, merge request or ticket URLs, or Jira or Linear keys, one per line.
 - **Labels**, comma separated, and **Due** (`YYYY-MM-DD`, or **Today**, **Tomorrow**, **Next week**, **Clear**).
 - **Priority**: None, Low, Medium, High.
 - **Column**: where the card goes.
@@ -144,8 +145,9 @@ The dialog scrolls when the fields don't fit. Its buttons always show.
 
 ## The Ticket switch
 
-When the organization has somewhere to create tickets (its first Jira project, or
-a GitHub account's `repo`), the **Ticket** row offers **Create in _ABC (Jira)_ first**.
+When the organization has somewhere to create tickets (its first Jira account's first
+project, else its first Linear account's first team, else a GitHub account's `repo`), the
+**Ticket** row offers **Create in _ABC (Jira)_ first** (or _ENG (Linear)_, _owner/name_).
 With it on, the card's Claude creates the card's ticket before any other work,
 assigned to you, and the card links it.
 
@@ -157,7 +159,7 @@ assigned to you, and the card links it.
 </figure>
 
 The switch isn't there when the organization has nowhere to create tickets. See
-[Accounts](/orgs/accounts/) for `repo` and `projects`.
+[Accounts](/orgs/accounts/) for `repo`, `projects` and `teams`.
 
 ## Screenshots
 
@@ -189,4 +191,4 @@ things first, and a toast says what's wrong:
 - the organization must be one of your organizations;
 - the folder must exist inside it;
 - a due date must read `YYYY-MM-DD`;
-- each link must be a URL, or a Jira key the organization has a Jira account for.
+- each link must be a URL, or a Jira or Linear key the organization has an account for.

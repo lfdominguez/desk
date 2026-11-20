@@ -19,6 +19,7 @@ const (
 	KindGitHubPR     = "github-pr"
 	KindGitHubIssue  = "github-issue"
 	KindJira         = "jira"
+	KindLinear       = "linear"
 	KindBitbucketPR  = "bitbucket-pr"
 	KindGitLabMR     = "gitlab-mr"
 	KindGitHubCommit = "github-commit"
@@ -36,13 +37,22 @@ const (
 
 var jiraKey = regexp.MustCompile(`^[A-Z][A-Z0-9]+-[0-9]+$`)
 
-// Parse reads s, a URL or a bare Jira key, as a link; ok is false for
-// anything else.
+// Parse reads s, a URL or a bare Jira or Linear key, as a link; ok is false
+// for anything else. A bare key is the Linear account's that lists its
+// team, else the Jira account's (one listing its project, or the only
+// one), else the only Linear account's.
 func Parse(s string, cfg orgs.Config) (kanban.Link, bool) {
 	s = strings.TrimSpace(s)
 	if jiraKey.MatchString(s) {
+		team, _, _ := strings.Cut(s, "-")
+		if a, ok := linearTeam(cfg, team); ok {
+			return linearLink(a, s), true
+		}
 		if j, ok := jiraFor(cfg, "", s); ok {
 			return kanban.Link{URL: strings.TrimRight(j.URL, "/") + "/browse/" + s, Kind: KindJira, Ref: s}, true
+		}
+		if len(cfg.Linear) == 1 && cfg.Linear[0].Workspace != "" {
+			return linearLink(cfg.Linear[0], s), true
 		}
 		return kanban.Link{}, false
 	}
@@ -53,6 +63,7 @@ func Parse(s string, cfg orgs.Config) (kanban.Link, bool) {
 	l := kanban.Link{URL: s, Kind: KindURL, Ref: strings.TrimPrefix(u.Host, "www.") + strings.TrimSuffix(u.Path, "/")}
 	p := strings.Split(strings.Trim(u.Path, "/"), "/")
 	host := u.Hostname()
+	_, lkey := linearWorkspace(host, p)
 	switch {
 	case isGitHub(cfg, host) && len(p) >= 4 && p[2] == "pull":
 		l.Kind, l.Ref = KindGitHubPR, "PR #"+p[3]
@@ -62,6 +73,8 @@ func Parse(s string, cfg orgs.Config) (kanban.Link, bool) {
 		l.Kind, l.Ref = KindGitHubCommit, "commit "+short(p[3])
 	case slices.Index(p, "-") > 0 && slices.Index(p, "commit") == slices.Index(p, "-")+1 && len(p) > slices.Index(p, "commit")+1:
 		l.Kind, l.Ref = KindGitLabCommit, "commit "+short(p[slices.Index(p, "commit")+1])
+	case lkey != "":
+		l.Kind, l.Ref = KindLinear, lkey
 	case host == "bitbucket.org" && len(p) >= 4 && p[2] == "pull-requests":
 		l.Kind, l.Ref = KindBitbucketPR, "PR #"+p[3]
 	case slices.Contains(p, "merge_requests") && slices.Index(p, "-") >= 0:
@@ -162,6 +175,12 @@ func check(ctx context.Context, l kanban.Link, cfg orgs.Config) (state, tone str
 			return "", "", fmt.Errorf("no [[jira]] for %s in desk.toml", u.Host)
 		}
 		return checkJira(ctx, u, l.Ref, j, cfg)
+	case KindLinear:
+		a, ok := linearAcct(cfg, l)
+		if !ok {
+			return "", "", &NoAccountError{"Linear", l.Ref}
+		}
+		return checkLinear(ctx, l, a, cfg)
 	case KindBitbucketPR:
 		return checkBitbucket(ctx, p, cfg)
 	case KindGitLabMR:

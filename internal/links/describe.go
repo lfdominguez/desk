@@ -10,8 +10,8 @@ import (
 	"github.com/lfdominguez/desk/internal/orgs"
 )
 
-// Describe is what l says, for Prompt Optimization: a Jira issue's or a
-// GitHub issue's or PR's title, kind, state and description, as text.
+// Describe is what l says, for Prompt Optimization: a Jira or Linear
+// issue's or a GitHub issue's or PR's title, kind, state and description, as text.
 // Other kinds give "". ponytail: Jira and GitHub only; GitLab and
 // Bitbucket when a request leans on them.
 func Describe(ctx context.Context, l kanban.Link, cfg orgs.Config) (string, error) {
@@ -51,6 +51,12 @@ func Describe(ctx context.Context, l kanban.Link, cfg orgs.Config) (string, erro
 			prio = ", priority " + f.Priority.Name
 		}
 		return fmt.Sprintf("%s (%s, %s%s, labels %s): %s\n%s", l.Ref, f.Issuetype.Name, f.Status.Name, prio, strings.Join(f.Labels, ", "), f.Summary, clip(f.Description)), nil
+	case KindLinear:
+		a, ok := linearAcct(cfg, l)
+		if !ok {
+			return "", &NoAccountError{"Linear", l.Ref}
+		}
+		return describeLinear(ctx, l, a, cfg)
 	case KindGitHubIssue, KindGitHubPR:
 		repo, a, err := githubRepo(ctx, u, p, cfg)
 		if err != nil {

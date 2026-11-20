@@ -1,6 +1,6 @@
 ---
 title: Accounts
-description: Connect an organization's GitHub, Jira, Bitbucket, GitLab and Nagios accounts, and choose where each token comes from.
+description: Connect an organization's GitHub, Jira, Linear, Bitbucket, GitLab and Nagios accounts, and choose where each token comes from.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -15,7 +15,7 @@ number of each kind.
 ## Adding one in Settings
 
 1. Open **Settings** and pick the organization in the nav.
-2. Click **+ GitHub** (or Jira, Bitbucket, GitLab, Nagios). A new card opens with its fields.
+2. Click **+ GitHub** (or Jira, Linear, Bitbucket, GitLab, Nagios). A new card opens with its fields.
 3. Fill them in, and pick where its token comes from (below).
 4. **Save** (<kbd>Ctrl</kbd>+<kbd>S</kbd>).
 
@@ -66,6 +66,29 @@ url = "https://globex.atlassian.net"
 email = "me@globex.example.com"
 projects = ["ABC"]
 token_env = "JIRA_GLOBEX_TOKEN"
+```
+
+</TabItem>
+<TabItem label="Linear">
+
+Its token is a personal API key: in Linear, **Settings → Security & access → Personal API keys**.
+An OAuth token works too.
+
+| Field | Key | |
+|---|---|---|
+| Name | `name` | optional |
+| Workspace | `workspace` | its URL key: `globex` for `linear.app/globex`; bare keys link there |
+| Teams | `teams` | keys like `ENG`: bare keys like `ENG-12` link here, cards create their tickets in the first, and Tickets lists only these teams; empty: all |
+| API key | see [Tokens](#tokens) | |
+
+Only in the file: `sync = false` (column moves don't move its issues), `ignore` (states sync
+leaves an issue in) and a `[linear.status]` table naming the state a column moves issues to.
+
+```toml
+[[linear]]
+workspace = "globex"
+teams = ["ENG"]
+token_env = "LINEAR_API_KEY"
 ```
 
 </TabItem>
@@ -167,13 +190,20 @@ a variable or a command over a token in the file.
 
 A link goes through the organization's account that matches it: for GitHub, the host and the
 repository's owner (an account with no owners answers for all); for GitLab and Bitbucket, the
-group or workspace. Links refresh every 3 minutes, and so do the tickets, CI and alerts.
+group or workspace; for Linear, the workspace in its URL.
+
+A bare key like `ENG-12` goes, in this order, to the Linear account whose `teams` list `ENG` (and
+that has a `workspace`); else to a Jira account whose `projects` list it, or the only Jira
+account; else to the only Linear account with a `workspace`. In an organization with both Jira
+and Linear, list Linear's teams, so its keys don't go to Jira.
+
+Links refresh every 3 minutes, and so do the tickets, CI and alerts.
 
 ## "no GitHub account"
 
 desk only asks a provider through an account with a token. A link whose organization has no
 matching account, or whose token comes out empty, is never fetched: its chip says
-**no GitHub account** (or GitLab, Bitbucket), its CI stays out of the [CI view](/orgs/ci/),
+**no GitHub account** (or GitLab, Bitbucket, Linear), its CI stays out of the [CI view](/orgs/ci/),
 and moving its card doesn't move the ticket.
 
 <figure class="cut">
