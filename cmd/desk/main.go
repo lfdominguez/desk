@@ -19,6 +19,8 @@ import (
 
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/ui"
 )
 
@@ -170,16 +172,24 @@ func run(args []string) int {
 	}
 	// A crash leaves its trace next to the board: desk runs detached, with no
 	// terminal to print it on.
-	if f, err := os.OpenFile(filepath.Join(filepath.Dir(path), "crash.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
+	crash := filepath.Join(filepath.Dir(path), "crash.log")
+	if f, err := os.OpenFile(crash, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
 		debug.SetCrashOutput(f, debug.CrashOptions{})
 		f.Close()
 	}
+	// New Relic, when the user gave a license key: the last run's crashes, then this run's errors and timings.
+	nr := orgs.Telemetry()
+	if err := telemetry.Start(nr.LicenseKey, nr.AppName, ui.Version); err != nil {
+		fmt.Fprintln(os.Stderr, "desk: New Relic:", err)
+	}
+	telemetry.Crashes(crash)
 	go func() {
 		code := 0
 		if err := runUI(b, path); err != nil {
 			fmt.Fprintln(os.Stderr, "desk:", err)
 			code = 1
 		}
+		telemetry.Stop()
 		exit(code)
 	}()
 	appMain()

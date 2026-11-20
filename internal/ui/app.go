@@ -35,6 +35,7 @@ import (
 	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 	"github.com/lfdominguez/desk/internal/vault"
 )
@@ -327,6 +328,7 @@ func (u *ui) loop(next func() event.Event) error {
 		u.mu.Lock() // a detached window's loop shares u; held on return, so desk's cleanup doesn't race it
 		s.busy("handling " + typ)
 		tg, ig := u.termGen.Load(), u.infraGen()
+		start := time.Now()
 		done, err := u.event(ev, &ops)
 		if fe, ok := ev.(app.FrameEvent); ok {
 			u.mu.Unlock()
@@ -334,6 +336,7 @@ func (u *ui) loop(next func() event.Event) error {
 			// outside u.mu, so that stalls this window only, not every window.
 			s.busy("drawing the frame (GPU, buffer swap)")
 			fe.Frame(&ops)
+			telemetry.Frame(time.Since(start))
 			if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
 				// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after Frame returns.
 				// ponytail: a short delay, not a hook into Gio's loop; one more Invalidate after it if 10 ms ever falls short.
@@ -366,10 +369,12 @@ func (u *ui) loop(next func() event.Event) error {
 	}
 }
 
-// crashNote adds a line to crash.log beside the board.
+// crashNote adds a line to crash.log beside the board, and reports it to New Relic.
 func (u *ui) crashNote(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	telemetry.Error("window", msg)
 	if f, err := os.OpenFile(filepath.Join(filepath.Dir(u.path), "crash.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
-		fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.RFC3339), fmt.Sprintf(format, args...))
+		fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.RFC3339), msg)
 		f.Close()
 	}
 }
@@ -589,6 +594,7 @@ func (u *ui) quitOn(c <-chan os.Signal, exit func(int)) {
 	case <-done:
 	case <-time.After(quitWait):
 	}
+	telemetry.Stop()
 	exit(1)
 }
 

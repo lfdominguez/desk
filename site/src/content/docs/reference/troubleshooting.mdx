@@ -136,6 +136,30 @@ start it again.
 
 desk runs detached, with no terminal to print to. A crash's trace goes to `~/.local/share/desk/crash.log`. Include it when you [report the bug](https://github.com/lfdominguez/desk/issues).
 
+### Report to New Relic
+
+desk can send its own crashes, errors and performance to your New Relic account (the free tier is
+enough). It sends nothing until you give it a license key: your account's **ingest license key**,
+in `~/.config/desk/settings.toml`:
+
+```toml
+[newrelic]
+license_key = "…"   # or set NEW_RELIC_LICENSE_KEY in desk's environment
+app_name = "desk"   # the name it shows under in APM; "desk" when left out
+```
+
+Restart desk. It then shows as an APM application:
+
+- **Errors**: each `crash.log` line as it's written (a window lost, a window away from its events),
+  class `window`. A crash ends desk before it can send anything, so its trace goes at the next
+  start, class `crash`, with the whole trace in **Logs**. Crashes from before the key was set
+  aren't sent.
+- **Transactions**: each link check (`links/github-pr`, `links/jira`…), timed, with its error.
+- **Metrics**: `Custom/Frame/ms`, how long each frame took to lay out and draw, and the Go
+  runtime's own (memory, goroutines, garbage collection, CPU).
+
+Each report carries desk's version as the `version` label.
+
 ## The window vanished and came back
 
 On Wayland the compositor can drop a window, for example when a monitor powers off to save energy and comes back. desk then opens its window again, every second until it can, with the board and sessions as they were; it gives up and exits after ten minutes. `crash.log` gets a `window lost, reopening:` line with the reason the display gave (a `protocol error … on <object>` names what the compositor rejected). Include it when you report the bug.

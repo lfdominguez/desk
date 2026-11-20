@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **New Relic for desk itself**: with a license key in `settings.toml` (`[newrelic]`) or
+  `NEW_RELIC_LICENSE_KEY`, desk sends its crashes (at the next start, with the whole trace), the
+  errors it notes in `crash.log`, how long its frames and link checks take, and the Go runtime's
+  metrics to your New Relic account. Without a key it sends nothing.
+
 ## [2026.11.19.3] - 2026-11-19
 
 ### Fixed

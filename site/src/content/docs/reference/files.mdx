@@ -23,6 +23,7 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 | `images/` | Images you pasted: a card's notes reference them as `![image](path)`, a message as `[Image n]`. |
 | `snoozed.json` | Snoozed alerts and until when. |
 | `crash.log` | If desk crashes, the trace goes here. desk runs detached, with no terminal to print it on. A window the display dropped is noted here too, with why, before desk opens it again. |
+| `crash.log.reported` | How far into `crash.log` desk has sent crashes to [New Relic](/reference/troubleshooting/#report-to-new-relic), with a license key set. |
 
 The folder and everything in it are readable by you alone (folders `700`, files `600`): conversations
 hold commands, their output and servers' details. desk sets that on what was there before too, each
@@ -32,7 +33,7 @@ time it starts.
 
 | Path | What's in it |
 |---|---|
-| `settings.toml` | desk's own settings: the search folders (`[[folder]]` with `path`, `depth`, `only_toml`, `root`), the languages (`card_lang`, `chat_lang`), the text size (`zoom`) and the shortcuts you changed (`[keys]`). Edit them in **Settings → General** and **Settings → Keyboard shortcuts**. The workspace's layout (`[editor]`) is written as you change it there. |
+| `settings.toml` | desk's own settings: the search folders (`[[folder]]` with `path`, `depth`, `only_toml`, `root`), the languages (`card_lang`, `chat_lang`), the text size (`zoom`), the shortcuts you changed (`[keys]`) and a New Relic account for desk's own crashes and performance (`[newrelic]`: [Report to New Relic](/reference/troubleshooting/#report-to-new-relic)). Edit them in **Settings → General** and **Settings → Keyboard shortcuts**. The workspace's layout (`[editor]`) is written as you change it there. |
 | `infra-layout.json` | The infra workspace's look: its theme, whether its sidebar and Claude panel show, and the Claude panel's width. |
 
 ## Organizations: `$DESK_ROOT` (`~/Work`)

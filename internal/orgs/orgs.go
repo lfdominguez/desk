@@ -392,7 +392,18 @@ type settings struct {
 	Editor   Editor            `toml:"editor,omitempty"`    // the workspace's panes and editor (editor.go)
 	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
 	Me       string            `toml:"me,omitempty"`        // who the user is, told to every Claude desk starts (AboutMe)
+	NewRelic NewRelic          `toml:"newrelic,omitempty"`  // where desk reports its own crashes and performance (internal/telemetry)
 }
+
+// NewRelic is settings.toml's [newrelic]: desk's own crashes, errors and
+// performance go to that account. No license key, nothing is sent.
+type NewRelic struct {
+	LicenseKey string `toml:"license_key,omitempty"`
+	AppName    string `toml:"app_name,omitempty"` // "desk" when empty
+}
+
+// Telemetry is settings.toml's [newrelic].
+func Telemetry() NewRelic { return loadSettings().NewRelic }
 
 // Me is who the user is, in their own words: the settings' Who am I.
 func Me() string { return loadSettings().Me }
