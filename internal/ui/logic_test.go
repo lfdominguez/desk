@@ -1186,15 +1186,21 @@ func TestMakeTicketFails(t *testing.T) {
 }
 
 // TestNewCards: split-off cards go to To do with their source's org and
-// folder, long titles cut at 80 runes, each to make its ticket.
+// folder, long titles cut at 80 runes, each to make its ticket; the
+// Claude that asked is told which cards it got.
 func TestNewCards(t *testing.T) {
 	h := newHarness(t)
 	src := h.u.b.Add(h.u.b.Column("In progress"), kanban.Card{Title: "x", Org: "Globex", Dir: "api"})
 	h.u.newCards(src.ID, nil)
 	h.u.newCards("gone", []string{"y"})
+	f := &fakeClaude{}
+	h.u.procs[src.ID] = f
 	long := strings.Repeat("a", 85)
 	h.u.newCards(src.ID, []string{"short one", long})
 	todo := h.u.b.Columns[h.u.b.Column("To do")].Cards
+	if len(f.prompts) != 1 || !strings.Contains(f.prompts[0], "Card made, in To do: "+todo[0].Key()+": short one; "+todo[1].Key()) {
+		t.Fatalf("not told back: %q", f.prompts)
+	}
 	if len(todo) != 2 || todo[0].Title != "short one" || todo[0].Org != "Globex" || todo[0].Dir != "api" || !todo[0].Ticket || !strings.Contains(todo[0].Notes, "(Split off "+src.Key()+".)") {
 		t.Fatalf("%+v", todo)
 	}

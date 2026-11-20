@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A card's Claude that asks for a new card (when its own card already has a ticket) is now told
+  the card was made and its key. It used to hear nothing, think the request failed and ask again,
+  which made the same card twice.
+
 ## [2026.11.20.1] - 2026-11-20
 
 ### Added

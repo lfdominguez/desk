@@ -193,6 +193,7 @@ func (u *ui) newCards(id string, todo []string) {
 	if col < 0 {
 		col = 0
 	}
+	var made []string
 	for _, t := range todo {
 		title := t
 		if r := []rune(title); len(r) > 80 {
@@ -201,9 +202,14 @@ func (u *ui) newCards(id string, todo []string) {
 		n := u.b.Add(col, kanban.Card{Title: title, Notes: t + "\n\n(Split off " + from.Key() + ".)", Org: from.Org, Dir: from.Dir, Ticket: true, Lang: from.Lang, ChatLang: from.ChatLang})
 		if c := u.b.Card(n.ID); c != nil {
 			u.showToast(from.Key()+" made "+c.Key()+": "+title, false)
+			made = append(made, c.Key()+": "+title)
 		}
 	}
 	u.save()
+	// told back, as a ticket is: without it the Claude took silence for
+	// failure and sent its DESK-CARD again, making the card twice.
+	u.send(id, "(desk) Card made, in "+u.b.Columns[col].Title+": "+strings.Join(made, "; ")+
+		". Its ticket is created when the user starts it. Don't send DESK-CARD for it again.")
 }
 
 // send hands text to card id's Claude, starting (or resuming) the session;

@@ -578,7 +578,7 @@ func TestTicketFirst(t *testing.T) {
 	}
 	fake.prompts = fake.prompts[:1]
 	turn("Another one.\nDESK-TICKET: Other\nDESK-CARD: Add audit logging to login")
-	if len(asked) != 1 || len(fake.prompts) != 2 || !strings.Contains(fake.prompts[1], "already tracks ABC-9") {
+	if len(asked) != 1 || len(fake.prompts) != 3 || !strings.Contains(fake.prompts[1], "already tracks ABC-9") || !strings.Contains(fake.prompts[2], "Card made, in To do: DESK-2: Add audit logging") {
 		t.Fatalf("a second ticket: asked %q, prompts %q", asked, fake.prompts)
 	}
 	todo := h.u.b.Columns[h.u.b.Column("To do")].Cards
