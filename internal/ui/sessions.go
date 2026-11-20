@@ -17,7 +17,6 @@ import (
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
-	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/vault"
 )
 
@@ -686,9 +685,7 @@ func (u *ui) checkLinks(ids []string) {
 	for _, j := range <-jobs { // ponytail: one at a time; fine for tens of links, a worker pool past that
 		done := u.busy(j.org)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		track := telemetry.Track("links/" + j.l.Kind)
 		state, tone, err := linkCheck(ctx, j.l, j.cfg)
-		track(err)
 		cancel()
 		done()
 		var locked *vault.LockedError

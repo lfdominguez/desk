@@ -138,7 +138,7 @@ desk runs detached, with no terminal to print to. A crash's trace goes to `~/.lo
 
 ### Report to New Relic
 
-desk can send its own crashes, errors and performance to your New Relic account (the free tier is
+desk can send its own crashes and errors to your New Relic account (the free tier is
 enough). It sends nothing until you give it a license key: your account's **ingest license key**,
 in `~/.config/desk/settings.toml`:
 
@@ -148,17 +148,20 @@ license_key = "…"   # or set NEW_RELIC_LICENSE_KEY in desk's environment
 app_name = "desk"   # the name it shows under in APM; "desk" when left out
 ```
 
-Restart desk. It then shows as an APM application:
+Restart desk. It then shows as an APM application, under **Errors** (and **Errors Inbox**):
 
-- **Errors**: each `crash.log` line as it's written (a window lost, a window away from its events),
-  class `window`. A crash ends desk before it can send anything, so its trace goes at the next
-  start, class `crash`, with the whole trace in **Logs**. Crashes from before the key was set
-  aren't sent.
-- **Transactions**: each link check (`links/github-pr`, `links/jira`…), timed, with its error.
-- **Metrics**: `Custom/Frame/ms`, how long each frame took to lay out and draw, and the Go
-  runtime's own (memory, goroutines, garbage collection, CPU).
+- **Crashes**, class `crash`. A crash ends desk before it can send anything, so it goes at the
+  next start. Its message is the panic and where in desk it happened, as
+  `panic: runtime error: index out of range at ui.(*ui).frame (app.go:470)`, so the same crash
+  groups together and different ones don't. Its attributes say `where` and `crashedVersion`, the
+  version that crashed (desk notes a `desk <version> started` line in `crash.log` at each start).
+  The whole trace is in **Logs**, severity `FATAL`. Go panics, fatal errors and signals in C code
+  (a GPU driver) all count. Crashes from before the key was set aren't sent.
+- **Errors**, class `window`: each other `crash.log` line as it's written (a window lost, a window
+  away from its events).
 
-Each report carries desk's version as the `version` label.
+Nothing else: no performance or runtime metrics. Each report carries the running desk's version
+as the `version` label.
 
 ## The window vanished and came back
 

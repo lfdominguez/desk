@@ -203,7 +203,7 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
 synced to disk on each save, with an earlier copy kept as `board.json.bak`; the folder is readable
 by you alone, and one desk at a time runs on it. What to back up, and how to restore it: [Backup](https://desk.domivega.com/reference/backup/).
 
-desk sends nothing about itself unless you ask it to. To watch its crashes, errors and performance
+desk sends nothing about itself unless you ask it to. To get its crashes and errors
 in your own New Relic account, give it a license key (`[newrelic] license_key` in `settings.toml`,
 or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/troubleshooting/#report-to-new-relic).
 

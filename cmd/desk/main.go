@@ -177,12 +177,13 @@ func run(args []string) int {
 		debug.SetCrashOutput(f, debug.CrashOptions{})
 		f.Close()
 	}
-	// New Relic, when the user gave a license key: the last run's crashes, then this run's errors and timings.
+	// New Relic, when the user gave a license key: the last run's crashes, then this run's errors.
 	nr := orgs.Telemetry()
 	if err := telemetry.Start(nr.LicenseKey, nr.AppName, ui.Version); err != nil {
 		fmt.Fprintln(os.Stderr, "desk: New Relic:", err)
 	}
 	telemetry.Crashes(crash)
+	telemetry.Started(crash, ui.Version)
 	go func() {
 		code := 0
 		if err := runUI(b, path); err != nil {

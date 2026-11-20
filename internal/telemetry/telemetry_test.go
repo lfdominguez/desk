@@ -1,29 +1,53 @@
 package telemetry
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
-const trace = "panic: boom\n\ngoroutine 1 [running]:\nmain.main()\n\t/src/main.go:3 +0x1"
+const trace = "panic: runtime error: index out of range [3] with length 3\n\n" +
+	"goroutine 1 [running]:\n" +
+	"panic({0x1, 0x2})\n\t/go/src/runtime/panic.go:787 +0x132\n" +
+	"github.com/acme/desk/internal/ui.(*ui).frame(0xc000010000, {0x0})\n\t/src/internal/ui/app.go:470 +0x1d\n" +
+	"main.main()\n\t/src/main.go:3 +0x1"
 
 func TestCrashes(t *testing.T) {
-	text := "2026-11-19T10:00:00Z window lost, reopening: x\n" + trace + "\n\n" +
+	text := "2026-11-19T09:00:00Z desk 2026.11.19.3 started\n" +
+		"2026-11-19T10:00:00Z window lost, reopening: x\n" + trace + "\n\n" +
+		"2026-11-19T10:30:00Z desk 2026.11.19.4 started\n" +
 		"fatal error: concurrent map writes\n\ngoroutine 7:\n" +
+		"SIGSEGV: segmentation violation\nPC=0x0 m=0\n" +
 		"2026-11-19T11:00:00Z window main back at its events\n"
 	got := crashes(text)
-	want := []string{trace, "fatal error: concurrent map writes\n\ngoroutine 7:"}
+	want := []crash{
+		{trace, "2026.11.19.3"},
+		{"fatal error: concurrent map writes\n\ngoroutine 7:", "2026.11.19.4"},
+		{"SIGSEGV: segmentation violation\nPC=0x0 m=0", "2026.11.19.4"},
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("crashes = %q, want %q", got, want)
 	}
 	if got := crashes("2026-11-19T10:00:00Z only a note\n"); got != nil {
 		t.Fatalf("notes only: %q", got)
+	}
+}
+
+func TestWhere(t *testing.T) {
+	for in, want := range map[string]string{
+		trace: "ui.(*ui).frame (app.go:470)",
+		"fatal error: x\n\ngoroutine 7 [running]:\nruntime.throw()\n\t/r/panic.go:1 +0x1\nmain.f\n\t/s/m.go:9": "main.f (m.go:9)",
+		"panic: x\n\ngoroutine 1 [running]:\nruntime.throw()\n\t/r/panic.go:1 +0x1\n":                         "",
+		"panic: x":     "",
+		"SIGSEGV: x\n": "",
+	} {
+		if got := where(in); got != want {
+			t.Errorf("where(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -45,6 +69,16 @@ func TestSince(t *testing.T) {
 	}
 }
 
+func TestStarted(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "crash.log")
+	Started(log, "2026.11.20")
+	b, _ := os.ReadFile(log)
+	if m := startLine.FindStringSubmatch(strings.TrimSpace(string(b))); m == nil || m[1] != "2026.11.20" {
+		t.Fatalf("log %q", b)
+	}
+	Started(filepath.Join(log, "not-a-dir", "x"), "v") // can't write: nothing
+}
+
 // TestOff: without a license nothing starts and every call is a no-op.
 func TestOff(t *testing.T) {
 	t.Setenv("NEW_RELIC_LICENSE_KEY", "")
@@ -52,8 +86,6 @@ func TestOff(t *testing.T) {
 		t.Fatalf("Start = %v, app %v", err, app)
 	}
 	Error("x", "y")
-	Track("t")(errors.New("e"))
-	Frame(time.Millisecond)
 	Crashes(filepath.Join(t.TempDir(), "crash.log"))
 	Stop()
 }
@@ -68,10 +100,10 @@ func TestOn(t *testing.T) {
 		t.Fatalf("Start = %v", err)
 	}
 	t.Cleanup(func() { Stop(); app = nil })
+	if c, _ := app.Config(); c.RuntimeSampler.Enabled {
+		t.Fatal("runtime metrics on")
+	}
 	Error("x", "y")
-	Track("t")(errors.New("e"))
-	Track("t")(nil)
-	Frame(time.Millisecond)
 
 	dir := t.TempDir()
 	log := filepath.Join(dir, "crash.log")
@@ -84,10 +116,10 @@ func TestOn(t *testing.T) {
 	if got := since(log+".reported", 100); got != 4 {
 		t.Fatalf("first run's mark %d, want 4", got)
 	}
-	data := "old\n" + trace + "\n"
+	data := "old\n" + trace + "\npanic: no frames\n"
 	os.WriteFile(log, []byte(data), 0o600)
 	Crashes(log)
-	if got := since(log+".reported", 100); got != len(data) {
+	if got := since(log+".reported", len(data)); got != len(data) {
 		t.Fatalf("mark %d, want %d", got, len(data))
 	}
 }

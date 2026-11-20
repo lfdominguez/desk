@@ -328,7 +328,6 @@ func (u *ui) loop(next func() event.Event) error {
 		u.mu.Lock() // a detached window's loop shares u; held on return, so desk's cleanup doesn't race it
 		s.busy("handling " + typ)
 		tg, ig := u.termGen.Load(), u.infraGen()
-		start := time.Now()
 		done, err := u.event(ev, &ops)
 		if fe, ok := ev.(app.FrameEvent); ok {
 			u.mu.Unlock()
@@ -336,7 +335,6 @@ func (u *ui) loop(next func() event.Event) error {
 			// outside u.mu, so that stalls this window only, not every window.
 			s.busy("drawing the frame (GPU, buffer swap)")
 			fe.Frame(&ops)
-			telemetry.Frame(time.Since(start))
 			if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
 				// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after Frame returns.
 				// ponytail: a short delay, not a hook into Gio's loop; one more Invalidate after it if 10 ms ever falls short.
