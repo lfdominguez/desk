@@ -243,7 +243,9 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
-  `ask_workspace` reach the card's workspace.
+  `ask_workspace` reach the card's workspace. `servers`, `add_server`, `edit_server` and
+  `remove_server` read and change the org's servers file (a server's address, user, port, key,
+  group, any ssh option), each change shown to you as a diff to allow first.
 - **Right-click a card** for its menu: open its session, its full window or a window of its own, its terminal, its workspace, turn its
   Remote Control on or off, edit it, copy its key, move it to another column, archive it.
 - **Desktop notifications** when a card turns to your turn, blocked, failed or ready for review, unless you're
@@ -528,6 +530,9 @@ Match all
   there (`ssh -i /root/.ssh/key admin@host`), so a key that lives on that server stays there.
   Panes, the files panel and the infra Claude's file tools go through it. The infra Claude adds
   these with `add_host`, once you approve.
+- **Ask Claude to change the servers file**: a card's Claude and the infra Claude add, change and
+  remove servers with `add_server`, `edit_server` and `remove_server` ("add web4 and web5, user
+  deploy, key ~/.ssh/acme"), and you approve each change as a diff.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
   read when connecting but never listed, so your personal hosts never show as the org's servers.
 - **Relative paths** (`IdentityFile`, `UserKnownHostsFile`, `Include`…) are from the folder of

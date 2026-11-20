@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -50,12 +51,15 @@ func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 	if text, ok, done := u.wsTool(id, ws, name, raw); done {
 		return text, ok
 	}
-	if name == "ask_lead" || name == "ticket_status" {
+	if name == "ask_lead" || name == "ticket_status" || name == "servers" || slices.Contains(infra.ServerTools, name) {
 		if ws {
 			return "no tool " + name, false
 		}
 		if name == "ticket_status" {
 			return u.ticketTool(id, raw)
+		}
+		if name != "ask_lead" {
+			return u.serverTool(id, name, raw)
 		}
 		return u.leadTool(id, raw)
 	}

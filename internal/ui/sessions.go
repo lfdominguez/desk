@@ -458,6 +458,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			break
 		}
 		u.asks[id] = newAsk(e.Ask)
+		u.asks[id].preview = u.serverPreview(c.Org, e.Ask)
 		if pl := u.pilotOf(c); pl != nil { // its autopilot answers, not the user
 			u.say(id, "tool", "asks the autopilot: "+cmp.Or(e.Ask.Line, "a question"))
 			c.Status = kanban.StatusWorking

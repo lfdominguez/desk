@@ -101,7 +101,9 @@ that owns the terminal (htop, less, a prompt of a running command).
 Files on a server go through "file_read", "file_edit" and "file_write" (over the connection, the user approves
 each change as a diff), never printf, cat, tee, sed -i or heredocs through run. A machine you reach from one of
 the servers (ssh from it, with a key that lives there) is never worked on with ssh inside a pane: "add_host" it
-once, then connect to it and use the file tools with its host. A card's Claude may hand you a file it wrote
+once, then connect to it and use the file tools with its host. The organization's servers file itself (its servers,
+their keys, users, ports, groups) changes only through "servers" (read it first), "add_server", "edit_server" and
+"remove_server", never by editing it another way. A card's Claude may hand you a file it wrote
 ("File #N for host:path"): it knows the code, you know the server. Check it against the server (file_read
 what's there), then place it with file_write staged=N; if it's wrong for the server, tell the card (message_card)
 rather than rewriting it yourself. When a card asks for a server file's current content, give it whole.
@@ -183,6 +185,11 @@ func toolLine(name, effect, cmd, keys, host string, pane int) string {
 		return where + map[string]string{"mcp__desk__file_read": "reading ", "mcp__desk__file_edit": "editing ", "mcp__desk__file_write": "writing "}[name] + cmd
 	case "mcp__desk__add_host":
 		return "adding server " + host
+	case "mcp__desk__servers":
+		return "reading the servers file"
+	case "mcp__desk__add_server", "mcp__desk__edit_server", "mcp__desk__remove_server":
+		return map[string]string{"mcp__desk__add_server": "adding server ", "mcp__desk__edit_server": "changing server ",
+			"mcp__desk__remove_server": "removing server "}[name] + host
 	}
 	return ""
 }
@@ -217,6 +224,7 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 			"mcp__desk__ask_peer,mcp__desk__task_done,mcp__desk__message_card,mcp__desk__create_card,"+
 			"mcp__desk__nagios,mcp__desk__metrics,mcp__desk__secrets_search,mcp__desk__secret_get,"+
 			"mcp__desk__file_read,mcp__desk__file_edit,mcp__desk__file_write,mcp__desk__add_host,"+
+			"mcp__desk__servers,mcp__desk__add_server,mcp__desk__edit_server,mcp__desk__remove_server,"+
 			"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_edit,mcp__desk__drawing_suggest",
 		"--append-system-prompt", systemPrompt(tab.org, host, org.describe())+claude.AboutUser(deskorgs.AboutMe(deskorgs.Root(), tab.org)))...)
 	if err != nil {

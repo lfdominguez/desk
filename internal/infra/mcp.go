@@ -566,9 +566,11 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 
 // CardMCP is claude's --mcp-config that gives card id's session the card
 // tools through sock (ServeCards'), and the tools to allow without asking:
-// they only read. "" without a socket.
+// all but ServerTools, which change the servers file and so ask the user.
+// "" without a socket.
 func CardMCP(sock, id string) (string, []string) {
-	return toolsMCP(sock, "card="+id, append(slices.Clone(cardTools), drawingTools...))
+	mcp, allow := toolsMCP(sock, "card="+id, append(slices.Clone(cardTools), drawingTools...))
+	return mcp, slices.DeleteFunc(allow, func(t string) bool { return slices.Contains(ServerTools, strings.TrimPrefix(t, "mcp__desk__")) })
 }
 
 // PilotMCP is CardMCP for autopilot card id's session: the card tools that
@@ -698,6 +700,8 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		var ha addHostArgs
 		json.Unmarshal(c.Args, &ha)
 		return t.addHost(ha)
+	case "servers", "add_server", "edit_server", "remove_server":
+		return t.serverTool(c.Name, c.Args)
 	case "hosts":
 		var out []string
 		for _, n := range t.hosts {

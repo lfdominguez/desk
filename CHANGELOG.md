@@ -6,6 +6,16 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Claude changes the servers file for you**: a card's Claude and the infra Claude have
+  `servers`, `add_server`, `edit_server` and `remove_server`. Say "add web4 and web5, user deploy,
+  key ~/.ssh/acme, in group eu/web" and Claude writes the blocks: address, user, port, key (with
+  `IdentitiesOnly yes`), group, description and any other ssh option. Every change asks you
+  first and shows the file and the change as a diff; the servers show in the infra workspace as
+  soon as it's written. Passwords in the file (`#@ password-raw`) show as `[hidden]`, and Claude
+  can't write one.
+
 ## [2026.11.20] - 2026-11-20
 
 ### Changed

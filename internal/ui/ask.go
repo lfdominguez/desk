@@ -29,8 +29,9 @@ type askState struct {
 	cur     int             // the interview's question on screen
 	cmd     widget.Editor   // the command, while edited before allowing it
 	editing bool
-	more    bool // the other ways to allow are listed
-	focus   bool // Edit was asked: fill and focus the command next frame
+	more    bool   // the other ways to allow are listed
+	focus   bool   // Edit was asked: fill and focus the command next frame
+	preview string // a server tool's change to the servers file, shown in place of its line
 }
 
 // tick is a checkbox's check mark.
@@ -293,11 +294,14 @@ func (u *ui) permission(gtx layout.Context, id string, a *askState, act *func())
 				if a.editing {
 					return k.Editor(gtx, &a.cmd, "", 12, kit.Mono, kit.CText)
 				}
-				line := a.r.Line
+				line, rows := a.r.Line, 8
 				if c := a.command(); c != "" {
 					line = "$ " + c
 				}
-				return k.Label(gtx, line, 12, kit.CText, kit.Mono, 8)
+				if a.preview != "" {
+					line, rows = a.preview, 40
+				}
+				return k.Label(gtx, line, 12, kit.CText, kit.Mono, rows)
 			})(gtx)
 		})
 	}

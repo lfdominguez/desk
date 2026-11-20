@@ -225,6 +225,14 @@ The infra Claude adds these itself with `add_host` when it needs to work on such
 instead of running ssh inside a pane: you approve the block, shown as a diff of the servers file,
 and desk writes it right after the `on` server's block.
 
+### Changed by Claude
+
+You don't have to write blocks by hand. Tell a card's Claude or the infra Claude what you want
+("add db1 and db2 at 192.0.2.20 and .21, user postgres, key `~/.ssh/acme_db`, in group db") and it
+calls `add_server`, `edit_server` or `remove_server`. You approve each change as a diff of this
+file; desk then writes it and lists the servers. What they take: see
+[The servers file](/orgs/card-tools/#the-servers-file).
+
 ### `hosts-cmd`: a dynamic inventory
 
 `#@ hosts-cmd PATH` runs a program and keeps the servers it prints. Use it when your servers

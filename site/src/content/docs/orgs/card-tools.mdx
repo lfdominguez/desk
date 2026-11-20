@@ -5,7 +5,8 @@ description: The tools every card's Claude gets from desk, to read its organizat
 
 Every card's Claude session has desk's own tools, `mcp__desk__*`. They read the card's
 organization through the same accounts desk uses: its Nagios, its trackers, its links and its
-CI. They only read, so they're allowed without asking.
+CI. They only read, so they're allowed without asking. The ones that change the organization's
+[servers file](#the-servers-file) ask you first.
 
 ![A card's session: the user asks why CI failed, Claude calls mcp__desk__ci and mcp__desk__ci_log on PR #604 and explains the failure](../../../assets/shots/orgs-cardtools.png)
 
@@ -61,6 +62,36 @@ organization, and they're allowed without asking too:
 
 The workspace Claude has the read-only tools above too, and `suggest_to_card` (`text`), which sends
 a suggestion to the card's Claude when you ask it to.
+
+## The servers file
+
+Four tools read and change the organization's [servers file](/servers/servers-file/), so you can
+say "add web4 and web5, user deploy, key `~/.ssh/acme`, in group eu/web" and Claude writes the
+blocks:
+
+| Tool | Arguments | What it does |
+|---|---|---|
+| `servers` | none | the servers file: where it is and what it holds (or where it goes, when there's none yet). Allowed without asking |
+| `add_server` | `name`, and any of `hostname`, `user`, `port`, `identity_file`, `group`, `desc`, `options` | adds a `Host` block: at the end of its group's section (a new group goes at the end of the file), or with no group before the first one. Makes the file when there's none |
+| `edit_server` | `name`, and what changes | changes only what's given: a keyword replaces every line of it in the server's block, where the first one was; an `options` key with an empty value removes it; `group` moves the block to that group |
+| `remove_server` | `name` | removes its block, or only its name from a `Host` line that names several |
+
+- `identity_file` comes with `IdentitiesOnly yes`, so ssh offers only that key, not every key in
+  your agent first (a server may close the connection after too many). Give `options`
+  `{"IdentitiesOnly": ""}` to leave it out.
+- `options` takes any other ssh keyword (`ProxyJump`, `ForwardAgent`, `LocalForward`…) and desk's
+  [keys](/servers/servers-file/#keys) written with their `#@`: `{"#@ tags": "web, nginx"}`.
+  desk refuses a keyword ssh doesn't take.
+- Passwords written in the file stay out of Claude's hands: `servers` shows every
+  [`password-raw`](/servers/servers-file/#vault-password-and-password-raw) value as `[hidden]`, as
+  do the diffs, and Claude can't write one (it can point `#@ password` at a vault item). Add a
+  `password-raw` yourself.
+- Every change asks you in the card's panel, which shows the file and the change as a diff. Allow
+  once, or every change of that tool for the rest of desk's run.
+- A server listed by the file's [`hosts-cmd`](/servers/servers-file/#hosts-cmd-a-dynamic-inventory)
+  isn't changed: change what the command prints.
+
+Once written, the infra workspace lists the server and connects to it by its name.
 
 ## The drawing tools
 

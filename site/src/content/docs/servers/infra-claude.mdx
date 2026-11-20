@@ -56,6 +56,7 @@ through desk's tools, on your servers:
 | `changes` | What changed on a server in the last hours: packages, `/etc`, services, logins, reboots, containers. Read-only. On Windows, for this machine: files changed in its `drivers\etc` folder and Docker's containers (Windows' own logs aren't read). |
 | `file_read`, `file_edit`, `file_write` | Read and change a server's files over the connection, not typed into a pane. Every change asks you, as a diff. See [Files](#files). |
 | `add_host` | Adds a machine it reaches from one of the servers as a server of desk's, once you approve. See [Servers reached from another one](/servers/servers-file/#servers-reached-from-another-one). |
+| `servers`, `add_server`, `edit_server`, `remove_server` | Read the organization's servers file, and add, change or remove a server in it (its address, user, port, key, group, any ssh option), once you approve the diff. The same as a card's: see [The servers file](/orgs/card-tools/#the-servers-file). |
 | `note` | Saves a fact about a server for next time. See [Notes](#notes). |
 | `save_runbook` | Saves a procedure as a [runbook](#runbooks). |
 | `ask_peer`, `task_done`, `message_card`, `create_card` | Talk to the cards that hand it work. See [Cards and servers](/servers/cards/). |
@@ -233,7 +234,7 @@ One JSON line each, in `~/.local/state/desk/infra/audit/<Org>/<YYYY-MM-DD>.jsonl
 {"time":"2026-11-04T14:33:02Z","org":"Globex","group":"web","host":"web-02","event":"approval","by":"you","cmd":"sudo logrotate -f /etc/logrotate.d/billing","verdict":"approved"}
 ```
 
-- `event` is `command`, `approval` or `file` (a file tool's change or an `add_host`, with what
+- `event` is `command`, `approval` or `file` (a file tool's change, an `add_host` or a servers file change, with what
   it changed and its `verdict`); `by` is `you` or `claude`.
 - Commands have `exit`, `dur_ms` and the last 20 lines of `output`, secrets masked.
 - Approvals have a `verdict`: `approved`, `always`, `denied`, or `stopped` (you stopped the turn

@@ -54,6 +54,13 @@ func init() {
 	}
 }
 
+// Known says ssh takes kw (any case) as a keyword it uses: not one it
+// ignores, has deprecated or doesn't support.
+func Known(kw string) bool {
+	v, ok := keywords[strings.ToLower(kw)]
+	return ok && !strings.HasPrefix(v, "-")
+}
+
 // states is a multistate table: names to values, the first name of a value
 // being how it prints.
 type states []struct {
