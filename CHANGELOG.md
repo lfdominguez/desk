@@ -6,6 +6,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.20] - 2026-11-20
+
+### Changed
+
+- New Relic gets crashes only: no frame or link timings, no Go runtime metrics. A crash's error
+  now says where in desk it happened (so different crashes group apart) and which version
+  crashed; crashes in C code (a GPU driver's signal) are reported too.
+
 ## [2026.11.19.4] - 2026-11-19
 
 ### Added
@@ -636,7 +644,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.19.4...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.20...HEAD
+[2026.11.20]: https://github.com/lfdominguez/desk/compare/2026.11.19.4...2026.11.20
 [2026.11.19.4]: https://github.com/lfdominguez/desk/compare/2026.11.19.3...2026.11.19.4
 [2026.11.19.3]: https://github.com/lfdominguez/desk/compare/2026.11.19.2...2026.11.19.3
 [2026.11.19.2]: https://github.com/lfdominguez/desk/compare/2026.11.19.1...2026.11.19.2
