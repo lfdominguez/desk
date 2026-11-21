@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,6 +25,7 @@ type fakeLin struct {
 	noTeam   bool
 	notMade  bool
 	noMove   bool
+	comment  string // commentCreate's body
 }
 
 var linStates = []linearState{{"s3", "In Progress", "started", 2}, {"s1", "Backlog", "backlog", 0}, {"s2", "Todo", "unstarted", 1},
@@ -51,6 +53,9 @@ func (f *fakeLin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case strings.Contains(q, "commentCreate"):
+		f.comment = fmt.Sprint(in.Variables["body"])
+		data["commentCreate"] = map[string]bool{"success": !f.notMade && in.Variables["id"] == "uuid-1"}
 	case strings.Contains(q, "issueCreate"):
 		f.made = in.Variables["input"].(map[string]any)
 		data["issueCreate"] = map[string]any{"success": !f.notMade, "issue": map[string]string{"url": "https://linear.app/acme/issue/ENG-9/new"}}

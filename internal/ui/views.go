@@ -70,6 +70,9 @@ func (u *ui) count(v string) int {
 	if v == viewArchive {
 		return len(u.doneCards()) + len(u.b.Archive)
 	}
+	if v == viewDigest { // finished today
+		return len(u.digestDone("", digestSince(0, time.Now())))
+	}
 	if v == viewCompany { // the cards that need the user
 		n := 0
 		for _, c := range u.coCards() {
@@ -264,7 +267,7 @@ func (u *ui) sections() []struct {
 		agents = append(agents, byOrg[o]...)
 	}
 	out := []sec{
-		{"Board", []sideItem{{"", "All cards", kit.IcoBoard, kit.CText2}, {viewCompany, "Company", kit.IcoStar, kit.COrange}}},
+		{"Board", []sideItem{{"", "All cards", kit.IcoBoard, kit.CText2}, {viewCompany, "Company", kit.IcoStar, kit.COrange}, {viewDigest, "Digest", kit.IcoClock, kit.CText2}}},
 		{"Agent Sessions", agents},
 		{"Sessions", st},
 		{"Organizations", orgItems},
@@ -284,6 +287,9 @@ func (u *ui) sections() []struct {
 func (u *ui) viewTitle() string {
 	if u.view == viewCompany {
 		return "Company"
+	}
+	if u.view == viewDigest {
+		return "Digest"
 	}
 	if org, ok := strings.CutPrefix(u.view, "tk:"); ok {
 		return org + " · my tickets"
@@ -343,6 +349,9 @@ func (u *ui) viewTitle() string {
 func (u *ui) sentence() string {
 	if u.view == viewCompany {
 		return u.companySentence()
+	}
+	if u.view == viewDigest {
+		return "What was done and what's in flight, for a standup; Copy puts it on the clipboard"
 	}
 	if u.view == viewArchive {
 		return fmt.Sprintf("%d done · %d archived", len(u.doneCards()), len(u.b.Archive))

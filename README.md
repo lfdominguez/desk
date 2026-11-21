@@ -42,6 +42,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
 | 🚢 **Review & ship** | Per org, each new card works on its own git branch and worktree. Its Review shows the branch's commits and every changed file as a diff, then pushes it, opens a GitHub PR or GitLab MR, or fast-forwards main and takes the card to Done. |
+| 📝 **Digest & work time** | The sidebar's Digest writes your standup from the board (done, in review, blocked, in progress, by org) to copy, or to your phone each morning. Each card's Claude's work time is kept and, per account, logged on its Jira or Linear ticket at Done. |
 | ⚡ **Triggers** | Per org rules in `desk.toml` that act by themselves: a new assigned ticket makes its card, failed CI tells the card's Claude to fix it, a long monitoring alert opens an investigation, a schedule makes a card every Monday at 9. |
 | 📱 **Your phone** | A Telegram bot brings cards that need you to your phone while you're away: Allow or Deny a command, pick an answer, or reply to a card's Claude. No port opened. |
 | 🧭 **Workspace** | Each card's editor view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
@@ -248,6 +249,10 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   turn. The session header's eye opens its Review: ahead/behind, commits, each file's diff; Push,
   Open request (GitHub PR, GitLab MR, linked to the card) and Merge (fast-forward only, a second
   click to confirm; the card goes to Done). Archiving removes a clean worktree.
+- **Digest**: the sidebar's Digest (under All cards) is what was done and what's moving, by org,
+  for Today, Since yesterday or the Last 7 days, with Copy; a trigger with `on = "digest"` sends it
+  to your phone. Each card keeps its Claude's work time; `worklog = true` on a `[[jira]]` logs it as
+  a worklog when the card goes to Done (on `[[linear]]`, as a comment).
 - **Triggers**: `[[trigger]]` tables in an org's `desk.toml` (`on = "ticket"`, `"ci_failed"`,
   `"alert"` or `"schedule"`, with `project`, `match`, `after`, `at`/`days`, `title`/`notes`,
   `column`, `start`) run after every check of links, tickets, CI and alerts. Each remembers what it

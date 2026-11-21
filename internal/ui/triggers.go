@@ -125,24 +125,39 @@ func (u *ui) runTrigger(org string, t orgs.Trigger, s *trigSeen, first bool) boo
 				u.investigation(org, a.Host, a.Service, a.State, a.Output, a.URL, a.Since, why)
 			}) || changed
 		}
-	case "schedule":
-		now := trigNow()
-		day := now.Format("2006-01-02")
-		at, err := time.ParseInLocation("15:04", t.At, now.Location())
-		due := err == nil && s.Last != day && now.Hour()*60+now.Minute() >= at.Hour()*60+at.Minute() &&
-			(len(t.Days) == 0 || slices.ContainsFunc(t.Days, func(d string) bool { return strings.EqualFold(d, now.Weekday().String()[:3]) }))
-		if due {
-			s.Last = day
-			if !first {
-				u.trigCard(org, t, t.Title, strings.TrimSpace(t.Notes+"\n\n"+why), nil)
-			}
-			return true
+	case "schedule", "digest":
+		if !trigDue(t, s) {
+			break
 		}
+		switch {
+		case first:
+		case t.On == "schedule":
+			u.trigCard(org, t, t.Title, strings.TrimSpace(t.Notes+"\n\n"+why), nil)
+		case u.phone != nil && u.phone.chat != 0:
+			u.phoneSend(u.digestText(org, digestSince(1, trigNow())), nil, "")
+		default:
+			u.showToast(t.Name+": a digest goes to the phone, and none is paired ([phone] in settings.toml)", true)
+		}
+		return true
 	default:
-		u.showToast("Trigger "+t.Name+": on = "+t.On+"? It takes ticket, ci_failed, alert or schedule", true)
+		u.showToast("Trigger "+t.Name+": on = "+t.On+"? It takes ticket, ci_failed, alert, schedule or digest", true)
 		return false
 	}
 	return changed
+}
+
+// trigDue says whether schedule t is due now (its time passed today, on
+// one of its days, not run today), noting today's run in s when it is.
+func trigDue(t orgs.Trigger, s *trigSeen) bool {
+	now := trigNow()
+	day := now.Format("2006-01-02")
+	at, err := time.ParseInLocation("15:04", t.At, now.Location())
+	due := err == nil && s.Last != day && now.Hour()*60+now.Minute() >= at.Hour()*60+at.Minute() &&
+		(len(t.Days) == 0 || slices.ContainsFunc(t.Days, func(d string) bool { return strings.EqualFold(d, now.Weekday().String()[:3]) }))
+	if due {
+		s.Last = day
+	}
+	return due
 }
 
 // trigCard makes a card t asked for in org, started when t says so.

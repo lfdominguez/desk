@@ -388,6 +388,9 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 		return
 	}
 	u.heard(id)
+	if u.turnAt[id].IsZero() { // its turn's clock (Session.Work)
+		u.turnAt[id] = time.Now()
+	}
 	delete(u.shellOut, id)
 	delete(u.peerOut, id)
 	u.shellSent(id)
@@ -417,6 +420,9 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 	switch e.Kind {
 	case claude.KindInit: // also a turn Claude starts on its own, when a background task ends
 		c.Session.ID = e.Session
+		if u.turnAt[id].IsZero() {
+			u.turnAt[id] = time.Now()
+		}
 		if c.Status != kanban.StatusWorking {
 			c.Status, c.Note = kanban.StatusWorking, ""
 		}
@@ -526,6 +532,10 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		}
 		c.Session.Window = max(c.Session.Window, e.Window)
 		c.Session.Turns++
+		if at := u.turnAt[id]; !at.IsZero() {
+			c.Session.Work += int(time.Since(at).Seconds())
+			delete(u.turnAt, id)
+		}
 		c.Session.Tokens += e.Tokens
 		if spent := base + e.Cost - c.Session.Cost; spent > 0 { // what this turn cost: the organization's day
 			if err := company.Spend(orgs.Dir(u.root, c.Org, ""), time.Now(), spent); err != nil {

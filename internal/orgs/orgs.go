@@ -140,6 +140,9 @@ type Jira struct {
 	// IssueType is what a card's new ticket is created as, in the first of
 	// Projects; "" Task (or Tarea), else the project's first non-subtask.
 	IssueType string `toml:"issue_type"`
+	// Worklog logs the time a card's Claude worked on its ticket (its
+	// turns) on the issue when the card goes to Done.
+	Worklog bool `toml:"worklog"`
 	Secret
 }
 
@@ -151,8 +154,9 @@ type Linear struct {
 	Sync      *bool    `toml:"sync"`      // false: cards' column moves don't move its issues
 	// Status names the workflow state a column moves issues to, over the
 	// state type guess; Ignore the states sync leaves an issue in. As Jira's.
-	Status map[string]string `toml:"status"`
-	Ignore []string          `toml:"ignore"`
+	Status  map[string]string `toml:"status"`
+	Ignore  []string          `toml:"ignore"`
+	Worklog bool              `toml:"worklog"` // a card's work time as a comment on its issue at Done (Linear has no worklog)
 	Secret
 }
 

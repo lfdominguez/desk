@@ -27,7 +27,7 @@ export default defineConfig({
 				},
 				{
 					label: 'The board',
-					items: ['board/overview', 'board/cards', 'board/sidebar', 'board/search', 'board/archive', 'board/palette', 'board/notifications'],
+					items: ['board/overview', 'board/cards', 'board/sidebar', 'board/search', 'board/archive', 'board/digest', 'board/palette', 'board/notifications'],
 				},
 				{
 					label: 'Cards',

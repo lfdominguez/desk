@@ -73,6 +73,7 @@ type Card struct {
 	Worktree  string    `json:"worktree,omitempty"`     // its own git worktree, where its session runs (ui's review.go), "" none
 	Branch    string    `json:"branch,omitempty"`       // the worktree's branch
 	Base      string    `json:"base,omitempty"`         // the branch it left and merges back into
+	Logged    int       `json:"logged,omitempty"`       // Session.Work seconds already logged on its ticket (ui's worklog)
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`
@@ -115,6 +116,7 @@ type Session struct {
 	Cost    float64 `json:"cost,omitempty"`    // USD
 	Context int     `json:"context,omitempty"` // tokens in the context window now
 	Window  int     `json:"window,omitempty"`  // the context window's size
+	Work    int     `json:"work,omitempty"`    // seconds its Claude spent on turns
 }
 
 // Link is a pull request, merge request or ticket the card tracks.

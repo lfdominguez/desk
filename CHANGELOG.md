@@ -8,6 +8,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Digest & work time**: the sidebar's Digest writes your standup from the board (done, in
+  review, blocked and in progress, by organization, for today, since yesterday or the last 7 days),
+  with Copy; a `digest` trigger sends it to your phone. desk keeps how long each card's Claude
+  worked, shows it there, and with `worklog = true` on a Jira account logs it on the card's issue
+  when the card goes to Done (a comment on Linear).
 - **Triggers**: `[[trigger]]` rules in an organization's `desk.toml` act by themselves. A new
   ticket assigned to you makes its card (started, if you like), a failed CI run on a card's pull
   request tells its Claude to fix it, a monitoring alert that lasts opens an investigation card,

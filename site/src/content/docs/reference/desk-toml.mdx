@@ -69,13 +69,13 @@ What desk does by itself when something happens (see [Triggers](/orgs/triggers/)
 | Key | Type | What it does |
 |---|---|---|
 | `name` | string | Required: what it's called. What it has handled is kept under this name in `.desk/triggers.json`. |
-| `on` | string | `ticket`, `ci_failed`, `alert` or `schedule`. |
+| `on` | string | `ticket`, `ci_failed`, `alert`, `schedule` or `digest` (the organization's digest to your phone, at `at` on `days`). |
 | `project` | string | `ticket`: only tickets of this project (a Jira project, a Linear team, a repository). |
 | `match` | string | `ticket`: only titles with these words; `alert`: only hosts or services with them. |
 | `warnings` | bool | `alert`: warnings too, not only errors. |
 | `after` | int | `alert`: minutes the alert has lasted first. |
-| `at` | string | `schedule`: the time of day, `"09:00"`. |
-| `days` | strings | `schedule`: `["mon", "thu"]`; none means every day. |
+| `at` | string | `schedule`, `digest`: the time of day, `"09:00"`. |
+| `days` | strings | `schedule`, `digest`: `["mon", "thu"]`; none means every day. |
 | `title`, `notes` | string | `schedule`: the card's title and what it is to do. |
 | `column` | string | Where its cards go: To do unless it says otherwise. |
 | `start` | bool | Its card's Claude starts at once. An alert's investigation always starts. |
@@ -167,6 +167,7 @@ Jira issues, and bare keys like `ABC-12`.
 | `issue_type` | string | `Task`, else the first non-subtask type | What new tickets are created as. A name the project doesn't have is an error. |
 | `sync` | bool | `true` | `false`: moving a card doesn't transition its issues. |
 | `ignore` | list of strings | | Statuses desk leaves alone when a card moves (any case). |
+| `worklog` | bool | `false` | When a card goes to Done, the time its Claude worked on it is logged on its issue as a worklog. See [Digest](/board/digest/#work-time). |
 | `[jira.status]` | table | | The status a column moves issues to, by name: `Review = "In Review"`. Columns are `Backlog`, `To do`, `In progress`, `Blocked`, `Review`, `Done`. Without it, desk picks by the status's category (Blocked: a status named blocked; Review: in progress). |
 | token keys | | | See [Tokens](#tokens). |
 
@@ -183,6 +184,7 @@ Linear issues, and bare keys like `ENG-12`, over Linear's GraphQL API.
 | `teams` | list of strings | every team | Team keys. Bare keys of these teams link here. Cards create their tickets in the first one. Your assigned tickets list only these teams. |
 | `sync` | bool | `true` | `false`: moving a card doesn't move its issues. |
 | `ignore` | list of strings | | States desk leaves alone when a card moves (any case). |
+| `worklog` | bool | `false` | When a card goes to Done, the time its Claude worked on it goes on its issue as a comment ("Time spent: 1h 20m"): Linear has no worklog. |
 | `[linear.status]` | table | | The state a column moves issues to, by name: `Done = "In Review"`. Without it, desk picks by the state's type (Backlog: backlog; To do: unstarted; In progress and Review: started; Blocked: a state named blocked; Done: completed). |
 | token keys | | | A personal API key (Linear: **Settings → Security & access → Personal API keys**). An OAuth token works too. See [Tokens](#tokens). |
 

@@ -1,0 +1,56 @@
+---
+title: Digest
+description: What was done and what is in flight, by organization, ready for a standup; and the time each card's Claude worked, logged on its ticket.
+---
+
+The sidebar's **Digest**, under All cards, is your standup written for you from the board: what
+you finished, what waits for review, what is blocked and what is moving, by organization. Its
+count is the cards finished today.
+
+## Reading it
+
+Pick the span at the top: **Today**, **Since yesterday** (from yesterday's start) or **Last 7
+days**. Under each organization:
+
+| Part | What's in it |
+|---|---|
+| **Done** | cards finished in the span, archived ones too, oldest first |
+| **In review** | cards in Review that changed in the span |
+| **Blocked** | cards in Blocked that changed in the span, with why |
+| **In progress** | cards in progress that changed in the span (an autopilot's own cards stay under it) |
+
+Each line is the card's key and title, its tickets and pull requests, and the time its Claude
+worked on it. **Copy** puts the whole digest on the clipboard as Markdown, ready to paste into a
+chat or a standup note.
+
+To have it sent to your phone every morning, add a [trigger](/orgs/triggers/):
+
+```toml
+[[trigger]]
+name = "standup"
+on = "digest"
+at = "09:15"
+days = ["mon", "tue", "wed", "thu", "fri"]
+```
+
+## Work time
+
+desk keeps how long each card's Claude worked: from each message (or a turn Claude starts on its
+own) to the turn's end, added up. The digest shows it, and an account can log it on the ticket when
+the card goes to Done:
+
+```toml
+[[jira]]
+url = "https://globex.atlassian.net"
+projects = ["ABC"]
+worklog = true
+```
+
+| Tracker | What lands there |
+|---|---|
+| Jira | a worklog on the issue: the time in whole minutes (one at least), with the card's key and title as its comment |
+| Linear | a comment, "Time spent: 1h 20m. DESK-7: …" (Linear has no worklog) |
+
+Only time not logged yet goes, so a card that comes back from Done and goes there again logs the
+new work alone. A toast says what was logged, or why not; a failure isn't retried for the same
+work.

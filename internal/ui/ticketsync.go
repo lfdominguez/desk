@@ -33,6 +33,9 @@ func (u *ui) syncTickets(all bool) {
 			if c.Pushed != col {
 				delete(u.pushErr, c.ID) // moved: a failure is news again
 			}
+			if col == "Done" && c.Session.Work > c.Logged && !u.logging[c.ID] {
+				u.logTime(c)
+			}
 			if slices.ContainsFunc(c.Links, ticket) && (all || c.Pushed != col) && !u.pushing[c.ID] && !u.pilotHeld(c) {
 				u.pushing[c.ID] = true
 				go u.push(c.ID, c.Key(), c.Org, col, slices.Clone(c.Links), c.Pushed == col) // in step as far as desk knows: the check's
