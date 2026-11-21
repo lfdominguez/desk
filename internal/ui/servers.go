@@ -22,6 +22,7 @@ import (
 	"github.com/lfdominguez/desk/internal/fzf"
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -238,14 +239,16 @@ func (u *ui) serversClicked(org string, now time.Time) {
 	u.srvClickOf, u.srvClickAt = org, now
 }
 
-// pickRow is one row of the server picker: the org's Claude (host "") or
-// a host.
+// pickRow is one row of the server picker: the org's Claude (host ""), a
+// host, or the last, New server (add).
 type pickRow struct {
 	group string
 	host  infra.Host
+	add   bool
 }
 
-// pickRows is org's servers matching q, by group, the org's Claude first.
+// pickRows is org's servers matching q, by group, the org's Claude first
+// and New server last.
 func (u *ui) pickRows(org, q string) []pickRow {
 	o := u.infraOrg(org)
 	if o == nil {
@@ -258,15 +261,24 @@ func (u *ui) pickRows(org, q string) []pickRow {
 	for _, g := range o.Groups {
 		for _, h := range g.Hosts {
 			if _, ok := fzf.Match(q, g.Name+" "+h.Name+" "+h.Addr+" "+h.Meta); ok {
-				rs = append(rs, pickRow{g.Name, h})
+				rs = append(rs, pickRow{group: g.Name, host: h})
 			}
 		}
 	}
-	return rs
+	return append(rs, pickRow{add: true})
 }
 
-// pickServer opens r's session and closes the picker.
+// pickServer opens r's session and closes the picker; New server opens the
+// form, named by the search when it is one word.
 func (u *ui) pickServer(org string, r pickRow) {
+	if r.add {
+		name := strings.TrimSpace(u.pickQ.Text())
+		if strings.ContainsAny(name, " \t") {
+			name = ""
+		}
+		u.openServerForm(org, nil, name, "")
+		return
+	}
 	if r.host.Name == "" {
 		u.infra.OpenOrg(org)
 	} else {
@@ -284,6 +296,9 @@ func pickAt(rows []pickRow, i int) int {
 			group = r.group
 			at++
 		}
+		if r.add && j == i && i > 0 { // the gap above it
+			at++
+		}
 		if j < i {
 			at++
 		}
@@ -293,10 +308,11 @@ func pickAt(rows []pickRow, i int) int {
 
 // serverPicker is the dialog of all an org's servers, by group, searched as
 // typed; up and down move the selection (the first row at the start), and
-// enter or a click opens its session.
+// enter or a click opens its session. Its last row adds a server, and Edit
+// (the selected host's button, or its key) changes one: servers_form.go.
 func (u *ui) serverPicker(gtx layout.Context) {
 	org := u.pick
-	if org == "" || u.infra == nil {
+	if org == "" || u.infra == nil || u.srvForm != nil {
 		return
 	}
 	k := u.k
@@ -312,15 +328,29 @@ func (u *ui) serverPicker(gtx layout.Context) {
 		}
 		return false
 	}
+	edit := func() bool {
+		if u.pickSel < len(rows) && rows[u.pickSel].host.Name != "" {
+			u.editServer(org, rows[u.pickSel].host.Name)
+			return true
+		}
+		return false
+	}
+	filters := append(keys.Filters(nil, "picker.edit"), key.Filter{Name: key.NameUpArrow}, key.Filter{Name: key.NameDownArrow},
+		key.Filter{Name: key.NamePageUp}, key.Filter{Name: key.NamePageDown},
+		key.Filter{Name: key.NameReturn}, key.Filter{Name: key.NameEnter})
 	for { // focus-less filters, so they beat the search field's own
-		ev, ok := gtx.Event(key.Filter{Name: key.NameUpArrow}, key.Filter{Name: key.NameDownArrow},
-			key.Filter{Name: key.NamePageUp}, key.Filter{Name: key.NamePageDown},
-			key.Filter{Name: key.NameReturn}, key.Filter{Name: key.NameEnter})
+		ev, ok := gtx.Event(filters...)
 		if !ok {
 			break
 		}
 		e, ok := ev.(key.Event)
 		if !ok || e.State != key.Press {
+			continue
+		}
+		if keys.Is("picker.edit", e) {
+			if edit() {
+				return
+			}
 			continue
 		}
 		step := 0
@@ -385,19 +415,31 @@ func (u *ui) serverPicker(gtx layout.Context) {
 				at = pickAt(rows, u.pickSel)
 			}
 			group := "\x00"
-			for _, r := range rows {
+			for i, r := range rows {
 				if r.host.Name != "" && r.group != group {
 					group = r.group
 					ws = append(ws, func(gtx layout.Context) layout.Dimensions {
 						return layout.Inset{Top: 10, Bottom: 4, Left: 4}.Layout(gtx, k.Lbl(r.group, 12, kit.CText3, kit.Semi(kit.Sans)))
 					})
 				}
+				if r.add && i > 0 {
+					ws = append(ws, kit.VGap(8))
+				}
 				on := len(ws) == at
-				ws = append(ws, func(gtx layout.Context) layout.Dimensions { return u.pickItem(gtx, org, r, on) })
-			}
-			if len(ws) == 0 {
 				ws = append(ws, func(gtx layout.Context) layout.Dimensions {
-					return layout.Inset{Top: 14, Bottom: 10, Left: 4}.Layout(gtx, k.Lbl("No server matches.", 13, kit.CText3, kit.Sans))
+					if !on || r.host.Name == "" {
+						return u.pickItem(gtx, org, r, on)
+					}
+					return layout.Flex{Alignment: layout.Middle}.Layout(gtx, // Edit beside the row, not inside its button
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.pickItem(gtx, org, r, on) }),
+						layout.Rigid(kit.HGap(6)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							d, ok := k.KBtn(gtx, "pickEdit", kit.Ghost, "Edit", keys.Cap("picker.edit"))
+							if ok {
+								u.post = func() { u.editServer(org, r.host.Name) }
+							}
+							return d
+						}))
 				})
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -441,7 +483,13 @@ func (u *ui) pickItem(gtx layout.Context, org string, r pickRow, on bool) layout
 	k := u.k
 	name, ico, c := r.host.Name, kit.IconPath(nil), serverColor[r.host.State]
 	meta := cmp.Or(r.host.Meta, r.host.Addr)
-	if name == "" {
+	switch {
+	case r.add:
+		name, ico, c, meta = "New server", kit.IcoPlus, kit.CAcc, "added to the servers file"
+		if q := strings.TrimSpace(u.pickQ.Text()); q != "" && !strings.ContainsAny(q, " \t") {
+			name = "New server " + q
+		}
+	case name == "":
 		name, ico, c, meta = org+" Claude", kit.IcoSpark, kit.CPurple, "the org-wide session, no server"
 	}
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -449,7 +497,11 @@ func (u *ui) pickItem(gtx layout.Context, org string, r pickRow, on bool) layout
 	if on {
 		fill = kit.CSel
 	}
-	d, ok := k.Button(gtx, "pick"+r.group+"/"+r.host.Name, fill, kit.CHover, kit.RCtl, layout.Inset{Top: 6, Bottom: 6, Left: 8, Right: 8}, func(gtx layout.Context) layout.Dimensions {
+	id := "pick" + r.group + "/" + r.host.Name
+	if r.add {
+		id = "pick+new"
+	}
+	d, ok := k.Button(gtx, id, fill, kit.CHover, kit.RCtl, layout.Inset{Top: 6, Bottom: 6, Left: 8, Right: 8}, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		mark := kit.Dot(c)
 		if ico != nil {

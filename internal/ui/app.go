@@ -115,6 +115,7 @@ type ui struct {
 	pickSel    int                           // the row up/down moved to, enter opens
 	pickLast   string                        // the search pickSel was moved under: a new one starts at the top
 	pickFocus  bool                          // focus its search next frame
+	srvForm    *srvForm                      // the picker's form, adding or changing a server; nil closed
 	srvClickOf string                        // the org whose Servers row was clicked last, and when: a second click soon opens the picker
 	srvClickAt time.Time                     //
 	terms      map[string]*termTab           // cards' Claude Code TUIs, by card
@@ -454,7 +455,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, u.exit != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver, fmt.Sprint(u.chatImgs), fmt.Sprint(u.via), len(u.tkSel), u.pilotDlg.sig())
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, u.exit != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver, fmt.Sprint(u.chatImgs), fmt.Sprint(u.via), len(u.tkSel), u.pilotDlg.sig(), u.srvForm != nil, u.srvForm.sig())
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click
@@ -507,6 +508,7 @@ func (u *ui) frame(gtx layout.Context) {
 	u.unlockDialog(gtx)
 	u.pilotDialog(gtx)
 	u.serverPicker(gtx)
+	u.serverForm(gtx)
 	u.paletteDialog(gtx)
 	u.exitDialog(gtx)
 	u.toasts(gtx)

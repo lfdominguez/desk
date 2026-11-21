@@ -227,6 +227,9 @@ and desk writes it right after the `on` server's block.
 
 ### Changed by Claude
 
+The [server picker](/servers/overview/#adding-and-editing-a-server) adds and edits servers
+through a form, the same change without a Claude.
+
 You don't have to write blocks by hand. Tell a card's Claude or the infra Claude what you want
 ("add db1 and db2 at 192.0.2.20 and .21, user postgres, key `~/.ssh/acme_db`, in group db") and it
 calls `add_server`, `edit_server` or `remove_server`. You approve each change as a diff of this

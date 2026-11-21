@@ -14,10 +14,12 @@ import (
 	"github.com/lfdominguez/desk/internal/infra"
 )
 
-// TestPickAt: a picker row's list index counts the group headers above it.
+// TestPickAt: a picker row's list index counts the group headers above it,
+// and New server the gap above it.
 func TestPickAt(t *testing.T) {
-	rows := []pickRow{{}, {"web", infra.Host{Name: "a"}}, {"web", infra.Host{Name: "b"}}, {"db", infra.Host{Name: "c"}}}
-	for i, want := range []int{0, 2, 3, 5} {
+	rows := []pickRow{{}, {group: "web", host: infra.Host{Name: "a"}}, {group: "web", host: infra.Host{Name: "b"}}, {group: "db", host: infra.Host{Name: "c"}}}
+	rows = append(rows, pickRow{add: true}) // after a gap
+	for i, want := range []int{0, 2, 3, 5, 7} {
 		if got := pickAt(rows, i); got != want {
 			t.Errorf("row %d: list index %d, want %d", i, got, want)
 		}
@@ -79,11 +81,11 @@ func TestPickerKeys(t *testing.T) {
 		h.r.Queue(press(key.NameDownArrow, 0))
 	}
 	h.frame()
-	if h.u.pickSel != 30 { // the org's Claude and 30 hosts
+	if h.u.pickSel != 31 { // the org's Claude, 30 hosts and New server
 		t.Fatalf("down past the end: %d", h.u.pickSel)
 	}
 	h.send(key.Event{Name: key.NameUpArrow, State: key.Release})
-	if h.u.pickSel != 30 {
+	if h.u.pickSel != 31 {
 		t.Fatalf("a release moved it: %d", h.u.pickSel)
 	}
 	h.u.pickQ.SetText("h1")

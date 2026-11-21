@@ -166,6 +166,8 @@ func (u *ui) escape(gtx layout.Context) {
 		u.cancelUnlock()
 	case u.pilotDlg != nil:
 		u.pilotDlg = nil
+	case u.srvForm != nil: // back to the picker
+		u.srvForm = nil
 	case u.pick != "":
 		u.pick = ""
 	case u.cfg != nil:
