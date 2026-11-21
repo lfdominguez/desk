@@ -243,7 +243,9 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
-  `ask_workspace` reach the card's workspace. `servers`, `add_server`, `edit_server` and
+  `ask_workspace` reach the card's workspace. `cards` and `card_read` show the org's board, and
+  `card_create` and `ticket_create` add a card or the card's ticket, answering with its key.
+  `servers`, `add_server`, `edit_server` and
   `remove_server` read and change the org's servers file (a server's address, user, port, key,
   group, any ssh option), each change shown to you as a diff to allow first.
 - **Right-click a card** for its menu: open its session, its full window or a window of its own, its terminal, its workspace, turn its

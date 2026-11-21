@@ -1,11 +1,12 @@
 ---
 title: Card tools
-description: The tools every card's Claude gets from desk, to read its organization's alerts, tickets, links and CI, and to reach the card's workspace.
+description: The tools every card's Claude gets from desk, to read its organization's alerts, tickets, links and CI, to see and add to its board, and to reach the card's workspace.
 ---
 
 Every card's Claude session has desk's own tools, `mcp__desk__*`. They read the card's
 organization through the same accounts desk uses: its Nagios, its trackers, its links and its
-CI. They only read, so they're allowed without asking. The ones that change the organization's
+CI, and its [board](#the-board). The ones that read are allowed without asking, and so are the
+board's `card_create` and `ticket_create`. The ones that change the organization's
 [servers file](#the-servers-file) ask you first.
 
 ![A card's session: the user asks why CI failed, Claude calls mcp__desk__ci and mcp__desk__ci_log on PR #604 and explains the failure](../../../assets/shots/orgs-cardtools.png)
@@ -49,6 +50,23 @@ a skill, or what the repository's `CLAUDE.md` says), Claude picks which to use a
 workflow when it works. When one of the workflow's tools fails (not installed, not logged in, no
 access, an error), Claude tries the desk tool for the same thing, and says which one it used and
 why.
+
+## The board
+
+A card's Claude sees its organization's board, and adds to it, through four tools. All four are
+allowed without asking: they do what the card's Claude could already ask for with its
+`DESK-CARD` and `DESK-TICKET` lines, but they answer at once with the key, or say why not.
+
+| Tool | Arguments | What it does |
+|---|---|---|
+| `cards` | `query`, `column` (both optional) | the organization's cards: key, column, status, ticket and title. `query` is fuzzy words over titles, notes and tickets |
+| `card_read` | `key` | one card of the organization in full: column, status and its note, links, notes and its last six messages (yours and its Claude's) |
+| `card_create` | `title`, `notes`, `column`, `ticket` (all but `title` optional) | a new card in the caller's organization and folder, in To do unless `column` says otherwise. With `ticket` (the default) it creates its own ticket when you start it. Its notes end with "(Split off DESK-n.)" |
+| `ticket_create` | `title`, `description` | the card's own ticket, made now in the organization's tracker (as the Ticket switch does), assigned to you and linked to the card. Refused when the card already tracks one: a card has one ticket |
+
+Claude is told to look at `cards` before making a card, so the same work isn't made twice, and
+to make a card only when you agree. Cards of other organizations never show. The workspace Claude
+and an autopilot's Claude get `cards` and `card_read` only.
 
 ## The workspace's tools
 

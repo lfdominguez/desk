@@ -195,21 +195,26 @@ func (u *ui) newCards(id string, todo []string) {
 	}
 	var made []string
 	for _, t := range todo {
-		title := t
-		if r := []rune(title); len(r) > 80 {
-			title = string(r[:79]) + "…"
-		}
-		n := u.b.Add(col, kanban.Card{Title: title, Notes: t + "\n\n(Split off " + from.Key() + ".)", Org: from.Org, Dir: from.Dir, Ticket: true, Lang: from.Lang, ChatLang: from.ChatLang})
-		if c := u.b.Card(n.ID); c != nil {
-			u.showToast(from.Key()+" made "+c.Key()+": "+title, false)
-			made = append(made, c.Key()+": "+title)
-		}
+		c := u.splitOff(from, t, t, col, true)
+		made = append(made, c.Key()+": "+c.Title)
 	}
 	u.save()
 	// told back, as a ticket is: without it the Claude took silence for
 	// failure and sent its DESK-CARD again, making the card twice.
 	u.send(id, "(desk) Card made, in "+u.b.Columns[col].Title+": "+strings.Join(made, "; ")+
 		". Its ticket is created when the user starts it. Don't send DESK-CARD for it again.")
+}
+
+// splitOff adds a card in from's organization and folder to column col
+// (its notes say where it came from), with a toast; the caller saves.
+func (u *ui) splitOff(from kanban.Card, title, notes string, col int, ticket bool) kanban.Card {
+	if r := []rune(title); len(r) > 80 {
+		title = string(r[:79]) + "…"
+	}
+	n := u.b.Add(col, kanban.Card{Title: title, Notes: notes + "\n\n(Split off " + from.Key() + ".)", Org: from.Org, Dir: from.Dir,
+		Ticket: ticket, Lang: from.Lang, ChatLang: from.ChatLang})
+	u.showToast(from.Key()+" made "+n.Key()+": "+title, false)
+	return n
 }
 
 // send hands text to card id's Claude, starting (or resuming) the session;

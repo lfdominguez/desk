@@ -651,7 +651,7 @@ func TestServeCardsMCPA(t *testing.T) {
 	for _, tl := range rs[2].Result.Tools {
 		names = append(names, tl.Name)
 	}
-	if strings.Join(names, ",") != "alerts,tickets,link,ci,ci_log,add_project,ask_workspace,ask_lead,ticket_status,servers,add_server,edit_server,remove_server,drawings,drawing_read,drawing_edit,drawing_suggest" {
+	if strings.Join(names, ",") != "alerts,tickets,link,ci,ci_log,add_project,ask_workspace,ask_lead,ticket_status,cards,card_read,card_create,ticket_create,servers,add_server,edit_server,remove_server,drawings,drawing_read,drawing_edit,drawing_suggest" {
 		t.Errorf("a card gets only the card tools: %v", names)
 	}
 	if r := rs[3].Result; r.IsError || len(r.Content) != 1 || r.Content[0].Text != `DESK-4|alerts|{"x":1} TOKEN=[redacted]` {
@@ -705,17 +705,17 @@ func TestCardMCPA(t *testing.T) {
 		t.Errorf("config: %s", cfg)
 	}
 	if strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,mcp__desk__add_project,mcp__desk__ask_workspace,mcp__desk__ask_lead,mcp__desk__ticket_status,"+
-		"mcp__desk__servers,mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_edit,mcp__desk__drawing_suggest" {
+		"mcp__desk__cards,mcp__desk__card_read,mcp__desk__card_create,mcp__desk__ticket_create,mcp__desk__servers,mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_edit,mcp__desk__drawing_suggest" {
 		t.Errorf("allowed: %v", allow)
 	}
 	cfg, allow = WorkspaceMCP("/run/x.sock", "DESK-2")
 	if !strings.Contains(cfg, `"ws=DESK-2"`) || strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,"+
-		"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_suggest,mcp__desk__suggest_to_card" {
+		"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_suggest,mcp__desk__suggest_to_card,mcp__desk__cards,mcp__desk__card_read" {
 		t.Errorf("workspace: %s %v", cfg, allow)
 	}
 	cfg, allow = PilotMCP("/run/x.sock", "c7")
 	if !strings.Contains(cfg, `"pilot=c7"`) || strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,"+
-		"mcp__desk__pilot_cards,mcp__desk__pilot_tell,mcp__desk__pilot_answer,mcp__desk__pilot_add" {
+		"mcp__desk__pilot_cards,mcp__desk__pilot_tell,mcp__desk__pilot_answer,mcp__desk__pilot_add,mcp__desk__cards,mcp__desk__card_read" {
 		t.Errorf("autopilot: %s %v", cfg, allow)
 	}
 }

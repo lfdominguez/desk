@@ -48,6 +48,9 @@ func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 		return u.pilotTool(id, name, raw)
 	}
 	id, ws := strings.CutPrefix(id, "ws:") // the card's workspace Claude's call
+	if slices.Contains(infra.BoardTools, name) {
+		return u.boardTool(id, ws, name, raw)
+	}
 	if text, ok, done := u.wsTool(id, ws, name, raw); done {
 		return text, ok
 	}

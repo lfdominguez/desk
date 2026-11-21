@@ -8,6 +8,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Board tools for Claudes**: a card's Claude has `cards` and `card_read`, to see its
+  organization's board and read any of its cards (notes, links, last messages), and
+  `card_create` and `ticket_create`, which make a new card or the card's ticket and answer at
+  once with its key or why not. The workspace and autopilot Claudes can read the board too.
 - **Linear**: a `[[linear]]` account (Settings → + Linear) with a personal API key makes Linear
   issues tickets like Jira's: links and bare keys (ENG-12), their state on the chip, your
   assigned issues in Tickets, a card's ticket created in its first team, issues following their
