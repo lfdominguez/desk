@@ -159,6 +159,7 @@ type ui struct {
 	rv         map[string]*rvState           // each card's Review view (review.go), by card id
 	rvGen      int                           // bumped when a Review's state changes
 	wtTried    map[string]bool               // cards whose worktree was made or tried this run
+	phone      *phoneState                   // the phone's Telegram bot (phone.go), nil none
 	diffMode   map[string]int                // the view picked for a change (diffUnified…), by message; none Auto
 	diffGl     []text.Glyph                  // diffs' glyph buffer
 	pushing    map[string]bool               // cards whose tickets are being moved to match them
@@ -273,6 +274,7 @@ func Run(b *kanban.Board, path string) error {
 	u.loadKeys()
 	claude.Confine = u.walls
 	u.startInfra()
+	defer u.startPhone()()
 	files := explorer.NewExplorer(u.w)
 	pickFile = func(exts ...string) (io.ReadCloser, error) {
 		r, err := files.ChooseFile(exts...)

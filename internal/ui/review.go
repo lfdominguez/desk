@@ -204,11 +204,11 @@ func (u *ui) rvAct(id, what string) {
 // rvOpenPR pushes branch and opens its request into base, on origin's
 // repository through the organization's account.
 var rvOpenPR = func(cfg orgs.Config, wt, branch, base, title, body string) (kanban.Link, error) {
-	if err := gitw.Push(wt, branch); err != nil {
-		return kanban.Link{}, err
-	}
 	remote, err := gitw.Origin(wt)
 	if err != nil {
+		return kanban.Link{}, err
+	}
+	if err := gitw.Push(wt, branch); err != nil {
 		return kanban.Link{}, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

@@ -351,6 +351,7 @@ desk's own settings, not an organization's, are in `~/.config/desk/settings.toml
 | `zoom` | int | `100` | The text size of the terminals and the session panel, in percent, from 50 to 300. <kbd>Ctrl</kbd>+<kbd>=</kbd>, <kbd>Ctrl</kbd>+<kbd>-</kbd> and <kbd>Ctrl</kbd>+<kbd>0</kbd> change it. |
 | `[[folder]]` | tables | `$DESK_ROOT` (`~/Work`), depth 2 | Where desk looks for organizations, in order. When two give the same name, the first wins. |
 | `[editor]` | table | | The [workspace](/sessions/workspace/)'s layout, for every card. desk writes it as you drag. |
+| `[phone]` | table | none | A Telegram bot that brings cards that need you to your phone: `token`, `token_env` or `token_cmd` (the bot's token), `chat_id` (the paired chat; the first `/start` writes it) and `always` (also while desk has the focus). See [Your phone](/sessions/phone/). |
 | `[keys]` | table | none | The shortcuts you changed, a shortcut's name to its key (`"board.new" = "Alt+B"`). **Settings → Keyboard shortcuts** writes it; see [Changing shortcuts](/reference/keys/#changing-shortcuts). |
 
 `[editor]`:

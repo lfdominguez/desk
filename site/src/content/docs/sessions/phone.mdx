@@ -1,0 +1,44 @@
+---
+title: Your phone
+description: A Telegram bot that brings cards that need you to your phone, where you allow or deny a command, pick an answer, or reply to a card's Claude.
+---
+
+When you're away from desk, a card that waits on you can wait a long time: a permission request,
+a question, the end of its turn. With a Telegram bot, desk sends those to your phone, and you
+answer there.
+
+desk talks to Telegram by asking it for news (long polling), so nothing on your machine is opened
+to the internet. It stops when desk quits.
+
+## Setting it up
+
+1. In Telegram, talk to **@BotFather**, send `/newbot` and follow it. It gives you the bot's
+   token, `123456:ABC…`. Keep it to yourself: whoever has it can talk as the bot.
+2. Put the token in desk's `~/.config/desk/settings.toml`, from an environment variable or a
+   command rather than as text when you can:
+
+   ```toml
+   [phone]
+   token_env = "DESK_TELEGRAM_TOKEN"   # or token_cmd = "pass show desk/telegram", or token = "…"
+   ```
+
+3. Start desk, open your bot in Telegram and send it `/start` within 10 minutes. desk pairs that
+   chat, says so in a toast and in the chat, and writes its `chat_id` into `settings.toml`. After
+   that, the bot ignores every other chat.
+
+To pair another chat, remove `chat_id` and start desk again.
+
+## What comes to the phone
+
+The same moments as desk's desktop notifications: a card turns to your turn, blocked, failed or
+ready for review. By default only while no desk window has the focus; `always = true` under
+`[phone]` sends them while you're at desk too.
+
+| On the phone | What you can do |
+|---|---|
+| **A permission request** ("Wants to run Bash: …") | **Allow** or **Deny**. It's answered as desk's own Allow once and Deny are; a press on a request already answered says so |
+| **A question** | its options as buttons when it's a single question with one answer; otherwise reply in your own words |
+| **Its turn, a block, a failure** | the card's last message. Reply to it, and your reply goes to the card's Claude as your next message |
+
+Each message starts with the card's key and title. A message that isn't a reply to one of the
+bot's gets a reminder of how to answer.

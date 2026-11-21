@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -22,6 +23,10 @@ func TestBoardTools(t *testing.T) {
 	h.u.b.Add(0, kanban.Card{Title: "Secret plan", Org: "Globex"})
 	h.u.say(other.ID, "you", "start with the API")
 	h.u.say(other.ID, "tool", "Bash ls")
+	for i := range boardReadMsgs {
+		h.u.say(src.ID, "claude", fmt.Sprint("old ", i))
+	}
+	h.u.say(src.ID, "you", "newest")
 
 	if text, ok := h.tool(src.ID, "cards", `{}`); !ok || !strings.Contains(text, src.Key()+" [In progress, working] ABC-9 Fix login") ||
 		!strings.Contains(text, other.Key()+" [To do] Audit logging") || strings.Contains(text, "Secret") {
@@ -37,7 +42,8 @@ func TestBoardTools(t *testing.T) {
 		!strings.Contains(text, "log every login") || !strings.Contains(text, "[you] start with the API") || strings.Contains(text, "Bash ls") {
 		t.Fatalf("read %v %q", ok, text)
 	}
-	if text, ok := h.tool(src.ID, "card_read", `{"key":"`+src.Key()+`"}`); !ok || !strings.Contains(text, "Status: working") || !strings.Contains(text, "ABC-9 In Progress") {
+	if text, ok := h.tool(src.ID, "card_read", `{"key":"`+src.Key()+`"}`); !ok || !strings.Contains(text, "Status: working") || !strings.Contains(text, "ABC-9 In Progress") ||
+		strings.Contains(text, "old 0") || !strings.Contains(text, "[you] newest") {
 		t.Fatalf("read own %q", text)
 	}
 	if _, ok := h.tool(src.ID, "card_read", `{"key":"DESK-3"}`); ok {

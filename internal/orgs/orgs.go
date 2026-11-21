@@ -421,6 +421,27 @@ type settings struct {
 	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
 	Me       string            `toml:"me,omitempty"`        // who the user is, told to every Claude desk starts (AboutMe)
 	NewRelic NewRelic          `toml:"newrelic,omitempty"`  // where desk reports its own crashes and performance (internal/telemetry)
+	Phone    Phone             `toml:"phone,omitempty"`     // a Telegram bot that brings cards' questions to the user's phone (ui's phone.go)
+}
+
+// Phone is settings.toml's [phone]: the Telegram bot desk talks to the
+// user's phone through, by its token (token, token_env or token_cmd; no
+// vault: these settings belong to no organization), and the chat it's
+// paired with (0: the first /start pairs it).
+type Phone struct {
+	Secret
+	Chat   int64 `toml:"chat_id,omitempty"`
+	Always bool  `toml:"always,omitempty"` // also while a desk window has the focus
+}
+
+// PhoneSettings is settings.toml's [phone].
+func PhoneSettings() Phone { return loadSettings().Phone }
+
+// SetPhoneChat pairs the phone's chat, the rest as it is.
+func SetPhoneChat(chat int64) error {
+	s := loadSettings()
+	s.Phone.Chat = chat
+	return saveSettings(s)
 }
 
 // NewRelic is settings.toml's [newrelic]: desk's own crashes, errors and

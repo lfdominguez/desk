@@ -254,6 +254,30 @@ func TestReviewEmpty(t *testing.T) {
 	if !h.has(h.u.rvOf(c.ID).err) {
 		t.Fatal("error not shown")
 	}
+	h.clickTop("rvReload" + c.ID)
+	h.pumpUntil("reloaded", func() bool { return !h.u.rvOf(c.ID).loading })
+
+	// the real request: no origin, an origin that refuses the push, a
+	// local origin no provider answers for
+	git(t, h.u.b.Card(c.ID).Worktree, "remote", "remove", "origin")
+	wt := h.u.b.Card(c.ID).Worktree
+	if _, err := rvOpenPR(orgs.Config{}, wt, "desk-1", "main", "t", ""); err == nil {
+		t.Fatal("a request without an origin")
+	}
+	git(t, wt, "remote", "add", "origin", filepath.Join(t.TempDir(), "none.git"))
+	if _, err := rvOpenPR(orgs.Config{}, wt, "desk-1", "main", "t", ""); err == nil || !strings.Contains(err.Error(), "git push") {
+		t.Fatalf("push refused: %v", err)
+	}
+	bare := filepath.Join(t.TempDir(), "o.git")
+	git(t, wt, "init", "-q", "--bare", bare)
+	git(t, wt, "remote", "set-url", "origin", bare)
+	if _, err := rvOpenPR(orgs.Config{}, wt, strings.ToLower(c.Key()), "main", "t", ""); err == nil || !strings.Contains(err.Error(), "not a remote") {
+		t.Fatalf("no provider: %v", err)
+	}
+
+	h.u.rvAct(c.ID, "push") // the card leaves while it runs
+	h.u.b.Delete(c.ID)
+	h.pumpUntil("done", func() bool { return h.u.rvOf(c.ID).busy == "" })
 	h.u.view = "rv:" + c.ID
 	h.u.rvAct(c.ID, "merge") // arms only
 	h.u.b.Delete(c.ID)

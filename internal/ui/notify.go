@@ -34,6 +34,7 @@ func (u *ui) notifyChange(c *kanban.Card, before string) {
 	if d := u.detached[c.ID]; d != nil && d.p.focused { // its own window, in front
 		return
 	}
+	u.phoneTell(c, what)
 	desktopNotify(c.Key()+" · "+what, c.Title+"\n"+unmark(cmp.Or(c.Note, c.Last)))
 }
 

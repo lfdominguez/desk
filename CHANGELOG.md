@@ -8,6 +8,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Your phone**: a Telegram bot (its token under `[phone]` in `settings.toml`, paired by sending
+  it `/start`) brings cards that need you to your phone while desk isn't in front of you.
+  Permission requests come with Allow and Deny, a question's options as buttons, and a reply to a
+  card's message goes to its Claude.
 - **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
   in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
   session's new Review button shows the branch's commits and every changed file as a diff, and

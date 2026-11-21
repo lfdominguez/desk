@@ -47,6 +47,7 @@ export default defineConfig({
 						'sessions/review',
 						'sessions/terminal',
 						'sessions/usage',
+						'sessions/phone',
 					],
 				},
 				{
