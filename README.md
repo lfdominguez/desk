@@ -42,6 +42,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
 | 🚢 **Review & ship** | Per org, each new card works on its own git branch and worktree. Its Review shows the branch's commits and every changed file as a diff, then pushes it, opens a GitHub PR or GitLab MR, or fast-forwards main and takes the card to Done. |
+| ⚡ **Triggers** | Per org rules in `desk.toml` that act by themselves: a new assigned ticket makes its card, failed CI tells the card's Claude to fix it, a long monitoring alert opens an investigation, a schedule makes a card every Monday at 9. |
 | 📱 **Your phone** | A Telegram bot brings cards that need you to your phone while you're away: Allow or Deny a command, pick an answer, or reply to a card's Claude. No port opened. |
 | 🧭 **Workspace** | Each card's editor view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
 | ✏️ **Drawings** | Excalidraw diagrams per organization and per card, in desk's own editor. Every Claude can read and draw in them: edits show live and undo, and what you didn't ask for comes as a suggestion to approve. |
@@ -247,6 +248,10 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   turn. The session header's eye opens its Review: ahead/behind, commits, each file's diff; Push,
   Open request (GitHub PR, GitLab MR, linked to the card) and Merge (fast-forward only, a second
   click to confirm; the card goes to Done). Archiving removes a clean worktree.
+- **Triggers**: `[[trigger]]` tables in an org's `desk.toml` (`on = "ticket"`, `"ci_failed"`,
+  `"alert"` or `"schedule"`, with `project`, `match`, `after`, `at`/`days`, `title`/`notes`,
+  `column`, `start`) run after every check of links, tickets, CI and alerts. Each remembers what it
+  handled in `.desk/triggers.json`, and its first run only notes what's already there.
 - **Your phone**: put a Telegram bot's token under `[phone]` in `~/.config/desk/settings.toml`
   (`token_env`, `token_cmd` or `token`) and send the bot `/start` within 10 minutes of starting
   desk to pair it. While no desk window has the focus (or always, with `always = true`), cards that

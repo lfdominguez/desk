@@ -56,7 +56,7 @@ export default defineConfig({
 				},
 				{
 					label: 'Organizations',
-					items: ['orgs/organizations', 'orgs/settings', 'orgs/accounts', 'orgs/vaults', 'orgs/tickets', 'orgs/autopilot', 'orgs/ci', 'orgs/alerts', 'orgs/card-tools', 'orgs/company', 'orgs/models', 'orgs/workflow'],
+					items: ['orgs/organizations', 'orgs/settings', 'orgs/accounts', 'orgs/vaults', 'orgs/tickets', 'orgs/autopilot', 'orgs/ci', 'orgs/alerts', 'orgs/triggers', 'orgs/card-tools', 'orgs/company', 'orgs/models', 'orgs/workflow'],
 				},
 				{
 					label: 'Servers',

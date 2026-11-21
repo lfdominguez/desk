@@ -1,0 +1,58 @@
+---
+title: Triggers
+description: Rules in an organization's desk.toml that make cards and tell Claudes by themselves, from new tickets, failed CI, monitoring alerts and the time of day.
+---
+
+Tickets, CI and alerts each become a card when you click them. A trigger does that click for you:
+a rule in the organization's `desk.toml` that desk follows on its own.
+
+```toml
+[[trigger]]
+name = "new tickets"
+on = "ticket"
+project = "ABC"
+start = true
+
+[[trigger]]
+name = "fix red CI"
+on = "ci_failed"
+
+[[trigger]]
+name = "database down"
+on = "alert"
+match = "db"
+after = 10
+
+[[trigger]]
+name = "weekly audit"
+on = "schedule"
+at = "09:00"
+days = ["mon"]
+title = "Dependency audit"
+notes = "Check every repository's dependencies for known vulnerabilities and outdated majors."
+```
+
+## What each watches
+
+| `on` | When | What it does |
+|---|---|---|
+| `ticket` | a ticket assigned to you shows up in the organization's [Tickets](/orgs/tickets/) with no card yet (of `project`, with `match` in its title, when given) | a card for it in To do, titled with its key and title, the ticket linked; `start` starts its Claude |
+| `ci_failed` | a pull request or commit linked on a card that isn't in Done fails a CI run (what the [CI](/orgs/ci/) view shows) | tells the card's Claude which run failed, to read it with `ci` and `ci_log` and fix it |
+| `alert` | a monitoring [alert](/orgs/alerts/) nobody acknowledged or snoozed: an error (and warnings with `warnings`), that has lasted `after` minutes, its host or service matching `match` | an investigation card in progress, as **Investigate** makes, its Claude started on it |
+| `schedule` | the time `at` (local), on `days` (every day without them) | a card with `title` and `notes`; `start` starts its Claude |
+
+Every card a trigger makes says so at the end of its notes: "(Made by the trigger weekly audit.)".
+A toast says which trigger made which card. `column` puts its cards in another column.
+
+## When they run
+
+Triggers run after each check desk makes of links, tickets, CI and alerts: when desk starts, and
+every 3 minutes after. A schedule therefore runs within 3 minutes of its time, once that day.
+
+What each trigger has handled (tickets, CI runs, alerts by when they started, a schedule's last
+day) is kept in the organization's `.desk/triggers.json`, so nothing is done twice, not even across
+restarts. A trigger's first run only notes what is already there: turning one on doesn't make a
+card for every ticket you already have, and a schedule added after its time runs from the next
+day. `off = true` pauses a trigger and keeps what it handled.
+
+An `on` desk doesn't know says so in a toast.

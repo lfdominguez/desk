@@ -262,6 +262,12 @@ func (u *ui) alertRow(gtx layout.Context, org string, a links.Alert) layout.Dime
 // server checks go to the org's infra Claude with desk peer, as any server
 // work. An alert that has an open card (not Done) shows that one instead.
 func (u *ui) investigate(org, host, service, state, output, url string, since time.Time) {
+	u.openSession(u.investigation(org, host, service, state, output, url, since, ""))
+}
+
+// investigation is investigate without opening the card: its id (the
+// open one's, or a new one started on it; why ends its notes when given).
+func (u *ui) investigation(org, host, service, state, output, url string, since time.Time, why string) string {
 	name := host
 	if service != "" {
 		name += " / " + service
@@ -270,8 +276,7 @@ func (u *ui) investigate(org, host, service, state, output, url string, since ti
 	for i, col := range u.b.Columns {
 		for _, c := range col.Cards {
 			if c.Org == org && c.Title == title && i != u.b.Column("Done") {
-				u.openSession(c.ID)
-				return
+				return c.ID
 			}
 		}
 	}
@@ -283,9 +288,12 @@ func (u *ui) investigate(org, host, service, state, output, url string, since ti
 	if url != "" {
 		notes += "\n\n" + url
 	}
+	if why != "" {
+		notes += "\n\n" + why
+	}
 	c := u.b.Add(col, kanban.Card{Title: title, Notes: notes, Org: org, Alert: alertKey(org, links.Alert{Host: host, Service: service})})
 	u.save()
-	u.openSession(c.ID)
 	u.send(c.ID, "Investigate this alert: check the monitoring and metrics and have the infra Claude look on the servers with "+
 		"read-only commands; find the likely cause and propose a fix. Nothing changes on the servers without my approval.")
+	return c.ID
 }

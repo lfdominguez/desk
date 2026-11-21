@@ -655,6 +655,7 @@ func (u *ui) pollLinks() {
 		u.checkTickets()
 		u.checkAlerts()
 		u.checkCI()
+		u.later(u.runTriggers) // on what the checks just brought in
 		time.Sleep(3 * time.Minute)
 	}
 }

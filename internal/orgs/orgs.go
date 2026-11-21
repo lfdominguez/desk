@@ -259,6 +259,28 @@ type Provider struct {
 // settings' order.
 var Tasks = []string{"card", "improve", "explain", "workspace", "lead", "drawing", "infra", "workflow"}
 
+// Trigger is a [[trigger]]: what desk does by itself when something
+// happens in the organization (ui's triggers.go).
+type Trigger struct {
+	Name string `toml:"name"` // what it is called; what it has handled is kept by it
+	// On is what it watches: "ticket" (a new ticket assigned to the user
+	// makes its card), "ci_failed" (a card's pull request or commit fails
+	// its CI: its Claude is told), "alert" (a monitoring alert makes an
+	// investigation card), "schedule" (a card at a time of day).
+	On       string   `toml:"on"`
+	Project  string   `toml:"project"`  // ticket: only this project (a Jira project, a Linear team, a repository)
+	Match    string   `toml:"match"`    // ticket: in its title; alert: in its host or service
+	Warnings bool     `toml:"warnings"` // alert: warnings too, not only errors
+	After    int      `toml:"after"`    // alert: minutes it has lasted first
+	At       string   `toml:"at"`       // schedule: "09:00", local time
+	Days     []string `toml:"days"`     // schedule: "mon"…"sun"; none: every day
+	Title    string   `toml:"title"`    // schedule: the card's (ticket: its key and title)
+	Notes    string   `toml:"notes"`    // schedule: what the card is to do
+	Column   string   `toml:"column"`   // where its cards go (default To do; an alert's In progress)
+	Start    bool     `toml:"start"`    // its card's Claude starts at once (an alert's always does)
+	Off      bool     `toml:"off"`
+}
+
 // Git is how the organization's cards use their git repositories.
 type Git struct {
 	// Worktrees gives each new card whose folder is in a git repository its
@@ -337,6 +359,7 @@ type Config struct {
 	Providers []Provider  `toml:"provider"`
 	Workflow  Workflow    `toml:"workflow"`
 	Git       Git         `toml:"git"`
+	Triggers  []Trigger   `toml:"trigger"`
 	Me        OrgMe       `toml:"me"`
 	// Models maps a desk Claude (Tasks) to the provider it runs on, by name;
 	// unset, the Claude subscription.

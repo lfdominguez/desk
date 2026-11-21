@@ -62,6 +62,25 @@ How the organization's cards use their git repositories (see [Review & ship](/se
 |---|---|---|
 | `worktrees` | bool | `true`: each new card whose folder is in a git repository works in its own worktree, `<repo>/.worktrees/desk-n`, on its own branch `desk-n` off the default branch. Off by default. |
 
+## [[trigger]]
+
+What desk does by itself when something happens (see [Triggers](/orgs/triggers/)). Any number.
+
+| Key | Type | What it does |
+|---|---|---|
+| `name` | string | Required: what it's called. What it has handled is kept under this name in `.desk/triggers.json`. |
+| `on` | string | `ticket`, `ci_failed`, `alert` or `schedule`. |
+| `project` | string | `ticket`: only tickets of this project (a Jira project, a Linear team, a repository). |
+| `match` | string | `ticket`: only titles with these words; `alert`: only hosts or services with them. |
+| `warnings` | bool | `alert`: warnings too, not only errors. |
+| `after` | int | `alert`: minutes the alert has lasted first. |
+| `at` | string | `schedule`: the time of day, `"09:00"`. |
+| `days` | strings | `schedule`: `["mon", "thu"]`; none means every day. |
+| `title`, `notes` | string | `schedule`: the card's title and what it is to do. |
+| `column` | string | Where its cards go: To do unless it says otherwise. |
+| `start` | bool | Its card's Claude starts at once. An alert's investigation always starts. |
+| `off` | bool | Turns it off, keeping what it handled. |
+
 ## [models]
 
 Which of desk's Claudes run on a [model provider](/orgs/models/), by name; one not set runs on

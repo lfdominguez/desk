@@ -8,6 +8,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Triggers**: `[[trigger]]` rules in an organization's `desk.toml` act by themselves. A new
+  ticket assigned to you makes its card (started, if you like), a failed CI run on a card's pull
+  request tells its Claude to fix it, a monitoring alert that lasts opens an investigation card,
+  and a schedule makes a card at a time of day on chosen days. Nothing is done twice, and a new
+  trigger doesn't act on what was already there.
 - **Your phone**: a Telegram bot (its token under `[phone]` in `settings.toml`, paired by sending
   it `/start`) brings cards that need you to your phone while desk isn't in front of you.
   Permission requests come with Allow and Deny, a question's options as buttons, and a reply to a
