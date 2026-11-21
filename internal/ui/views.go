@@ -321,6 +321,11 @@ func (u *ui) viewTitle() string {
 			return c.Key() + " · workspace"
 		}
 	}
+	if id, ok := strings.CutPrefix(u.view, "rv:"); ok {
+		if c := u.b.Card(id); c != nil {
+			return c.Key() + " · review"
+		}
+	}
 	for _, s := range u.sections() {
 		for _, it := range s.items {
 			if it.view == u.view {
@@ -371,6 +376,9 @@ func (u *ui) sentence() string {
 	}
 	if strings.HasPrefix(u.view, "ws:") {
 		return "The card's projects and a Claude that reads them with you; Esc goes back to the session"
+	}
+	if strings.HasPrefix(u.view, "rv:") {
+		return "What the card's branch changed; merge, push or open a request; Esc goes back to the session"
 	}
 	now := time.Now()
 	var n, over int

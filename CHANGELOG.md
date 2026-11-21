@@ -8,6 +8,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
+  in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
+  session's new Review button shows the branch's commits and every changed file as a diff, and
+  ships it: Push, Open request (a GitHub pull request or GitLab merge request, linked to the card)
+  and Merge (a fast-forward of main, confirmed with a second click; the card goes to Done).
+  Archiving the card removes its worktree when nothing is left uncommitted.
 - **Board tools for Claudes**: a card's Claude has `cards` and `card_read`, to see its
   organization's board and read any of its cards (notes, links, last messages), and
   `card_create` and `ticket_create`, which make a new card or the card's ticket and answer at

@@ -333,10 +333,14 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 	if in := u.peerOut[id]; in != "" { // the infra and workspace Claudes', kept while the card couldn't take them (each says whose)
 		prompt = in + prompt
 	}
+	if u.procs[id] == nil && u.wantsWorktree(c, exists) { // its branch first: the message waits for it
+		u.makeWorktree(id, func() { u.deliver(id, text, quiet, images...) })
+		return
+	}
 	p := u.procs[id]
 	if p == nil {
 		base := c.Session.Cost // the process reports its own total; the card adds earlier ones
-		o := claude.Options{Home: u.home, Org: acct, Dir: orgs.Dir(u.root, c.Org, c.Dir), Root: orgs.Dir(u.root, c.Org, ""), System: claude.System(c.Key(), c.Title, c.Org)}
+		o := claude.Options{Home: u.home, Org: acct, Dir: u.cardDir(c), Root: orgs.Dir(u.root, c.Org, ""), System: claude.System(c.Key(), c.Title, c.Org)}
 		var err error
 		if o.Args, err = u.agentArgs(c); err == nil {
 			o.Env, u.via[id], err = u.modelEnv(c.Org, "card")

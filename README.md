@@ -41,6 +41,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config (or imported from Ásbrú), shared with an infrastructure Claude that asks before every change. |
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
+| 🚢 **Review & ship** | Per org, each new card works on its own git branch and worktree. Its Review shows the branch's commits and every changed file as a diff, then pushes it, opens a GitHub PR or GitLab MR, or fast-forwards main and takes the card to Done. |
 | 🧭 **Workspace** | Each card's editor view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
 | ✏️ **Drawings** | Excalidraw diagrams per organization and per card, in desk's own editor. Every Claude can read and draw in them: edits show live and undo, and what you didn't ask for comes as a suggestion to approve. |
 | 🔀 **Model providers** | Per org, any of desk's Claudes (card sessions, Improve, Explain, workspace, leads, drawings, infra) can run on OpenRouter or another Anthropic-compatible endpoint instead of your Claude subscription, each tier mapped to a near model or your own, and each company role on the model you pick. |
@@ -240,6 +241,11 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   basic or digest auth, and falls back to a Nagios 3's `status.cgi` pages. An alert's
   **Investigate** makes it a card whose Claude has the infra Claude check the servers;
   **Snooze** (1 hour … 1 week, or your own `2h30m`) hides it until then.
+- **Review & ship**: with `[git] worktrees = true` in an org's `desk.toml`, a new card in a git
+  repository gets its own branch `desk-n` and worktree `<repo>/.worktrees/desk-n` before its first
+  turn. The session header's eye opens its Review: ahead/behind, commits, each file's diff; Push,
+  Open request (GitHub PR, GitLab MR, linked to the card) and Merge (fast-forward only, a second
+  click to confirm; the card goes to Done). Archiving removes a clean worktree.
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and

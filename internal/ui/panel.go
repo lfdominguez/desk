@@ -271,6 +271,9 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 				if u.win == nil {
 					top = append(top, ib("pnDetach", kit.IcoPopOut, "Open in its own window (Ctrl+Shift+O)", func() { u.detach(id) }))
 				}
+				if c.Worktree != "" {
+					top = append(top, ib("pnReview", kit.IcoEye, "Review its branch "+c.Branch+": the changes, merge, push, a request", func() { u.openReview(id) }))
+				}
 				top = append(top,
 					ib("pnWS", kit.IcoCode, "Open the workspace: its files and a Claude that reads them", func() { u.openWS(id) }),
 					ib("pnDraw", kit.IcoShapes, "The card's drawings", func() { u.view = "drc:" + id }),
@@ -287,7 +290,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 			}
 			where := "~/Work"
 			if c.Org != "" {
-				where = strings.Replace(orgs.Dir(u.root, c.Org, c.Dir), u.home, "~", 1)
+				where = strings.Replace(u.cardDir(c), u.home, "~", 1)
 			}
 			kids := []layout.FlexChild{
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -427,7 +430,7 @@ func (u *ui) composer(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 		}
 		var kids []layout.FlexChild
 		if shell {
-			where := strings.Replace(orgs.Dir(u.root, c.Org, c.Dir), u.home, "~", 1)
+			where := strings.Replace(u.cardDir(c), u.home, "~", 1)
 			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Bottom: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,

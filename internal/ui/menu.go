@@ -54,6 +54,7 @@ func (u *ui) archiveCard(id string) {
 		return
 	}
 	key, stopped := c.Key(), u.endSession(id)
+	u.dropWorktree(*c)
 	u.b.ArchiveCard(id)
 	u.save()
 	msg := "Archived " + key
@@ -75,7 +76,7 @@ func (u *ui) endSession(id string) bool {
 	if u.panel == id {
 		u.panel = ""
 	}
-	if u.view == "sess:"+id || u.view == "ws:"+id {
+	if u.view == "sess:"+id || u.view == "ws:"+id || u.view == "rv:"+id {
 		u.view = ""
 	}
 	if st := u.ws[id]; st != nil && st.proc != nil { // its workspace Claude too

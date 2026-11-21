@@ -193,6 +193,8 @@ func (u *ui) escape(gtx layout.Context) {
 		u.view, u.blur = "", true
 	case strings.HasPrefix(u.view, "ws:") && u.wsOf(strings.TrimPrefix(u.view, "ws:")).find != nil: // its find bar first
 		u.wsFindClose(u.wsOf(strings.TrimPrefix(u.view, "ws:")))
+	case strings.HasPrefix(u.view, "rv:"): // a card's Review: back to its session
+		u.view, u.blur = "sess:"+strings.TrimPrefix(u.view, "rv:"), true
 	case strings.HasPrefix(u.view, "ws:"): // the workspace, from its editors too: back to the session
 		u.view, u.blur = "sess:"+strings.TrimPrefix(u.view, "ws:"), true
 	case u.typing(gtx) && !gtx.Focused(&u.chatIn): // an answer field: leave it, not the session

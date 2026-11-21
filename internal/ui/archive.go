@@ -428,6 +428,7 @@ func (u *ui) archBulk(op string, es []archEntry) {
 		u.endSession(id)
 		switch op {
 		case "archive":
+			u.dropWorktree(s.Card)
 			u.b.ArchiveCard(id)
 		case "restore":
 			u.b.Restore(id)

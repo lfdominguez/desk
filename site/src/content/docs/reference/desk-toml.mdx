@@ -54,6 +54,14 @@ writes it, from `instructions`.
 With a workflow, the check every 3 minutes never moves a ticket back: a ticket in a status these
 tables give a column takes its card there, any other stays.
 
+## [git]
+
+How the organization's cards use their git repositories (see [Review & ship](/sessions/review/)).
+
+| Key | Type | What it does |
+|---|---|---|
+| `worktrees` | bool | `true`: each new card whose folder is in a git repository works in its own worktree, `<repo>/.worktrees/desk-n`, on its own branch `desk-n` off the default branch. Off by default. |
+
 ## [models]
 
 Which of desk's Claudes run on a [model provider](/orgs/models/), by name; one not set runs on

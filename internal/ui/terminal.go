@@ -83,7 +83,7 @@ func (u *ui) terminal(id string) {
 		env, u.via[id], err = u.modelEnv(c.Org, "card")
 	}
 	if err == nil {
-		cmd, err = claude.Interactive(u.home, orgs.Account(u.root, c.Org), orgs.Dir(u.root, c.Org, c.Dir), orgs.Dir(u.root, c.Org, ""), c.Session.ID, system, extra...)
+		cmd, err = claude.Interactive(u.home, orgs.Account(u.root, c.Org), u.cardDir(c), orgs.Dir(u.root, c.Org, ""), c.Session.ID, system, extra...)
 	}
 	if err == nil {
 		cmd.Env = append(cmd.Env, env...)
@@ -229,7 +229,7 @@ func (u *ui) termView(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(k.Lbl(c.Key(), 12, kit.CAccText, kit.Mono)),
 					layout.Rigid(kit.HGap(8)),
 					layout.Flexed(1, k.LblFill(c.Title, 13, kit.CText, kit.Semi(kit.Sans))),
-					layout.Rigid(k.Lbl(strings.Replace(orgs.Dir(u.root, c.Org, c.Dir), u.home, "~", 1), 11, kit.CText3, kit.Sans)),
+					layout.Rigid(k.Lbl(strings.Replace(u.cardDir(c), u.home, "~", 1), 11, kit.CText3, kit.Sans)),
 					layout.Rigid(kit.HGap(10)),
 					layout.Rigid(k.Pill("Claude · "+u.accountName(c.Org), kit.CText2, kit.CPanelCard)),
 					layout.Rigid(kit.HGap(10)),

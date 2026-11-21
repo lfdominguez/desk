@@ -70,6 +70,9 @@ type Card struct {
 	Detached  bool      `json:"detached,omitempty"`     // its session has a window of its own (ui's detach.go)
 	Pilot     *Pilot    `json:"pilot,omitempty"`        // its Claude runs other cards on autopilot (ui's autopilot.go)
 	Parent    string    `json:"parent,omitempty"`       // the autopilot card running this one, by ID
+	Worktree  string    `json:"worktree,omitempty"`     // its own git worktree, where its session runs (ui's review.go), "" none
+	Branch    string    `json:"branch,omitempty"`       // the worktree's branch
+	Base      string    `json:"base,omitempty"`         // the branch it left and merges back into
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`

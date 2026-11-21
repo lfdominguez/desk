@@ -93,7 +93,7 @@ func (u *ui) wsKeepTabs(st *wsState) {
 
 // projects are card c's workspace folders: its own first, then those added.
 func (u *ui) projects(c *kanban.Card) []string {
-	return append([]string{orgs.Dir(u.root, c.Org, c.Dir)}, c.Projects...)
+	return append([]string{u.cardDir(c)}, c.Projects...)
 }
 
 // wsRedraw marks a workspace change for sig, so the frame draws it again.

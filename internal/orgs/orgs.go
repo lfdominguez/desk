@@ -259,6 +259,13 @@ type Provider struct {
 // settings' order.
 var Tasks = []string{"card", "improve", "explain", "workspace", "lead", "drawing", "infra", "workflow"}
 
+// Git is how the organization's cards use their git repositories.
+type Git struct {
+	// Worktrees gives each new card whose folder is in a git repository its
+	// own worktree and branch (<repo>/.worktrees/desk-n) to work in.
+	Worktrees bool `toml:"worktrees"`
+}
+
 // Workflow is how the organization's tickets move, as its people use
 // them, which may differ from what desk's columns would guess: written by
 // the user (Instructions) and learned from them by Haiku (the rest), then
@@ -329,6 +336,7 @@ type Config struct {
 	Vaults    []Vault     `toml:"vault"`
 	Providers []Provider  `toml:"provider"`
 	Workflow  Workflow    `toml:"workflow"`
+	Git       Git         `toml:"git"`
 	Me        OrgMe       `toml:"me"`
 	// Models maps a desk Claude (Tasks) to the provider it runs on, by name;
 	// unset, the Claude subscription.

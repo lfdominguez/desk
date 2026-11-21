@@ -13,7 +13,6 @@ import (
 
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
-	"github.com/lfdominguez/desk/internal/orgs"
 )
 
 // A message that starts with "!" is a shell command the user runs directly,
@@ -99,7 +98,7 @@ func (u *ui) shell(id, cmd string) {
 		u.showToast(c.Key()+": a command is still running: Stop it, or wait", true)
 		return
 	}
-	dir := orgs.Dir(u.root, c.Org, c.Dir)
+	dir := u.cardDir(c)
 	before := c.Status
 	c.Status, c.Note, c.Updated = kanban.StatusWorking, "Running your command: "+firstLine(cmd), time.Now() // the user acts: not blocked, not Claude's
 	u.moveTo(id, "In progress")

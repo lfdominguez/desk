@@ -44,6 +44,7 @@ export default defineConfig({
 						'sessions/canvas',
 						'sessions/diffs',
 						'sessions/workspace',
+						'sessions/review',
 						'sessions/terminal',
 						'sessions/usage',
 					],
