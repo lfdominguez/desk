@@ -11,9 +11,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/term"
 	"github.com/lfdominguez/desk/internal/testtmp"
+	"github.com/lfdominguez/desk/internal/tgbot"
 )
 
 // TestMain doubles as the programs tests run in terminals (prog), so they
@@ -28,6 +30,7 @@ func TestMain(m *testing.M) {
 		os.Exit(fakeScript(s, os.Args[1:])) // fakeBin's program, on Windows
 	}
 	fakeDir, _ = testtmp.Dir("desk-ui-fakes")
+	tgbot.Gap = func(int64) time.Duration { return 0 } // the fake Telegram takes everything at once
 	// A -cover test binary run without GOCOVERDIR (qa mutate's runs) would
 	// end each prog with a warning on its terminal.
 	var cover string
