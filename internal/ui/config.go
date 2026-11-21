@@ -154,7 +154,8 @@ type cfgDialog struct {
 	me      *cfgEntry // an org page only: its Who am I (config_me.go)
 	git     *cfgEntry // an org page only: [git] (on["worktrees"]); comp its [company] budgets (config_pages.go)
 	comp    *cfgEntry
-	phone   *cfgEntry // cfgFolders only: settings.toml's [phone], and [newrelic] in diag, saved with the folders
+	phone   *cfgEntry // cfgFolders only: settings.toml's [telegram] bot, its account in tgacct, and [newrelic] in diag, saved with the folders
+	tgacct  *cfgEntry
 	diag    *cfgEntry
 	list    layout.List
 	err     string
@@ -256,7 +257,7 @@ func (d *cfgDialog) changes() int {
 	if d.wf != nil && d.wf.edited() {
 		n++
 	}
-	for _, x := range []*cfgEntry{d.me, d.phone, d.diag, d.git, d.comp} {
+	for _, x := range []*cfgEntry{d.me, d.phone, d.tgacct, d.diag, d.git, d.comp} {
 		if x != nil && x.edited() {
 			n++
 		}
@@ -278,7 +279,7 @@ func (d *cfgDialog) changes() int {
 // desk's pages don't change which organizations there are.
 func (d *cfgDialog) folderChanges() int {
 	n := d.changes()
-	for _, x := range []*cfgEntry{d.langs, d.phone, d.diag} {
+	for _, x := range []*cfgEntry{d.langs, d.phone, d.tgacct, d.diag} {
 		if x != nil && x.edited() {
 			n--
 		}
@@ -309,6 +310,8 @@ func kindOf(kind string) (int, cfgKind) {
 		return len(cfgKinds) + 1, phoneKind
 	case diagKind.key:
 		return len(cfgKinds) + 2, diagKind
+	case tgAcctKind.key:
+		return len(cfgKinds) + 3, tgAcctKind
 	}
 	i := slices.IndexFunc(cfgKinds, func(c cfgKind) bool { return c.key == kind })
 	if i < 0 {
@@ -1065,7 +1068,7 @@ func (u *ui) cfgFields(gtx layout.Context, id string, e *cfgEntry) layout.Dimens
 		}
 		rows = append(rows, layout.Rigid(w), layout.Rigid(kit.VGap(12)))
 	}
-	if e.kind == phoneKind.key || e.kind == diagKind.key { // desk's own: nothing to remove
+	if deskOwn(e.kind) { // nothing to remove
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 	}
 	rows = append(rows, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -1081,6 +1084,12 @@ func (u *ui) cfgFields(gtx layout.Context, id string, e *cfgEntry) layout.Dimens
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 }
 
+// deskOwn is whether kind is one of settings.toml's entries, desk's own
+// rather than an organization's.
+func deskOwn(kind string) bool {
+	return kind == phoneKind.key || kind == tgAcctKind.key || kind == diagKind.key
+}
+
 // cfgSecret is where a token comes from: a source to pick, then its fields.
 // A vault's own secrets can't come from a vault.
 func (u *ui) cfgSecret(gtx layout.Context, id string, e *cfgEntry, f cfgField) layout.Dimensions {
@@ -1089,7 +1098,7 @@ func (u *ui) cfgSecret(gtx layout.Context, id string, e *cfgEntry, f cfgField) l
 	if f.secret == "password" {
 		names[srcNone] = "Ask when needed"
 	}
-	if e.kind == phoneKind.key {
+	if deskOwn(e.kind) {
 		names[srcFile] = "In settings.toml"
 	}
 	src := e.src[f.secret]

@@ -28,7 +28,7 @@ func TestConfigNav2(t *testing.T) {
 	sz, all, w := cfgHarness(h)
 	h.draw(sz, w)
 	got := strings.Join(h.navTitles(), ",")
-	if !strings.HasPrefix(got, "desk,General,Search folders,Phone,Keyboard shortcuts,Diagnostics,Organizations · 2,Acme,Accounts,Ticket workflow,Git & review,Triggers") ||
+	if !strings.HasPrefix(got, "desk,General,Search folders,Telegram,Keyboard shortcuts,Diagnostics,Organizations · 2,Acme,Accounts,Ticket workflow,Git & review,Triggers") ||
 		!strings.HasSuffix(got, "About me,Globex") {
 		t.Fatalf("nav %s", got)
 	}
@@ -44,8 +44,8 @@ func TestConfigNav2(t *testing.T) {
 	if h.u.cfg.org != "Globex" || h.u.cfg.page() != "accounts" || !h.u.cfg.set.open["Globex"] {
 		t.Fatalf("Globex %q %q", h.u.cfg.org, h.u.cfg.page())
 	}
-	h.clickIn(sz, all, w, "cfgSub"+cfgFolders+"/phone")
-	if h.u.cfg.org != cfgFolders || h.u.cfg.page() != "phone" {
+	h.clickIn(sz, all, w, "cfgSub"+cfgFolders+"/telegram")
+	if h.u.cfg.org != cfgFolders || h.u.cfg.page() != "telegram" {
 		t.Fatal("phone")
 	}
 	h.clickIn(sz, all, w, "cfgOrg"+cfgKeys)
@@ -62,7 +62,7 @@ func TestConfigNav2(t *testing.T) {
 	}
 	h.u.cfg.set.q.SetText("telegram")
 	h.draw(sz, w)
-	h.clickIn(sz, all, w, "cfgSub"+cfgFolders+"/phone")
+	h.clickIn(sz, all, w, "cfgSub"+cfgFolders+"/telegram")
 	h.u.cfg.set.q.SetText("zzzq")
 	h.draw(sz, w)
 	if !h.has("Nothing matches.") {
@@ -210,7 +210,7 @@ func TestConfigPhone(t *testing.T) {
 	os.MkdirAll(filepath.Dir(orgs.SettingsFile()), 0o700)
 	os.WriteFile(orgs.SettingsFile(), []byte("[phone]\nchat_id = 42\ntoken = \"123:abc\"\n"), 0o600)
 	h.u.openConfig(cfgFolders)
-	h.u.cfg.set.sub[cfgFolders] = "phone"
+	h.u.cfg.set.sub[cfgFolders] = "telegram"
 	sz, all, w := cfgHarness(h)
 	h.draw(sz, w)
 	if !h.has("Paired with Telegram chat 42") {
@@ -261,7 +261,7 @@ func TestConfigReviewFixes(t *testing.T) {
 	os.WriteFile(orgs.SettingsFile(), []byte("[phone]\ntoken = \"1:a\"\n"), 0o600)
 	h.u.phone = &phoneState{chat: 0}
 	h.u.openConfig(cfgFolders)
-	h.u.cfg.set.sub[cfgFolders] = "phone"
+	h.u.cfg.set.sub[cfgFolders] = "telegram"
 	sz, all, w := cfgHarness(h)
 	h.draw(sz, w)
 	h.clickIn(sz, all, w, "cfgPhonealways")
@@ -282,7 +282,7 @@ func TestConfigReviewFixes(t *testing.T) {
 		t.Fatalf("mode %v %v", fi.Mode(), err)
 	}
 	h.u.openConfig(cfgFolders)
-	h.u.cfg.set.sub[cfgFolders] = "phone"
+	h.u.cfg.set.sub[cfgFolders] = "telegram"
 	h.draw(sz, w)
 	h.clickIn(sz, all, w, "cfgUnpair")
 	h.u.saveConfig()

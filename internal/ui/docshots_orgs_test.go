@@ -104,14 +104,22 @@ func init() {
 			s.click(id + "only_toml")
 			s.shot("orgs-settings-only", cut{"preview", dp(466, 96, 1388, 410), false})
 		}},
-		scene{"orgs-settings-phone", func(s *shooter) {
+		scene{"orgs-settings-telegram", func(s *shooter) {
 			s.click("sideOrgCfg")
-			s.click("cfgSub" + cfgFolders + "/phone")
-			e := s.u.cfg.phone
+			s.click("cfgSub" + cfgFolders + "/telegram")
+			e, a := s.u.cfg.phone, s.u.cfg.tgacct
 			e.src["."] = srcEnv
 			e.ed("..token_env").SetText("DESK_TELEGRAM_TOKEN")
+			a.ed("api_id").SetText("1234567")
+			a.src["api_hash"] = srcEnv
+			a.ed("api_hash.token_env").SetText("DESK_TELEGRAM_API_HASH")
+			a.ed("phone_number").SetText("+1 555 0100")
+			a.ed("mirror.Acme").SetText(orgs.MirrorFull)
+			a.ed("mirror.Globex").SetText(orgs.MirrorNotify)
 			orgsAway(s)
-			s.shot("orgs-settings-phone", cut{"page", dp(466, 48, 1388, 340), false})
+			s.shot("orgs-settings-telegram", cut{"bot", dp(466, 100, 1388, 360), false}, cut{"account", dp(466, 375, 1388, 760), false})
+			s.u.cfg.list.Position.Offset = 1050 // down to the organizations
+			s.shot("orgs-settings-telegram-more", cut{"orgs", dp(466, 650, 1388, 868), false})
 			s.click("cfgSub" + cfgFolders + "/diag")
 			orgsAway(s)
 			s.shot("orgs-settings-diag", cut{"page", dp(466, 48, 1388, 260), false})

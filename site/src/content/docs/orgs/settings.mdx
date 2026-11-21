@@ -4,7 +4,7 @@ description: The Settings dialog, page by page - desk's own settings, then each 
 ---
 
 The Settings dialog edits two kinds of files: desk's own settings (`~/.config/desk/settings.toml`:
-who you are, the folders it searches, the languages, the phone, diagnostics, the shortcuts) and
+who you are, the folders it searches, the languages, Telegram, diagnostics, the shortcuts) and
 each organization's `desk.toml` (its accounts and everything else it sets).
 
 ![The Settings dialog on Acme's Accounts page: the nav on the left, Acme's GitHub and Jira accounts, the buttons that add an account, and Save at the bottom](../../../assets/shots/orgs-settings-org.png)
@@ -20,14 +20,14 @@ each organization's `desk.toml` (its accounts and everything else it sets).
 
 <figure class="cut">
 
-![The settings' nav: the Search settings box, then the desk group with General, Search folders, Phone, Keyboard shortcuts and Diagnostics](../../../assets/shots/orgs-settings-general-nav.png)
+![The settings' nav: the Search settings box, then the desk group with General, Search folders, Telegram, Keyboard shortcuts and Diagnostics](../../../assets/shots/orgs-settings-general-nav.png)
 
 <figcaption>The search box, then desk's own pages.</figcaption>
 </figure>
 
 The left column has two groups under a search box:
 
-- **desk**: [General](#general), [Search folders](#search-folders), [Phone](#phone),
+- **desk**: [General](#general), [Search folders](#search-folders), [Telegram](#telegram),
   **Keyboard shortcuts** (see [Changing shortcuts](/reference/keys/#changing-shortcuts)) and
   [Diagnostics](#diagnostics).
 - **Organizations · N**: every organization, a nested one under its outer one. Click one to open
@@ -172,24 +172,75 @@ desk.toml* on, the subfolders it leaves out are listed as skipped (**Show all** 
 Save refuses a depth that isn't 0 to 6, a path that isn't a folder, and an empty list (desk needs
 one folder to find organizations). Saving the folders also reloads the organizations.
 
-## Phone
+## Telegram
+
+Desk Control: the Telegram bot that brings cards that need you to your phone (see
+[Your phone](/sessions/phone/)), and a forum group per organization. It's settings.toml's
+`[telegram]` (an older `[phone]` moves there by itself). The page has three parts.
+
+### Bot
 
 <figure class="cut">
 
-![The Phone page: the bot token from Environment variable DESK_TELEGRAM_TOKEN, "Not paired: send /start to your bot within 10 minutes of starting desk", and the switch Also while desk has the focus](../../../assets/shots/orgs-settings-phone-page.png)
+![The Telegram page's Bot part: "Not paired: send /start to your bot within 10 minutes of starting desk. That chat becomes the General chat.", the bot token from Environment variable DESK_TELEGRAM_TOKEN, and the switch Also while desk has the focus](../../../assets/shots/orgs-settings-telegram-bot.png)
 
 <figcaption>A bot token, not paired yet.</figcaption>
 </figure>
 
-The Telegram bot that brings cards that need you to your phone (see [Your phone](/sessions/phone/)),
-settings.toml's `[phone]`:
-
 - **Bot token**: where the bot's token comes from: **None**, **Environment variable**,
   **Command**, or **In settings.toml**.
-- The pairing: **Paired with Telegram chat N** with **Unpair** (on Save, a `/start` within
-  10 minutes pairs a chat), or *Not paired: send /start to your bot within 10 minutes of starting desk.*
+- The pairing: **Paired with Telegram chat N: the General chat** with **Unpair** (on Save, a
+  `/start` within 10 minutes pairs a chat), or *Not paired: send /start to your bot within 10
+  minutes of starting desk.*
 - **Also while desk has the focus**: off, the phone hears from desk only while no desk window is in
   front.
+
+### Your account, for setup
+
+<figure class="cut">
+
+![The account part: Not logged in with Log in, App api_id 1234567, App api_hash from Environment variable DESK_TELEGRAM_API_HASH, Your phone number, and Folder](../../../assets/shots/orgs-settings-telegram-account.png)
+
+<figcaption>Saved, not logged in yet.</figcaption>
+</figure>
+
+A bot can't make groups or folders; your own Telegram account can. desk logs in as you only to set
+Desk Control up:
+
+- **App api_id** and **App api_hash**: an app of yours, from
+  [my.telegram.org](https://my.telegram.org) → **API development tools**. The hash comes from an
+  environment variable, a command or settings.toml.
+- **Your phone number**, as Telegram knows it.
+- **Folder**: the chat folder's name, **Desk Control** unless you name it (12 characters at most:
+  Telegram's limit).
+
+**Save**, then **Log in**: the code Telegram sends you and, when your account has one, its 2FA
+password are asked right there, and go from this window to Telegram only. The session is kept in
+desk's state folder (`~/.local/state/desk/telegram.session`), readable by you alone; **Log out**
+ends it at Telegram and removes it.
+
+### Organizations
+
+<figure class="cut">
+
+![The Organizations part: Acme on Full, Globex on Notify, Initech Off, each "no group yet", the note on what each means, and Set up / Repair](../../../assets/shots/orgs-settings-telegram-more-orgs.png)
+
+<figcaption>Acme mirrored fully, Globex only what needs you.</figcaption>
+</figure>
+
+What each organization's group gets: **Off**, **Notify** (the cards that need you), **Summary**
+(also Claude's replies) or **Full** (the whole session, its tools and diffs). Telegram chats aren't
+end-to-end encrypted, so what goes there is on Telegram's servers: each organization is off until
+you turn it on.
+
+**Set up / Repair** makes what's missing: a private forum group for each organization that isn't
+off, with the bot as an admin that manages topics, then the folder holding the bot's chat and
+those groups. Running it again only adds what's new. Next to each organization, *group ready* or
+*no group yet*.
+
+Without logging in, make a group yourself: turn on **Topics** in its settings, add the bot as an
+admin, and send `/link Acme` in it (only from your own account, the one paired with the bot). The
+organization shows *linked by hand*; add that group to the folder yourself.
 
 ## Diagnostics
 

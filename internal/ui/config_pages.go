@@ -9,12 +9,14 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/tgsetup"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -34,7 +36,7 @@ type cfgPart struct {
 var deskParts = []cfgPart{
 	{"general", "General", "Who you are, the languages new cards start with, and the text size.", "who am i me languages card chat text size zoom"},
 	{"folders", "Search folders", "The folders desk searches for organizations.", "folders depth only toml root organizations scan"},
-	{"phone", "Phone", "A Telegram bot that brings cards that need you to your phone while desk isn't in front of you.", "phone telegram bot token pair chat always notify"},
+	{"telegram", "Telegram", "Desk Control: a bot for the cards that need you, and a group per organization with a topic per card.", "telegram phone bot token pair chat always notify account api folder group forum topic mirror desk control"},
 	{"diag", "Diagnostics", "Where desk reports its own crashes.", "diagnostics new relic license crash telemetry"},
 }
 
@@ -50,12 +52,19 @@ var orgParts = []cfgPart{
 	{"me", "About me", "Who you are in this organization, for its Claudes.", "about me who am i role"},
 }
 
-// phoneKind and diagKind are settings.toml's [phone] and [newrelic] as
-// entries, drawn and checked as an account's fields are.
+// phoneKind, tgAcctKind and diagKind are settings.toml's [telegram] (the
+// bot, then the account for setup) and [newrelic] as entries, drawn and
+// checked as an account's fields are.
 var (
-	phoneKind = cfgKind{"phone", "Phone", []cfgField{
+	phoneKind = cfgKind{"phone", "Telegram bot", []cfgField{
 		{key: "token", label: "Bot token", secret: "."},
 		{key: "always", label: "Also while desk has the focus", hint: "off: only while no desk window is in front", toggle: true},
+	}}
+	tgAcctKind = cfgKind{"tgacct", "Telegram account", []cfgField{
+		{key: "api_id", label: "App api_id", hint: "from my.telegram.org → API development tools", num: true},
+		{key: "api_hash", label: "App api_hash", secret: "api_hash"},
+		{key: "phone_number", label: "Your phone number", hint: "+1 555 0100, as Telegram knows it"},
+		{key: "folder", label: "Folder", hint: "Desk Control (12 characters at most)"},
 	}}
 	diagKind = cfgKind{"diag", "Diagnostics", []cfgField{
 		{key: "license_key", label: "New Relic license key", hint: "empty: nothing is sent"},
@@ -119,8 +128,8 @@ func (u *ui) cfgShown() (title, sub string, body layout.Widget) {
 		p := partOf(d.org, d.page())
 		body = u.cfgFolderPage
 		switch p.key {
-		case "phone":
-			body = u.cfgPhone
+		case "telegram":
+			body = u.cfgTelegram
 		case "diag":
 			body = u.cfgDiag
 		}
@@ -494,32 +503,76 @@ func (u *ui) cfgTriggers(gtx layout.Context) layout.Dimensions {
 	})
 }
 
-// loadPhone is settings.toml's [phone] and [newrelic] as entries.
-func loadPhone() (phone, diag *cfgEntry) {
-	p, nr := orgs.PhoneSettings(), orgs.Telemetry()
-	raw := map[string]any{"token": p.Token, "token_env": p.TokenEnv, "token_cmd": p.TokenCmd, "always": p.Always, "chat_id": p.Chat}
+// loadPhone is settings.toml's [telegram] (the bot, the account and each
+// organization's mirror as "mirror.<org>") and [newrelic] as entries.
+func loadPhone() (phone, acct, diag *cfgEntry) {
+	t, nr := orgs.TelegramSettings(), orgs.Telemetry()
+	raw := map[string]any{"token": t.Token, "token_env": t.TokenEnv, "token_cmd": t.TokenCmd, "always": t.Always, "chat_id": t.Chat}
 	phone = newEntry(phoneKind.key, raw)
+	ar := map[string]any{"api_hash": map[string]any{"token": t.APIHash.Token, "token_env": t.APIHash.TokenEnv, "token_cmd": t.APIHash.TokenCmd},
+		"phone_number": t.Number, "folder": t.Folder}
+	if t.APIID != 0 {
+		ar["api_id"] = t.APIID
+	}
+	acct = newEntry(tgAcctKind.key, ar)
+	for org, o := range t.Orgs {
+		acct.ed("mirror." + org).SetText(o.Mirror)
+	}
 	diag = newEntry(diagKind.key, map[string]any{"license_key": nr.LicenseKey, "app_name": nr.AppName})
 	diag.ed("license_key").Mask = '•'
-	return phone.kept(), diag.kept()
+	return phone.kept(), acct.kept(), diag.kept()
 }
 
-// savePhone writes [phone] and [newrelic] when they changed.
+// secretOf is e's secret f (its sub-table's key, "." its own) as the
+// source picked shows it.
+func secretOf(e *cfgEntry, f string) (s orgs.Secret) {
+	switch e.src[f] {
+	case srcEnv:
+		s.TokenEnv = e.text(f + ".token_env")
+	case srcCmd:
+		s.TokenCmd = e.text(f + ".token_cmd")
+	case srcFile:
+		s.Token = e.text(f + ".token")
+	}
+	return s
+}
+
+// savePhone writes [telegram] and [newrelic] when they changed, keeping
+// what Settings doesn't edit (the groups made, the folder's id).
 func (d *cfgDialog) savePhone() error {
-	if e := d.phone; e != nil && e.edited() {
-		p := orgs.Phone{Always: e.on["always"]}
-		if !e.on["unpair"] { // as it is now: a /start may have paired one since the page opened
-			p.Chat = orgs.PhoneSettings().Chat
+	p, a := d.phone, d.tgacct
+	if (p != nil && p.edited()) || (a != nil && a.edited()) {
+		t := orgs.TelegramSettings()
+		if p != nil {
+			chat := t.Chat // as it is now: a /start may have paired one since the page opened
+			if p.on["unpair"] {
+				chat = 0
+			}
+			t.Phone = orgs.Phone{Secret: secretOf(p, "."), Chat: chat, Always: p.on["always"]}
 		}
-		switch e.src["."] {
-		case srcEnv:
-			p.TokenEnv = e.text("..token_env")
-		case srcCmd:
-			p.TokenCmd = e.text("..token_cmd")
-		case srcFile:
-			p.Token = e.text("..token")
+		if a != nil {
+			id, err := strconv.Atoi(cmp.Or(a.text("api_id"), "0"))
+			if err != nil {
+				d.errAt = "telegram"
+				return fmt.Errorf("the app's api_id is a number, from my.telegram.org")
+			}
+			if n := utf8.RuneCountInString(a.text("folder")); n > tgsetup.FolderMax {
+				d.errAt = "telegram"
+				return fmt.Errorf("a Telegram folder's name is %d characters at most", tgsetup.FolderMax)
+			}
+			t.APIID, t.APIHash, t.Number, t.Folder = id, secretOf(a, "api_hash"), a.text("phone_number"), a.text("folder")
+			for k, ed := range a.eds {
+				if org, ok := strings.CutPrefix(k, "mirror."); ok {
+					if t.Orgs == nil {
+						t.Orgs = map[string]orgs.TelegramOrg{}
+					}
+					o := t.Orgs[org]
+					o.Mirror = ed.Text()
+					t.Orgs[org] = o
+				}
+			}
 		}
-		if err := orgs.SavePhone(p); err != nil {
+		if err := orgs.SaveTelegram(t); err != nil {
 			return err
 		}
 	}
@@ -529,15 +582,15 @@ func (d *cfgDialog) savePhone() error {
 	return nil
 }
 
-// cfgPhone is the Phone part: whether a chat is paired, the bot's token,
-// when it sends.
-func (u *ui) cfgPhone(gtx layout.Context) layout.Dimensions {
+// cfgTelegram is the Telegram part: the bot and its pairing, the account
+// that sets Desk Control up, and what each organization's group gets.
+func (u *ui) cfgTelegram(gtx layout.Context) layout.Dimensions {
 	k, d := u.k, u.cfg
 	e := d.phone
 	chat, _ := e.raw["chat_id"].(int64)
-	state, tone := "Not paired: send /start to your bot within 10 minutes of starting desk.", kit.CText3
+	state, tone := "Not paired: send /start to your bot within 10 minutes of starting desk. That chat becomes the General chat.", kit.CText3
 	if chat != 0 && !e.on["unpair"] {
-		state, tone = fmt.Sprintf("Paired with Telegram chat %d", chat), kit.CGreen
+		state, tone = fmt.Sprintf("Paired with Telegram chat %d: the General chat", chat), kit.CGreen
 	} else if e.on["unpair"] {
 		state, tone = "Unpaired on Save: then send /start within 10 minutes to pair a chat.", kit.COrange
 	}
@@ -558,13 +611,28 @@ func (u *ui) cfgPhone(gtx layout.Context) layout.Dimensions {
 		}
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, kids...)
 	}
+	note := func(s string) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions { return k.Label(gtx, s, 12, kit.CText3, kit.Sans, 0) })
+	}
 	return d.list.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(head), layout.Rigid(kit.VGap(16)),
+			layout.Rigid(k.Lbl("Bot", 15, kit.CText, kit.Sans)), layout.Rigid(kit.VGap(8)),
+			layout.Rigid(head), layout.Rigid(kit.VGap(12)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.cfgFields(gtx, "cfgPhone", e) }),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return k.Label(gtx, "Make the bot with @BotFather in Telegram. Permission requests come with Allow and Deny, questions with their options, and a reply to a card's message goes to its Claude. A new token counts once desk starts again.", 12, kit.CText3, kit.Sans, 0)
-			}))
+			note("Make the bot with @BotFather in Telegram. Permission requests come with Allow and Deny, questions with their options, and a reply to a card's message goes to its Claude. A new token counts once desk starts again."),
+			layout.Rigid(kit.VGap(24)),
+			layout.Rigid(k.Lbl("Your account, for setup", 15, kit.CText, kit.Sans)), layout.Rigid(kit.VGap(8)),
+			layout.Rigid(u.tgAccountRow),
+			layout.Rigid(kit.VGap(12)),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.cfgFields(gtx, "cfgTgAcct", d.tgacct) }),
+			note("A bot can't make groups or folders, your account can: desk logs in as you only to make the Desk Control folder and each organization's group, with the bot as their admin. The code and password go to Telegram from this window and nowhere else; the session stays in desk's state folder, readable by you alone. Without logging in, make a forum group yourself, add the bot as an admin, and send /link Acme in it."),
+			layout.Rigid(kit.VGap(24)),
+			layout.Rigid(k.Lbl("Organizations", 15, kit.CText, kit.Sans)), layout.Rigid(kit.VGap(8)),
+			layout.Rigid(u.tgOrgRows),
+			note("Notify: the cards that need you. Summary: also Claude's replies. Full: the whole session, its tools and diffs. Telegram chats aren't end-to-end encrypted, so what goes there is on Telegram's servers."),
+			layout.Rigid(kit.VGap(12)),
+			layout.Rigid(u.tgSetupRow),
+		)
 	})
 }
 

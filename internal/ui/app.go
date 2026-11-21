@@ -160,6 +160,7 @@ type ui struct {
 	rvGen      int                           // bumped when a Review's state changes
 	wtTried    map[string]bool               // cards whose worktree was made or tried this run
 	phone      *phoneState                   // the phone's Telegram bot (phone.go), nil none
+	tg         tgState                       // Settings' Telegram part: login and setup (telegram_setup.go)
 	turnAt     map[string]time.Time          // when each card's running turn started (Session.Work)
 	logging    map[string]bool               // cards whose work time is being logged on their ticket
 	dgSpan     int                           // the Digest's span (digest.go)
@@ -463,7 +464,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, u.exit != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver, fmt.Sprint(u.chatImgs), fmt.Sprint(u.via), len(u.tkSel), u.pilotDlg.sig(), u.rvGen, u.dgSpan)
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, u.exit != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, u.wsEd, u.wsGrips[0].dragging, u.wsGrips[1].dragging, orgs.Zoom(), u.drawGen, u.drawSig(), u.arch.ver, fmt.Sprint(u.chatImgs), fmt.Sprint(u.via), len(u.tkSel), u.pilotDlg.sig(), u.rvGen, u.dgSpan, u.tg.sig())
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -108,6 +109,12 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 		m = up.Callback.Message
 	}
 	if ph == nil || m == nil {
+		return
+	}
+	if t := m.Chat.Type; t == "group" || t == "supergroup" {
+		if up.Message != nil && ph.chat != 0 && m.From.ID == ph.chat && strings.HasPrefix(m.Text, "/link") {
+			u.phoneLink(m) // only the paired chat's own user: a private chat's id is its user's
+		}
 		return
 	}
 	if ph.chat == 0 {
@@ -236,4 +243,47 @@ func (u *ui) anyFocused() bool {
 		}
 	}
 	return false
+}
+
+// phoneLink is /link Acme in a group the user made: that forum group is
+// the organization's in Desk Control, mirrored fully unless Settings says
+// how already. A group desk didn't make can't go in the folder.
+func (u *ui) phoneLink(m *tgbot.Message) {
+	name := strings.TrimSpace(strings.TrimPrefix(m.Text, "/link"))
+	if strings.HasPrefix(name, "@") { // /link@desk_bot Acme
+		_, name, _ = strings.Cut(name, " ")
+		name = strings.TrimSpace(name)
+	}
+	i := slices.IndexFunc(u.orgList, func(o string) bool { return strings.EqualFold(o, name) })
+	var reply string
+	switch {
+	case name == "":
+		reply = "Say which organization: /link Acme"
+	case i < 0:
+		reply = "desk has no organization called " + name + ". It has: " + strings.Join(u.orgList, ", ") + "."
+	case !m.Chat.IsForum:
+		reply = "Turn on Topics in this group's settings first, then /link again: each card gets a topic."
+	default:
+		org := u.orgList[i]
+		o := orgs.TelegramSettings().Orgs[org]
+		if o.Chat != m.Chat.ID {
+			o.Channel, o.Access = 0, 0
+		}
+		o.Chat = m.Chat.ID
+		if o.Mirror == orgs.MirrorOff {
+			o.Mirror = orgs.MirrorFull
+		}
+		if err := orgs.SetTelegramOrg(org, o); err != nil {
+			reply = "Not linked: " + firstLine(err.Error())
+			break
+		}
+		reply = "Linked: this group is " + org + "'s in desk. Its cards get a topic each."
+		u.showToast("Telegram: a group linked to "+org, false)
+	}
+	bot, chat, thread := u.phone.bot, m.Chat.ID, m.Thread
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		bot.Post(ctx, tgbot.Out{Chat: chat, Thread: thread, Text: reply})
+	}()
 }

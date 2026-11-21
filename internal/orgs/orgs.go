@@ -448,7 +448,8 @@ type settings struct {
 	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
 	Me       string            `toml:"me,omitempty"`        // who the user is, told to every Claude desk starts (AboutMe)
 	NewRelic NewRelic          `toml:"newrelic,omitempty"`  // where desk reports its own crashes and performance (internal/telemetry)
-	Phone    Phone             `toml:"phone,omitempty"`     // a Telegram bot that brings cards' questions to the user's phone (ui's phone.go)
+	Phone    Phone             `toml:"phone,omitempty"`     // an older settings.toml's bot, moved to Telegram's by migrateTelegram
+	Telegram Telegram          `toml:"telegram,omitempty"`  // Desk Control (telegram.go)
 }
 
 // Phone is settings.toml's [phone]: the Telegram bot desk talks to the
@@ -461,13 +462,13 @@ type Phone struct {
 	Always bool  `toml:"always,omitempty"` // also while a desk window has the focus
 }
 
-// PhoneSettings is settings.toml's [phone].
-func PhoneSettings() Phone { return loadSettings().Phone }
+// PhoneSettings is the bot of settings.toml's [telegram].
+func PhoneSettings() Phone { return loadSettings().Telegram.Phone }
 
-// SavePhone keeps [phone] as p, the rest as it is.
+// SavePhone keeps [telegram]'s bot as p, the rest as it is.
 func SavePhone(p Phone) error {
 	s := loadSettings()
-	s.Phone = p
+	s.Telegram.Phone = p
 	return saveSettings(s)
 }
 
@@ -481,7 +482,7 @@ func SaveTelemetry(n NewRelic) error {
 // SetPhoneChat pairs the phone's chat, the rest as it is.
 func SetPhoneChat(chat int64) error {
 	s := loadSettings()
-	s.Phone.Chat = chat
+	s.Telegram.Chat = chat
 	return saveSettings(s)
 }
 
@@ -523,6 +524,7 @@ func AboutMe(root, org string) string {
 
 func loadSettings() (s settings) {
 	toml.DecodeFile(SettingsFile(), &s) // missing or unreadable: the defaults
+	migrateTelegram(&s)
 	return s
 }
 
@@ -550,6 +552,7 @@ func SaveKeys(m map[string]string) error {
 	if _, err := toml.DecodeFile(SettingsFile(), &s); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
+	migrateTelegram(&s)
 	s.Keys = m
 	return saveSettings(s)
 }

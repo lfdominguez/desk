@@ -43,7 +43,7 @@ func (u *ui) loadFolders(d *cfgDialog) {
 	d.langs.eds["me"] = &widget.Editor{} // several lines
 	d.langs.ed("me").SetText(orgs.Me())
 	d.langs.old, d.langs.base = true, d.langs.snap()
-	d.phone, d.diag = loadPhone()
+	d.phone, d.tgacct, d.diag = loadPhone()
 	for _, f := range orgs.Folders(u.root) {
 		p := f.Path
 		if rest, ok := strings.CutPrefix(p, u.home); ok && (rest == "" || rest[0] == filepath.Separator) {

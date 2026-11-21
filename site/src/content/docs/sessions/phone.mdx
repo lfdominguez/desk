@@ -15,34 +15,42 @@ to the internet. It stops when desk quits.
 1. In Telegram, talk to **@BotFather**, send `/newbot` and follow it. It gives you the bot's
    token, `123456:ABC…`. Keep it to yourself: whoever has it can talk as the bot.
 2. Give desk the token, from an environment variable or a command rather than as text when you
-   can. In [Settings](/orgs/settings/#phone) → **Phone**, pick where **Bot token** comes from
-   (**Environment variable**, **Command** or **In settings.toml**), or write it in
+   can. In [Settings](/orgs/settings/#telegram) → **Telegram**, pick where **Bot token** comes
+   from (**Environment variable**, **Command** or **In settings.toml**), or write it in
    `~/.config/desk/settings.toml`:
 
    ```toml
-   [phone]
+   [telegram]
    token_env = "DESK_TELEGRAM_TOKEN"   # or token_cmd = "pass show desk/telegram", or token = "…"
    ```
 
+   An older `[phone]` table works too: desk moves it to `[telegram]` the next time it saves its
+   settings.
+
    <figure class="cut">
 
-   ![The Phone page in Settings: the bot token from Environment variable DESK_TELEGRAM_TOKEN, "Not paired: send /start to your bot within 10 minutes of starting desk", and the switch Also while desk has the focus](../../../assets/shots/orgs-settings-phone-page.png)
+   ![The Telegram page's Bot part in Settings: "Not paired: send /start to your bot within 10 minutes of starting desk. That chat becomes the General chat.", the bot token from Environment variable DESK_TELEGRAM_TOKEN, and the switch Also while desk has the focus](../../../assets/shots/orgs-settings-telegram-bot.png)
 
    <figcaption>The token set, not paired yet.</figcaption>
    </figure>
 
 3. Start desk, open your bot in Telegram and send it `/start` within 10 minutes. desk pairs that
    chat, says so in a toast and in the chat, and writes its `chat_id` into `settings.toml`. After
-   that, the bot ignores every other chat. The Phone page then says **Paired with Telegram chat N**.
+   that, the bot ignores every other private chat. The Telegram page then says **Paired with
+   Telegram chat N: the General chat**.
 
-To pair another chat, click **Unpair** on the Phone page and **Save**, then send `/start` from that
-chat within 10 minutes. A new token counts once desk starts again.
+To pair another chat, click **Unpair** on the Telegram page and **Save**, then send `/start` from
+that chat within 10 minutes. A new token counts once desk starts again.
+
+The same page sets up Desk Control: your own account makes a chat folder and a forum group per
+organization, with this bot as their admin (see [Settings → Telegram](/orgs/settings/#telegram)).
 
 ## What comes to the phone
 
 The same moments as desk's desktop notifications: a card turns to your turn, blocked, failed or
 ready for review. By default only while no desk window has the focus; **Also while desk has the
-focus** on the Phone page (`always = true` under `[phone]`) sends them while you're at desk too.
+focus** on the Telegram page (`always = true` under `[telegram]`) sends them while you're at desk
+too.
 
 | On the phone | What you can do |
 |---|---|

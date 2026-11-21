@@ -8,7 +8,7 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Changed
 
-- **Settings, rebuilt**: desk's own pages (General, Search folders, Phone, Keyboard shortcuts,
+- **Settings, rebuilt**: desk's own pages (General, Search folders, Telegram, Keyboard shortcuts,
   Diagnostics) come first, then each organization opens in the nav to a page per part
   (Accounts, Ticket workflow, Git & review, Triggers, Models, Company, Servers, About me) instead
   of one long page; a search box finds a page by what's on it. New there: the phone's Telegram bot
@@ -27,10 +27,14 @@ day). A release's section here is its notes on GitHub. The format follows
   request tells its Claude to fix it, a monitoring alert that lasts opens an investigation card,
   and a schedule makes a card at a time of day on chosen days. Nothing is done twice, and a new
   trigger doesn't act on what was already there.
-- **Your phone**: a Telegram bot (its token under `[phone]` in `settings.toml`, paired by sending
-  it `/start`) brings cards that need you to your phone while desk isn't in front of you.
+- **Your phone**: a Telegram bot (its token under `[telegram]` in `settings.toml`, paired by
+  sending it `/start`) brings cards that need you to your phone while desk isn't in front of you.
   Permission requests come with Allow and Deny, a question's options as buttons, and a reply to a
   card's message goes to its Claude.
+- **Desk Control setup**: Settings → Telegram logs in as your own Telegram account (the code and
+  2FA password asked in desk) to make a "Desk Control" chat folder and a private forum group per
+  organization you turn on, with the bot as their admin; or send `/link Acme` in a group you made.
+  Each organization is off until you pick what its group gets: Notify, Summary or Full.
 - **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
   in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
   session's new Review button shows the branch's commits and every changed file as a diff, and
