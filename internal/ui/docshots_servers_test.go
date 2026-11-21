@@ -270,8 +270,9 @@ func init() {
 			srvClaude()
 			s.infra()
 			s.u.openConfig("Acme")
+			s.u.cfg.set.sub["Acme"] = "servers"
 			s.settle()
-			part := dp(446, 284, 1088, 393)
+			part := dp(466, 96, 1388, 330)
 			s.shot("srv-asbru-page", cut{"servers", part, true})
 			s.click("cfgAsbru")
 			s.shot("srv-asbru-pick", cut{"servers", part, true})

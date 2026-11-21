@@ -21,6 +21,7 @@ func TestConfigAsbru(t *testing.T) {
 	asbruFile = func() string { return src }
 	defer func() { asbruFile = f0 }()
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "servers"
 	h.frame()
 	c0 := asbruCurrent
 	asbruCurrent = func(f string) error {

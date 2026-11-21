@@ -20,6 +20,7 @@ func TestConfigKeepLogin(t *testing.T) {
 		h := newHarness(t)
 		h.orgToml("Acme", tc.file)
 		h.u.openConfig("Acme")
+		h.u.cfg.set.sub["Acme"] = "servers"
 		h.frame()
 		was := h.u.cfg.opts.on["keep_login"]
 		if was != strings.Contains(tc.file, "clear_login = false") {

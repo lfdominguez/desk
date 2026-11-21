@@ -29,6 +29,7 @@ func TestConfigMe(t *testing.T) {
 
 	h.orgToml("Acme", "[me]\nlater = 1\n")
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "me"
 	sz, all, w := modelsHarness(h)
 	h.draw(sz, w)
 	d = h.u.cfg
@@ -45,12 +46,14 @@ func TestConfigMe(t *testing.T) {
 		t.Fatalf("%q %q", d.err, orgs.AboutMe(h.u.root, "Acme"))
 	}
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "me"
 	d = h.u.cfg
 	d.me.on["extend"] = true
 	if h.u.saveOrg(d); orgs.AboutMe(h.u.root, "Acme") != "I write Go.\n\nOnly a reviewer here." {
 		t.Fatalf("extended: %q", orgs.AboutMe(h.u.root, "Acme"))
 	}
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "me"
 	d = h.u.cfg
 	d.me.ed("about").SetText("")
 	h.u.saveOrg(d)
@@ -59,6 +62,7 @@ func TestConfigMe(t *testing.T) {
 	}
 	h.orgToml("Acme", "")
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "me"
 	d = h.u.cfg
 	d.me.ed("about").SetText("x")
 	d.me.ed("about").SetText("")

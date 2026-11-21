@@ -43,6 +43,7 @@ func (u *ui) loadFolders(d *cfgDialog) {
 	d.langs.eds["me"] = &widget.Editor{} // several lines
 	d.langs.ed("me").SetText(orgs.Me())
 	d.langs.old, d.langs.base = true, d.langs.snap()
+	d.phone, d.diag = loadPhone()
 	for _, f := range orgs.Folders(u.root) {
 		p := f.Path
 		if rest, ok := strings.CutPrefix(p, u.home); ok && (rest == "" || rest[0] == filepath.Separator) {
@@ -78,17 +79,17 @@ func (u *ui) saveFolders(d *cfgDialog) bool {
 		p := e.text("path")
 		depth, err := strconv.Atoi(cmp.Or(e.text("depth"), "2"))
 		if err != nil || depth < 0 || depth > 6 {
-			d.err = cmp.Or(p, "A folder") + ": its depth is a number from 0 to 6"
+			d.err, d.errAt = cmp.Or(p, "A folder")+": its depth is a number from 0 to 6", "folders"
 			return false
 		}
 		if fi, err := os.Stat(orgs.Expand(p)); !filepath.IsAbs(orgs.Expand(p)) || err != nil || !fi.IsDir() {
-			d.err = cmp.Or(p, "An empty path") + " is not a folder (give its full path, or one from ~)"
+			d.err, d.errAt = cmp.Or(p, "An empty path")+" is not a folder (give its full path, or one from ~)", "folders"
 			return false
 		}
 		fs = append(fs, orgs.Folder{Path: p, Root: e.on["root"], OnlyToml: e.on["only_toml"], Depth: depth})
 	}
 	if len(fs) == 0 {
-		d.err = "Add a folder: desk needs one to find organizations"
+		d.err, d.errAt = "Add a folder: desk needs one to find organizations", "folders"
 		return false
 	}
 	err := orgs.SaveFolders(fs)
@@ -97,6 +98,12 @@ func (u *ui) saveFolders(d *cfgDialog) bool {
 	}
 	if err == nil && d.langs.edited() {
 		err = orgs.SaveMe(d.langs.text("me"))
+	}
+	if err == nil {
+		err = d.savePhone()
+	}
+	if err == nil {
+		u.phoneSettled()
 	}
 	if err != nil {
 		d.err = "Not saved: " + firstLine(err.Error())
@@ -240,6 +247,11 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 			})
 		},
 		u.cfgPreview,
+	}
+	if d.page() == "general" { // who, languages, text size; the rest is Search folders
+		items = items[:3]
+	} else {
+		items = items[3:]
 	}
 	return d.list.Layout(gtx, len(items), func(gtx layout.Context, i int) layout.Dimensions { return items[i](gtx) })
 }

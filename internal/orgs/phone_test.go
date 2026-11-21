@@ -23,4 +23,13 @@ func TestPhone(t *testing.T) {
 	if p := PhoneSettings(); p.Chat != 42 || p.TokenEnv != "TG_TOKEN" || Me() != "a dev" {
 		t.Fatalf("after pairing %+v %q", p, Me())
 	}
+	if err := SavePhone(Phone{Secret: Secret{TokenCmd: "pass tg"}, Always: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveTelemetry(NewRelic{LicenseKey: "k", AppName: "a"}); err != nil {
+		t.Fatal(err)
+	}
+	if p, nr := PhoneSettings(), Telemetry(); p.TokenCmd != "pass tg" || p.Chat != 0 || nr.LicenseKey != "k" || Me() != "a dev" {
+		t.Fatalf("%+v %+v", p, nr)
+	}
 }

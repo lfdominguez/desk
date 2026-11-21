@@ -44,6 +44,16 @@ func orgsAway(s *shooter) {
 	s.settle()
 }
 
+// orgsOpen shows organization o's Accounts in the settings, open in the
+// nav (a click on the open one would fold it).
+func orgsOpen(s *shooter, o string) {
+	if s.u.cfg.org != o || s.u.cfg.page() != "accounts" {
+		s.click("cfgOrg" + o)
+	}
+	s.u.cfg.set.open[o] = true
+	s.settle()
+}
+
 // orgsCard is the id of the demo card titled title.
 func orgsCard(s *shooter, title string) string {
 	for _, c := range s.u.boardCards() {
@@ -82,23 +92,77 @@ func init() {
 			os.MkdirAll(filepath.Join(home, "Work", "scratch"), 0o755)
 			s.click("sideOrgCfg")
 			s.click("cfgOrg" + cfgFolders)
-			id := orgsEntryID(s, 0)
 			s.shot("orgs-settings-general",
-				cut{"nav", dp(204, 58, 428, 320), true},
-				cut{"me", dp(446, 100, 1388, 238), false},
-				cut{"langs", dp(446, 244, 1388, 338), false}, // under the 144dp Who am I?
-				cut{"zoom", dp(446, 342, 1388, 412), false},
-				cut{"folder", dp(446, 452, 1388, 558), false}, // under the 72dp Text size row
+				cut{"nav", dp(202, 40, 450, 322), true},
+				cut{"me", dp(466, 100, 1388, 238), false},
+				cut{"langs", dp(466, 244, 1388, 338), false}, // under the 144dp Who am I?
+				cut{"zoom", dp(466, 342, 1388, 412), false},
 			)
+			s.click("cfgSub" + cfgFolders + "/folders")
+			id := orgsEntryID(s, 0)
+			s.shot("orgs-settings-folders", cut{"folder", dp(466, 96, 1388, 210), false})
 			s.click(id + "only_toml")
-			s.shot("orgs-settings-only", cut{"preview", dp(446, 452, 1388, 718), false})
+			s.shot("orgs-settings-only", cut{"preview", dp(466, 96, 1388, 410), false})
+		}},
+		scene{"orgs-settings-phone", func(s *shooter) {
+			s.click("sideOrgCfg")
+			s.click("cfgSub" + cfgFolders + "/phone")
+			e := s.u.cfg.phone
+			e.src["."] = srcEnv
+			e.ed("..token_env").SetText("DESK_TELEGRAM_TOKEN")
+			orgsAway(s)
+			s.shot("orgs-settings-phone", cut{"page", dp(466, 48, 1388, 340), false})
+			s.click("cfgSub" + cfgFolders + "/diag")
+			orgsAway(s)
+			s.shot("orgs-settings-diag", cut{"page", dp(466, 48, 1388, 260), false})
+		}},
+		scene{"orgs-settings-search", func(s *shooter) {
+			s.click("sideOrgCfg")
+			s.u.cfg.set.q.SetText("worktree")
+			orgsAway(s)
+			s.shot("orgs-settings-search", cut{"nav", dp(202, 40, 450, 200), true})
+		}},
+		scene{"orgs-settings-git", func(s *shooter) {
+			s.click("sideOrgCfg")
+			orgsOpen(s, "Acme")
+			s.click("cfgSubAcme/git")
+			s.click("cfgWorktrees")
+			orgsAway(s)
+			s.shot("orgs-settings-git", cut{"page", dp(466, 48, 1388, 240), false})
+			s.click("cfgSubAcme/company")
+			s.u.cfg.comp.ed("card_budget").SetText("5")
+			s.u.cfg.comp.ed("day_budget").SetText("40")
+			orgsAway(s)
+			s.shot("orgs-settings-company", cut{"budgets", dp(466, 48, 1388, 230), false})
+		}},
+		scene{"orgs-settings-triggers", func(s *shooter) {
+			s.click("sideOrgCfg")
+			orgsOpen(s, "Acme")
+			s.click("cfgSubAcme/triggers")
+			for _, t := range []map[string]any{
+				{"name": "New tickets", "on": "ticket", "project": "ABC", "start": true},
+				{"name": "Fix red CI", "on": "ci_failed"},
+			} {
+				s.u.cfg.entries = append(s.u.cfg.entries, newEntry("trigger", t))
+			}
+			s.click("cfgAddtrigger")
+			e := s.u.cfg.entries[len(s.u.cfg.entries)-1]
+			e.ed("name").SetText("Weekly audit")
+			e.ed("on").SetText("schedule")
+			e.ed("at").SetText("09:00")
+			e.ed("days").SetText("mon")
+			e.ed("title").SetText("Dependency audit")
+			e.ed("column").SetText("Backlog")
+			s.u.cfg.list.ScrollTo(0)
+			orgsAway(s)
+			s.shot("orgs-settings-triggers", cut{"page", dp(466, 48, 1388, 860), false})
 		}},
 		scene{"orgs-settings-keys", func(s *shooter) {
 			s.click("sideOrgCfg")
 			s.click("cfgOrg" + cfgKeys)
-			s.shot("orgs-settings-keys", cut{"nav", dp(204, 58, 428, 320), true})
+			s.shot("orgs-settings-keys", cut{"nav", dp(202, 40, 450, 322), true})
 			s.click("keyChangeboard.new")
-			page := dp(446, 0, 1388, 0)
+			page := dp(466, 0, 1388, 0)
 			r := s.at("keyChangeboard.new")
 			s.shot("orgs-settings-keys-change", cut{"row", image.Rect(page.Min.X, r.Min.Y-int(8*shotScale), page.Max.X, r.Max.Y+int(8*shotScale)), true})
 			s.key("Z", key.ModShortcut) // undo's key: the clash shows under the row
@@ -107,15 +171,15 @@ func init() {
 		}},
 		scene{"orgs-settings-org", func(s *shooter) {
 			s.click("sideOrgCfg")
-			s.click("cfgOrgAcme")
+			orgsOpen(s, "Acme")
 			add := around(union(s.at("cfgAddvault"), s.at("cfgAddnagios")), 8)
 			orgsAway(s)
-			s.shot("orgs-settings-org", cut{"add", add, true}, cut{"bar", dp(430, 868, 1400, 916), false})
+			s.shot("orgs-settings-org", cut{"add", add, true}, cut{"bar", dp(450, 868, 1400, 916), false})
 			id := orgsEntryID(s, 1) // the Jira account
 			s.click(id + "hd")
 			orgsAway(s)
 			s.shot("orgs-settings-account",
-				cut{"token", dp(458, 386, 1376, 488), true})
+				cut{"token", dp(478, 386, 1376, 488), true})
 		}},
 		scene{"orgs-vault", func(s *shooter) {
 			s.click("sideOrgCfg")
@@ -125,7 +189,7 @@ func init() {
 			v.ed("name").SetText("globex")
 			v.ed("email").SetText("me@globex.example.com")
 			orgsAway(s)
-			s.shot("orgs-vault-form", cut{"card", dp(454, 168, 1380, 690), false})
+			s.shot("orgs-vault-form", cut{"card", dp(474, 168, 1380, 690), false})
 			gh := orgsEntryID(s, 0) // the GitHub account
 			s.u.cfg.list.ScrollTo(0)
 			s.settle()
@@ -134,7 +198,7 @@ func init() {
 			s.click(gh + ".vglobex")
 			s.u.cfg.entries[0].ed("..item").SetText("GitHub token") // the token's ("." secret) item
 			orgsAway(s)
-			s.shot("orgs-vault-item", cut{"token", dp(458, 322, 1376, 454), true})
+			s.shot("orgs-vault-item", cut{"token", dp(478, 322, 1376, 454), true})
 		}},
 		scene{"orgs-noaccount", func(s *shooter) {
 			// a PR of an owner Initech has no GitHub account for: desk never asks

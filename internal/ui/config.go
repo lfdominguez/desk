@@ -7,11 +7,11 @@ import (
 	"image/color"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"gioui.org/io/key"
 	"gioui.org/layout"
-	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/keys"
@@ -24,9 +24,11 @@ import (
 type cfgField struct {
 	key, label, hint string
 	list, toggle     bool
-	tier             bool   // a provider's model in place of Claude's key (config_models.go)
-	secret           string // "." the account's own token (keys at its top), else the sub-table's key
-	only             string // a vault's: shown for this kind only
+	num              bool     // a whole number
+	choices          []string // one of these words, picked
+	tier             bool     // a provider's model in place of Claude's key (config_models.go)
+	secret           string   // "." the account's own token (keys at its top), else the sub-table's key
+	only             string   // a vault's: shown for this kind only
 }
 
 type cfgKind struct {
@@ -59,12 +61,14 @@ var cfgKinds = []cfgKind{
 		{key: "email", label: "Email", hint: "the account the API token belongs to"},
 		{key: "projects", label: "Projects", hint: "keys like ABC, comma separated: bare keys link here", list: true},
 		{key: "token", label: "API token", secret: "."},
+		{key: "worklog", label: "Log work time on the issue at Done", toggle: true},
 	}},
 	{"linear", "Linear", []cfgField{
 		{key: "name", label: "Name", hint: "optional"},
 		{key: "workspace", label: "Workspace", hint: "acme in linear.app/acme: bare keys link there"},
 		{key: "teams", label: "Teams", hint: "keys like ENG, comma separated: bare keys link here, new tickets go in the first", list: true},
 		{key: "token", label: "API key", secret: "."},
+		{key: "worklog", label: "Work time as a comment at Done", toggle: true},
 	}},
 	{"bitbucket", "Bitbucket", []cfgField{
 		{key: "name", label: "Name", hint: "optional"},
@@ -92,10 +96,25 @@ var cfgKinds = []cfgKind{
 		{key: "sonnet", label: "In place of Sonnet", tier: true},
 		{key: "haiku", label: "In place of Haiku", tier: true},
 	}},
+	{"trigger", "Trigger", []cfgField{
+		{key: "name", label: "Name", hint: "what it is called; what it handled is kept by it"},
+		{key: "on", label: "On", choices: []string{"ticket", "ci_failed", "alert", "schedule", "digest"}},
+		{key: "project", label: "Project", hint: "ticket: only this project or team"},
+		{key: "match", label: "Match", hint: "ticket: in its title; alert: in its host or service"},
+		{key: "at", label: "At", hint: "schedule, digest: 09:00"},
+		{key: "days", label: "Days", hint: "schedule, digest: mon, thu; empty: every day", list: true},
+		{key: "after", label: "After minutes", hint: "alert: how long it has lasted first", num: true},
+		{key: "column", label: "Column", hint: "where its cards go; empty: To do"},
+		{key: "title", label: "Card title", hint: "schedule"},
+		{key: "notes", label: "Card notes", hint: "schedule: what the card is to do"},
+		{key: "start", label: "Start its Claude", toggle: true},
+		{key: "warnings", label: "Alert: warnings too", toggle: true},
+		{key: "off", label: "Off", toggle: true},
+	}},
 }
 
 // cfgAbbr is each kind's tile on its card.
-var cfgAbbr = map[string]string{"bitwarden": "BW", "passbolt": "PB", "github": "GH", "jira": "JI", "linear": "LN", "bitbucket": "BB", "gitlab": "GL", "nagios": "NG", "provider": "AI"}
+var cfgAbbr = map[string]string{"bitwarden": "BW", "passbolt": "PB", "github": "GH", "jira": "JI", "linear": "LN", "bitbucket": "BB", "gitlab": "GL", "nagios": "NG", "provider": "AI", "trigger": "TR"}
 
 var vaultKinds = []string{"bitwarden", "passbolt"}
 
@@ -133,8 +152,13 @@ type cfgDialog struct {
 	wfErr   string    // why Learn didn't, or Stopped
 	wfStop  func()    // stops Learn
 	me      *cfgEntry // an org page only: its Who am I (config_me.go)
+	git     *cfgEntry // an org page only: [git] (on["worktrees"]); comp its [company] budgets (config_pages.go)
+	comp    *cfgEntry
+	phone   *cfgEntry // cfgFolders only: settings.toml's [phone], and [newrelic] in diag, saved with the folders
+	diag    *cfgEntry
 	list    layout.List
 	err     string
+	errAt   string // the part err is about, shown when Save is refused
 	broken  bool   // the file didn't parse: saving would lose it
 	act     func() // a button's action, run after the dialog is drawn
 	open    *cfgEntry
@@ -161,7 +185,7 @@ func (d *cfgDialog) sig() string {
 	if d == nil {
 		return ""
 	}
-	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d %s %s %d %v %s", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru), d.rec, d.recErr, len(d.kdraft), d.wfBusy, d.wfErr)
+	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d %s %s %d %v %s", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru), d.rec, d.recErr, len(d.kdraft), d.wfBusy, d.wfErr) + fmt.Sprint(d.set.sub, d.set.open, d.set.q.Text())
 }
 
 type cfgSet struct {
@@ -169,6 +193,9 @@ type cfgSet struct {
 	state  map[string]int    // orgEmpty, orgOK or orgBroken, by organization
 	parent map[string]string // a nested organization's outer one
 	nav    layout.List
+	sub    map[string]string // each page's part shown (config_pages.go), by page; "" its first
+	open   map[string]bool   // the organizations open in the nav
+	q      widget.Editor     // the nav's search
 }
 
 // cfgEntry is one account (or search folder): its table as read, an editor
@@ -204,7 +231,9 @@ func (e *cfgEntry) snap() string {
 			b.WriteString(k + "=" + t + "\x00")
 		}
 	}
-	return fmt.Sprint(b.String(), e.src, e.on, e.vkind)
+	on := maps.Clone(e.on) // a switch turned on and off again is no change
+	maps.DeleteFunc(on, func(_ string, v bool) bool { return !v })
+	return fmt.Sprint(b.String(), e.src, on, e.vkind)
 }
 
 func (e *cfgEntry) edited() bool { return e.old && e.snap() != e.base }
@@ -227,8 +256,10 @@ func (d *cfgDialog) changes() int {
 	if d.wf != nil && d.wf.edited() {
 		n++
 	}
-	if d.me != nil && d.me.edited() {
-		n++
+	for _, x := range []*cfgEntry{d.me, d.phone, d.diag, d.git, d.comp} {
+		if x != nil && x.edited() {
+			n++
+		}
 	}
 	for _, e := range d.entries {
 		switch {
@@ -237,6 +268,18 @@ func (d *cfgDialog) changes() int {
 		case e.edited():
 			// counted by the n0 it stands for
 		default:
+			n--
+		}
+	}
+	return n
+}
+
+// folderChanges is d's changes to the search folders alone: the rest of
+// desk's pages don't change which organizations there are.
+func (d *cfgDialog) folderChanges() int {
+	n := d.changes()
+	for _, x := range []*cfgEntry{d.langs, d.phone, d.diag} {
+		if x != nil && x.edited() {
 			n--
 		}
 	}
@@ -259,8 +302,13 @@ func (d *cfgDialog) keep(e *cfgEntry) {
 }
 
 func kindOf(kind string) (int, cfgKind) {
-	if kind == folderKind.key {
+	switch kind {
+	case folderKind.key:
 		return len(cfgKinds), folderKind
+	case phoneKind.key:
+		return len(cfgKinds) + 1, phoneKind
+	case diagKind.key:
+		return len(cfgKinds) + 2, diagKind
 	}
 	i := slices.IndexFunc(cfgKinds, func(c cfgKind) bool { return c.key == kind })
 	if i < 0 {
@@ -304,6 +352,10 @@ func newEntry(kind string, raw map[string]any) *cfgEntry {
 				}
 			}
 			e.ed(f.secret + ".token").Mask = '•'
+		case f.num:
+			if v, ok := raw[f.key]; ok {
+				e.ed(f.key).SetText(fmt.Sprint(v))
+			}
 		case f.list:
 			var parts []string
 			if l, ok := raw[f.key].([]any); ok {
@@ -331,7 +383,8 @@ func (u *ui) openConfig(org string) {
 	if org != cfgFolders && org != cfgKeys && !slices.Contains(u.orgList, org) {
 		org = u.orgList[0]
 	}
-	s := &cfgSet{pages: map[string]*cfgDialog{}, state: map[string]int{}, parent: map[string]string{}, nav: layout.List{Axis: layout.Vertical}}
+	s := &cfgSet{pages: map[string]*cfgDialog{}, state: map[string]int{}, parent: map[string]string{}, nav: layout.List{Axis: layout.Vertical},
+		sub: map[string]string{}, open: map[string]bool{org: true}, q: widget.Editor{SingleLine: true}}
 	for _, o := range u.orgList {
 		c, err := orgs.Load(u.root, o)
 		accounts := len(c.Vaults) + len(c.GitHub) + len(c.Jira) + len(c.Linear) + len(c.Bitbucket) + len(c.GitLab) + len(c.Nagios) + len(c.Providers)
@@ -382,6 +435,7 @@ func (u *ui) loadOrg(d *cfgDialog) {
 	d.models = loadModels(raw)
 	d.wf = loadWorkflow(raw, u.boardColumns())
 	d.me = loadMe(raw)
+	d.git, d.comp = loadGit(raw)
 	for _, k := range cfgKinds {
 		tables, _ := raw[k.key].([]map[string]any)
 		for _, t := range tables {
@@ -431,15 +485,17 @@ func (u *ui) saveConfig() {
 		}
 	}
 	var saved []string
-	folders, keysSaved := false, false
+	folders, deskSaved, keysSaved := false, false, false
 	for _, p := range pages {
 		if p.changes() == 0 {
 			continue
 		}
 		var ok bool
+		p.errAt = ""
 		switch p.org {
 		case cfgFolders:
-			ok, folders = u.saveFolders(p), true
+			folders = folders || p.folderChanges() > 0 // only these need the organizations found again
+			ok, deskSaved = u.saveFolders(p), true
 		case cfgKeys:
 			ok, keysSaved = u.saveKeys(p), true
 		default:
@@ -447,6 +503,9 @@ func (u *ui) saveConfig() {
 			saved = append(saved, p.org)
 		}
 		if !ok {
+			if p.errAt != "" {
+				p.set.sub[p.org] = p.errAt
+			}
 			u.cfg = p
 			return
 		}
@@ -457,7 +516,10 @@ func (u *ui) saveConfig() {
 		return
 	}
 	if len(saved) == 0 {
-		if keysSaved {
+		switch {
+		case deskSaved:
+			u.showToast("Saved desk's settings", false)
+		case keysSaved:
 			u.showToast("Saved the keyboard shortcuts", false)
 		}
 		return
@@ -474,13 +536,13 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 	names := d.vaultNames()
 	for i, n := range names {
 		if slices.Contains(names[:i], n) {
-			d.err = "Two vaults are called " + n
+			d.err, d.errAt = "Two vaults are called "+n, "accounts"
 			return false
 		}
 	}
 	out := map[string]any{}
 	for k, v := range d.raw {
-		if i, _ := kindOf(k); i < 0 {
+		if !slices.ContainsFunc(cfgKinds, func(c cfgKind) bool { return c.key == k }) {
 			out[k] = v
 		}
 	}
@@ -492,6 +554,9 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 		return false
 	}
 	d.saveMe(out)
+	if !d.saveGit(out) {
+		return false
+	}
 	for _, e := range d.entries {
 		t := e.raw
 		if k, _ := t["kind"].(string); e.kind == "vault" && k != "" && k != "vaultwarden" && !slices.Contains(vaultKinds, k) {
@@ -522,7 +587,7 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 					}
 				}
 				if v := e.text(f.secret + ".vault"); src == srcVault && !slices.Contains(names, v) {
-					d.err = fmt.Sprintf("%s's %s: pick one of this organization's vaults", e.kind, strings.ToLower(f.label))
+					d.err, d.errAt = fmt.Sprintf("%s's %s: pick one of this organization's vaults", e.kind, strings.ToLower(f.label)), "accounts"
 					return false
 				}
 				if f.secret != "." {
@@ -531,6 +596,22 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 					} else {
 						t[f.secret] = m
 					}
+				}
+			case f.toggle:
+				if e.on[f.key] {
+					t[f.key] = true
+				} else {
+					delete(t, f.key)
+				}
+			case f.num:
+				switch n, err := strconv.Atoi(e.text(f.key)); {
+				case e.text(f.key) == "":
+					delete(t, f.key)
+				case err != nil:
+					d.err, d.errAt = fmt.Sprintf("%s's %s is a whole number", cmp.Or(e.text("name"), e.kind), strings.ToLower(f.label)), partOfKind(e.kind)
+					return false
+				default:
+					t[f.key] = n
 				}
 			case f.list:
 				var l []string
@@ -552,8 +633,8 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 				}
 			}
 		}
-		if e.kind == "vault" && e.text("name") == "" {
-			d.err = "A vault needs a name"
+		if (e.kind == "vault" || e.kind == "trigger") && e.text("name") == "" {
+			d.err, d.errAt = "A "+e.kind+" needs a name", partOfKind(e.kind)
 			return false
 		}
 		l, _ := out[e.kind].([]map[string]any)
@@ -661,88 +742,11 @@ func (u *ui) barText(d *cfgDialog) (msg string, tone color.NRGBA, note string) {
 	return msg, tone, "· saves " + strings.Replace(file, u.home, "~", 1) + "; comments in it are not kept"
 }
 
-// cfgNav is the pages: desk's search folders, then the organizations (a
-// nested one under its outer one) with a dot for how they read.
-func (u *ui) cfgNav(gtx layout.Context) layout.Dimensions {
-	k, d, s := u.k, u.cfg, u.cfg.set
-	wd, h := gtx.Dp(230), gtx.Constraints.Max.Y
-	gtx.Constraints = layout.Exact(image.Pt(wd, h))
-	// the left corners follow the dialog's; the right edge is a line
-	kit.FillRRect(gtx.Ops, image.Rect(1, 1, wd, h-1), gtx.Dp(kit.RSheet)-1, kit.CCard)
-	kit.FillRRect(gtx.Ops, image.Rect(wd/2, 1, wd, h-1), 0, kit.CCard)
-	kit.FillRRect(gtx.Ops, image.Rect(wd-1, 0, wd, h), 0, kit.CLine)
-	order := s.order(u.orgList)
-	row := func(o string) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			fg, bg := kit.CText2, color.NRGBA{}
-			if o == d.org {
-				fg, bg = kit.CText, kit.CAccSoft
-			}
-			lead := kit.Icon(14, fg, kit.IcoSearch)
-			name, indent := "General", unit.Dp(10)
-			note, tone := s.note(o)
-			if o == cfgKeys {
-				lead, name = kit.Icon(14, fg, kit.IcoCode), "Keyboard shortcuts"
-			} else if o != cfgFolders {
-				name = o
-				lead = kit.Dot(orgDots[s.state[o]])
-				if s.parent[o] != "" {
-					indent = 24
-				}
-			}
-			gtx.Constraints.Min.X = gtx.Constraints.Max.X
-			dim, ok := k.Button(gtx, "cfgOrg"+o, bg, kit.CHover, kit.RCtl, layout.Inset{Top: 7, Bottom: 7, Left: indent, Right: 10}, func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints.Min.X = gtx.Constraints.Max.X
-				return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(lead), layout.Rigid(kit.HGap(8)),
-					layout.Rigid(k.Lbl(name, 13, fg, kit.Sans)),
-					layout.Flexed(1, fill),
-					layout.Rigid(k.Lbl(note, 11, tone, kit.Sans)))
-			})
-			if ok && o != d.org {
-				d.act = func() { u.cfgPage(o) }
-			}
-			return dim
-		}
-	}
-	items := []layout.Widget{k.Lbl("desk", 11, kit.CText3, kit.Semi(kit.Sans)), row(cfgFolders), row(cfgKeys), k.Lbl(fmt.Sprintf("Organizations · %d", len(order)), 11, kit.CText3, kit.Semi(kit.Sans))}
-	for _, o := range order {
-		items = append(items, row(o))
-	}
-	return layout.Inset{Top: 12, Bottom: 12, Left: 10, Right: 11}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return s.nav.Layout(gtx, len(items), func(gtx layout.Context, i int) layout.Dimensions {
-					if i == 0 || i == 3 { // the section heads
-						return layout.Inset{Top: unit.Dp(min(i, 1) * 14), Bottom: 6, Left: 10}.Layout(gtx, items[i])
-					}
-					return layout.Inset{Bottom: 2}.Layout(gtx, items[i])
-				})
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: 8, Left: 10, Right: 10}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return k.Label(gtx, "Dots: green has accounts, orange its desk.toml doesn't read, grey none yet.", 11, kit.CText3, kit.Sans, 0)
-				})
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: 8, Left: 10, Right: 10}.Layout(gtx, k.Lbl("desk "+Version, 11, kit.CText3, kit.Mono))
-			}))
-	})
-}
-
 // cfgMain is the page shown: its header, its body scrolling, the bar.
 func (u *ui) cfgMain(gtx layout.Context) layout.Dimensions {
 	k, d := u.k, u.cfg
 	gtx.Constraints.Min = gtx.Constraints.Max
-	title := d.org
-	sub := "Accounts its cards' links, tickets and alerts go through · " + strings.Replace(d.file, u.home, "~", 1)
-	body := u.cfgAccounts
-	if d.org == cfgFolders {
-		title, sub, body = "General", "The languages new cards start with, and the folders desk searches for organizations.", u.cfgFolderPage
-	}
-	if d.org == cfgKeys {
-		title, sub, body = "Keyboard shortcuts", "Every shortcut in desk and its infra workspace, by where it works.", u.cfgKeysPage
-	}
+	title, sub, body := u.cfgShown()
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 18, Bottom: 14, Left: 24, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -798,7 +802,12 @@ func (u *ui) cfgBar(gtx layout.Context) layout.Dimensions {
 				kids = append(kids, layout.Rigid(kit.HGap(10)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					dim, ok := k.KBtn(gtx, "cfgDiscard", kit.Ghost, "Discard", "")
 					if ok {
-						d.act = func() { u.openConfig(d.org) }
+						d.act = func() { // the files again, on the same part
+							s := d.set
+							u.openConfig(d.org)
+							u.cfg.set.sub, u.cfg.set.open = s.sub, s.open
+							u.cfg.set.q.SetText(s.q.Text())
+						}
 					}
 					return dim
 				}))
@@ -821,16 +830,20 @@ func (u *ui) cfgBar(gtx layout.Context) layout.Dimensions {
 // buttons that add one.
 func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 	k, d := u.k, u.cfg
-	n := len(d.entries)
+	es := d.kinds(false)
+	n := len(es)
 	return d.list.Layout(gtx, n+1, func(gtx layout.Context, i int) layout.Dimensions {
 		if i < n {
-			return layout.Inset{Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.cfgEntry(gtx, d.entries[i]) })
+			return layout.Inset{Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.cfgEntry(gtx, es[i]) })
 		}
 		if d.broken {
 			return layout.Inset{Top: 12, Bottom: 20}.Layout(gtx, k.Lbl("Fix the file by hand, then open the settings again.", 13, kit.CText3, kit.Sans))
 		}
 		var ws []layout.Widget
 		for _, c := range cfgKinds {
+			if c.key == "trigger" {
+				continue // the Triggers page's
+			}
 			ws = append(ws, func(gtx layout.Context) layout.Dimensions {
 				dim, ok := k.RimButton(gtx, "cfgAdd"+c.key, kit.CPanelCard, kit.CHover, kit.CBtnRim, kit.RCtl, layout.Inset{Top: 6, Bottom: 6, Left: 10, Right: 10}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
@@ -843,7 +856,7 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 						e := newEntry(c.key, map[string]any{})
 						d.entries = append(d.entries, e)
 						d.open = e
-						d.list.ScrollTo(len(d.entries) - 1)
+						d.list.ScrollTo(len(d.kinds(false)) - 1)
 					}
 				}
 				return dim
@@ -854,7 +867,7 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 			if n == 0 {
 				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Linear, Bitbucket, GitLab, Nagios or a model provider.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
 			}
-			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgMe), layout.Rigid(u.cfgWorkflow), layout.Rigid(u.cfgModels))
+			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 		})
 	})
@@ -873,7 +886,11 @@ func (e *cfgEntry) summary() string {
 		case f.secret == "." || f.secret == "password": // the main one: an API key's secret is detail
 			parts = append(parts, e.source(f))
 		case f.secret != "":
-		case v == "" || !slices.Contains([]string{"host", "url", "base_url", "email", "workspace", "user", "owners", "projects", "teams", "groups"}, f.key):
+		case f.toggle:
+			if e.on[f.key] && (f.key == "off" || f.key == "worklog" || f.key == "start") {
+				parts = append(parts, strings.ToLower(f.label))
+			}
+		case v == "" || !slices.Contains([]string{"host", "url", "base_url", "email", "workspace", "user", "owners", "projects", "teams", "groups", "on", "at", "match", "days"}, f.key):
 		case f.list:
 			parts = append(parts, strings.ToLower(f.label)+" "+v)
 		default:
@@ -984,7 +1001,7 @@ func (e *cfgEntry) formRows() [][]cfgField {
 	vk := vaultKinds[e.vkind]
 	pair := false // the last row has one text field, room for another
 	for _, f := range fields(e.kind) {
-		wide := f.key == "kind" || f.secret != "" || f.tier
+		wide := f.key == "kind" || f.secret != "" || f.tier || f.choices != nil
 		switch {
 		case f.only != "" && f.only != vk:
 		case pair && !wide:
@@ -1028,6 +1045,12 @@ func (u *ui) cfgFields(gtx layout.Context, id string, e *cfgEntry) layout.Dimens
 			return labeled(f.label, func(gtx layout.Context) layout.Dimensions { return u.cfgSecret(gtx, id, e, f) })
 		case f.tier:
 			return labeled(f.label, func(gtx layout.Context) layout.Dimensions { return u.cfgTier(gtx, id, e, f) })
+		case f.toggle:
+			return func(gtx layout.Context) layout.Dimensions { return u.cfgToggle(gtx, id+f.key, e, f.key, f.label, f.hint) }
+		case f.choices != nil:
+			return labeled(f.label, func(gtx layout.Context) layout.Dimensions {
+				return u.choice(gtx, id+f.key, f.choices, slices.Index(f.choices, e.text(f.key)), func(int) color.NRGBA { return color.NRGBA{} }, func(i int) { e.ed(f.key).SetText(f.choices[i]) })
+			})
 		}
 		return labeled(f.label, k.Field(e.ed(f.key), f.hint, 0))
 	}
@@ -1041,6 +1064,9 @@ func (u *ui) cfgFields(gtx layout.Context, id string, e *cfgEntry) layout.Dimens
 			}
 		}
 		rows = append(rows, layout.Rigid(w), layout.Rigid(kit.VGap(12)))
+	}
+	if e.kind == phoneKind.key || e.kind == diagKind.key { // desk's own: nothing to remove
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 	}
 	rows = append(rows, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -1063,9 +1089,12 @@ func (u *ui) cfgSecret(gtx layout.Context, id string, e *cfgEntry, f cfgField) l
 	if f.secret == "password" {
 		names[srcNone] = "Ask when needed"
 	}
+	if e.kind == phoneKind.key {
+		names[srcFile] = "In settings.toml"
+	}
 	src := e.src[f.secret]
 	opts := []int{srcNone, srcVault, srcEnv, srcCmd, srcFile}
-	if f.secret != "." {
+	if f.secret != "." || e.kind == phoneKind.key { // a vault belongs to an organization; desk's own settings have none
 		opts = slices.Delete(opts, 1, 2)
 	}
 	var labels []string

@@ -101,7 +101,7 @@ func (u *ui) saveWorkflow(d *cfgDialog, out map[string]any) bool {
 		s, c, ok := cutArrow(l)
 		at := slices.IndexFunc(cols, func(x string) bool { return strings.EqualFold(x, c) })
 		if !ok || s == "" || at < 0 {
-			d.err = fmt.Sprintf("Ticket workflow, line %d of the statuses others move to: write it as Status → Column, a column of the board", i+1)
+			d.err, d.errAt = fmt.Sprintf("Ticket workflow, line %d of the statuses others move to: write it as Status → Column, a column of the board", i+1), "workflow"
 			return false
 		}
 		follow[s] = cols[at]

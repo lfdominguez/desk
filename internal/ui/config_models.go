@@ -114,16 +114,16 @@ func (d *cfgDialog) saveModels(out map[string]any) bool {
 		switch {
 		case e.kind != "provider":
 		case e.text("name") == "":
-			d.err = "A model provider needs a name"
+			d.err, d.errAt = "A model provider needs a name", "models"
 			return false
 		case e.text("base_url") == "":
-			d.err = e.text("name") + " needs its base URL"
+			d.err, d.errAt = e.text("name")+" needs its base URL", "models"
 			return false
 		}
 	}
 	for i, n := range names {
 		if slices.Contains(names[:i], n) {
-			d.err = "Two model providers are called " + n
+			d.err, d.errAt = "Two model providers are called "+n, "models"
 			return false
 		}
 	}
@@ -135,7 +135,7 @@ func (d *cfgDialog) saveModels(out map[string]any) bool {
 	for _, t := range orgs.Tasks {
 		v := d.models.text("task." + t)
 		if v != "" && !slices.Contains(names, v) {
-			d.err = fmt.Sprintf("%s run on %s, which isn't a model provider here", taskInfo[t][0], v)
+			d.err, d.errAt = fmt.Sprintf("%s run on %s, which isn't a model provider here", taskInfo[t][0], v), "models"
 			return false
 		}
 		set(tasks, t, v)
@@ -270,7 +270,27 @@ func (u *ui) cfgModels(gtx layout.Context) layout.Dimensions {
 			})
 		}))
 	}
-	kids = append(kids, layout.Rigid(kit.VGap(6)), layout.Rigid(k.Caption("Company roles")), layout.Rigid(kit.VGap(4)),
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
+}
+
+// cfgRoles is the Company page's roles part: the model each of desk's
+// roles runs on.
+func (u *ui) cfgRoles(gtx layout.Context) layout.Dimensions {
+	k, d := u.k, u.cfg
+	none := func(int) color.NRGBA { return color.NRGBA{} }
+	row := func(title, what string, choice layout.Widget) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Bottom: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(k.Lbl(title, 13, kit.CText, kit.Semi(kit.Sans))),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return k.Label(gtx, what, 11, kit.CText3, kit.Sans, 0) }),
+					layout.Rigid(kit.VGap(5)),
+					layout.Rigid(choice))
+			})
+		})
+	}
+	var kids []layout.FlexChild
+	kids = append(kids, layout.Rigid(kit.VGap(18)), layout.Rigid(k.Caption("Company roles")), layout.Rigid(kit.VGap(4)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return k.Label(gtx, "The model each of desk's roles runs on, in the card session's subagents. On a provider, Opus, Sonnet and Haiku are what it puts in their place.", 12, kit.CText3, kit.Sans, 0)
 		}),

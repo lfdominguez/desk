@@ -15,6 +15,12 @@ import (
 // The "The board" and "Cards" sections' shots.
 func init() {
 	scenes = append(scenes,
+		scene{"board-digest", func(s *shooter) {
+			s.click("side" + viewDigest)
+			s.u.dgSpan = 2 // the last week: the demo's Done cards
+			orgsAway(s)
+			s.shot("board-digest", cut{"text", dp(490, 52, 1340, 660), false})
+		}},
 		scene{"board", func(s *shooter) {
 			s.shot("board") // the home page's: no rings
 			s.shot("board-overview",

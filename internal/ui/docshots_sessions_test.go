@@ -13,6 +13,9 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 	"gioui.org/io/pointer"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/gitw"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
@@ -98,9 +102,49 @@ func sessEvents(s *shooter, id string, lines ...string) {
 	s.settle()
 }
 
+// sessReview gives the demo's checkout card its own worktree in a real git
+// repository (Acme's web folder), with a commit and a change not committed,
+// and opens its Review.
+func sessReview(s *shooter) {
+	s.t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	s.t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for k, v := range map[string]string{"GIT_AUTHOR_NAME": "me", "GIT_AUTHOR_EMAIL": "me@globex.com", "GIT_COMMITTER_NAME": "me", "GIT_COMMITTER_EMAIL": "me@globex.com"} {
+		s.t.Setenv(k, v)
+	}
+	id := orgsCard(s, "Fix the flaky checkout e2e test")
+	repo := orgs.Dir(s.u.root, "Acme", "web")
+	run := func(dir string, args ...string) {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			s.t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	os.MkdirAll(filepath.Join(repo, "e2e"), 0o755)
+	os.WriteFile(filepath.Join(repo, "e2e", "checkout.spec.ts"), []byte("test('checkout', async ({ page }) => {\n  await page.goto('/cart')\n  await page.click('#pay')\n  await page.waitForTimeout(2000)\n  await expect(page.locator('.done')).toBeVisible()\n})\n"), 0o644)
+	run(repo, "init", "-q", "-b", "main")
+	run(repo, "add", ".")
+	run(repo, "commit", "-q", "-m", "Checkout e2e test")
+	wt, err := gitw.AddWorktree(repo, "desk-6", "main")
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(wt, "e2e", "checkout.spec.ts"), []byte("test('checkout', async ({ page }) => {\n  await page.goto('/cart')\n  await page.click('#pay')\n  await page.waitForResponse('**/api/orders')\n  await expect(page.locator('.done')).toBeVisible()\n})\n"), 0o644)
+	run(wt, "commit", "-q", "-am", "Wait for the order instead of a fixed sleep")
+	os.WriteFile(filepath.Join(wt, "e2e", "README.md"), []byte("Run with `npm run e2e`.\n"), 0o644)
+	c := s.u.b.Card(id)
+	c.Worktree, c.Branch, c.Base = wt, "desk-6", "main"
+	s.u.openReview(id)
+	s.wait("the branch", 10*time.Second, func() bool { return !s.u.rvOf(id).loading })
+	orgsAway(s)
+	s.shot("sess-review", cut{"head", dp(412, 52, 1420, 150), true})
+	s.click("rvMerge" + id)
+	orgsAway(s)
+	s.shot("sess-review-merge", cut{"head", dp(412, 52, 1420, 150), true})
+}
+
 func init() {
 	scenes = append(scenes,
 		scene{"sess-panel", sessPanel},
+		scene{"sess-review", sessReview},
 		scene{"sess-flow", sessFlow},
 		scene{"sess-question", sessQuestion},
 		scene{"sess-shell", sessShell},

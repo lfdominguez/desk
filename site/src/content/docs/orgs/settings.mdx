@@ -1,12 +1,13 @@
 ---
 title: Settings
-description: The Settings dialog, page by page - the search folders and languages, then each organization's accounts.
+description: The Settings dialog, page by page - desk's own settings, then each organization's accounts, workflow, git, triggers, models, company, servers and who you are there.
 ---
 
-The Settings dialog edits two kinds of files: desk's own settings (the folders it searches and the
-languages) and each organization's `desk.toml` (its accounts).
+The Settings dialog edits two kinds of files: desk's own settings (`~/.config/desk/settings.toml`:
+who you are, the folders it searches, the languages, the phone, diagnostics, the shortcuts) and
+each organization's `desk.toml` (its accounts and everything else it sets).
 
-![The Settings dialog on Acme's page: the nav on the left, Acme's GitHub and Jira accounts, the buttons that add an account, and Save at the bottom](../../../assets/shots/orgs-settings-org.png)
+![The Settings dialog on Acme's Accounts page: the nav on the left, Acme's GitHub and Jira accounts, the buttons that add an account, and Save at the bottom](../../../assets/shots/orgs-settings-org.png)
 
 ## Opening it
 
@@ -17,9 +18,22 @@ languages) and each organization's `desk.toml` (its accounts).
 
 ## The nav
 
-The left column lists the pages: **General** and **Keyboard shortcuts** (see
-[Changing shortcuts](/reference/keys/#changing-shortcuts)) under *desk*, then every organization, a
-nested one indented under its outer one. The dot says how the organization's `desk.toml` reads:
+<figure class="cut">
+
+![The settings' nav: the Search settings box, then the desk group with General, Search folders, Phone, Keyboard shortcuts and Diagnostics](../../../assets/shots/orgs-settings-general-nav.png)
+
+<figcaption>The search box, then desk's own pages.</figcaption>
+</figure>
+
+The left column has two groups under a search box:
+
+- **desk**: [General](#general), [Search folders](#search-folders), [Phone](#phone),
+  **Keyboard shortcuts** (see [Changing shortcuts](/reference/keys/#changing-shortcuts)) and
+  [Diagnostics](#diagnostics).
+- **Organizations · N**: every organization, a nested one under its outer one. Click one to open
+  it: its parts show under it and its **Accounts** page opens. Click the open one again to fold it.
+
+Each organization's dot says how its `desk.toml` reads:
 
 | Dot | Means |
 |---|---|
@@ -30,10 +44,26 @@ nested one indented under its outer one. The dot says how the organization's `de
 A page you changed says *edited*; a nested organization says *in \<outer\>*. The bottom of the nav
 shows the desk version that runs.
 
+An organization's page is titled with the organization and the part (**Acme · Triggers**); under
+it, what the part is for and the path of its `desk.toml`.
+
+### Searching
+
+**Search settings** matches every word you type against each page's title and the words of its
+fields, across every organization. Typing `worktree` lists **Acme › Git & review**, **Globex ›
+Git & review** and so on; click one to open it. With no match the nav says *Nothing matches.*
+
+<figure class="cut">
+
+![The nav searching "worktree": Acme › Git & review, Globex › Git & review and Initech › Git & review](../../../assets/shots/orgs-settings-search-nav.png)
+
+<figcaption>One search, every organization's page that matches.</figcaption>
+</figure>
+
 ## Saving
 
 The bar at the bottom counts the unsaved changes and says which file the page saves. You can move
-between pages: each keeps its edits until you save or discard.
+between pages, and between organizations: each keeps its edits until you save or discard.
 
 - **Save** (<kbd>Ctrl</kbd>+<kbd>S</kbd>) writes every page you changed, the one shown first, and
   closes the dialog. A page that can't be saved is shown with the reason in the bar.
@@ -55,7 +85,7 @@ comments in the file are not. If you keep a commented `desk.toml` by hand, edit 
 
 ## General
 
-![The General page: Who am I?, the two language fields, the text size, the search folder ~/Work with depth 2, and the preview of the organizations it finds](../../../assets/shots/orgs-settings-general.png)
+![The General page: Who am I?, the two language fields and the text size](../../../assets/shots/orgs-settings-general.png)
 
 ### Who am I
 
@@ -72,9 +102,7 @@ production."). Every Claude desk starts is told it (card sessions and their term
 workspace's, the leads, drawings, the infra Claude and Improve with Claude), to focus its answers
 and choices on you. It never overrides a repository's rules or what you ask in a message.
 
-An organization's page has its own **Who am I here**, for who you are there, and **Extend from
-global**: on (the default), its Claudes get the global Who am I, then the organization's; off,
-only the organization's. It is the organization's `[me]` in its desk.toml.
+An organization has its own in its [About me](#about-me) page.
 
 ### Languages
 
@@ -107,14 +135,16 @@ session panel is, from 50% to 300%. **−** and **+** change it by 10% and it co
 <kbd>Ctrl</kbd>+<kbd>0</kbd> (back to 100%) do the same. A terminal's columns and rows follow the
 text, so a bigger text gives its program fewer of them.
 
-### Search folders
+## Search folders
+
+![The Search folders page: the search folder ~/Work with depth 2, and the preview of the organizations it finds](../../../assets/shots/orgs-settings-folders.png)
 
 The folders desk searches for organizations, top to bottom: when two give the same name, the
 higher one wins. Each row has:
 
 <figure class="cut">
 
-![A search folder row: the path ~/Work, "finds 5 · Acme, Globex, Initech, scratch, Billing", depth 2 with − and +, and the two switches](../../../assets/shots/orgs-settings-general-folder.png)
+![A search folder row: the path ~/Work, "finds 5 · Acme, Globex, Initech, scratch, Billing", depth 2 with − and +, and the two switches](../../../assets/shots/orgs-settings-folders-folder.png)
 
 <figcaption>One search folder. Under the path, what it finds.</figcaption>
 </figure>
@@ -142,11 +172,45 @@ desk.toml* on, the subfolders it leaves out are listed as skipped (**Show all** 
 Save refuses a depth that isn't 0 to 6, a path that isn't a folder, and an empty list (desk needs
 one folder to find organizations). Saving the folders also reloads the organizations.
 
-## An organization's page
+## Phone
 
-The page's title is the organization; under it, the path of its `desk.toml`. Each account is a
-card: its kind's tile (GH, JI, LN, BW…), its name and kind, and a line with where it points and where
-its token comes from. **Edit** opens it; one is open at a time.
+<figure class="cut">
+
+![The Phone page: the bot token from Environment variable DESK_TELEGRAM_TOKEN, "Not paired: send /start to your bot within 10 minutes of starting desk", and the switch Also while desk has the focus](../../../assets/shots/orgs-settings-phone-page.png)
+
+<figcaption>A bot token, not paired yet.</figcaption>
+</figure>
+
+The Telegram bot that brings cards that need you to your phone (see [Your phone](/sessions/phone/)),
+settings.toml's `[phone]`:
+
+- **Bot token**: where the bot's token comes from: **None**, **Environment variable**,
+  **Command**, or **In settings.toml**.
+- The pairing: **Paired with Telegram chat N** with **Unpair** (on Save, a `/start` within
+  10 minutes pairs a chat), or *Not paired: send /start to your bot within 10 minutes of starting desk.*
+- **Also while desk has the focus**: off, the phone hears from desk only while no desk window is in
+  front.
+
+## Diagnostics
+
+<figure class="cut">
+
+![The Diagnostics page: New Relic license key and App name](../../../assets/shots/orgs-settings-diag-page.png)
+
+<figcaption>Empty, nothing is sent.</figcaption>
+</figure>
+
+settings.toml's `[newrelic]`: **New Relic license key** and **App name** (`desk` when empty). With a
+key, desk reports its own crashes to that New Relic account: where it crashed and which version,
+nothing else. It counts once desk starts again. See
+[Report to New Relic](/reference/troubleshooting/#report-to-new-relic).
+
+## An organization's parts
+
+### Accounts
+
+Each account is a card: its kind's tile (GH, JI, LN, BW…), its name and kind, and a line with
+where it points and where its token comes from. **Edit** opens it; one is open at a time.
 
 <figure class="cut">
 
@@ -156,29 +220,96 @@ its token comes from. **Edit** opens it; one is open at a time.
 </figure>
 
 A card says **New** or **Edited** until you save. The buttons under the cards add an account of
-each kind (**+ Linear** among them):
+each kind (**+ Linear** and **+ Model provider** among them):
 
 <figure class="cut">
 
-![The buttons + Vault, + GitHub, + Jira, + Bitbucket, + GitLab and + Nagios](../../../assets/shots/orgs-settings-org-add.png)
+![The buttons + Vault, + GitHub, + Jira, + Linear, + Bitbucket, + GitLab and + Nagios](../../../assets/shots/orgs-settings-org-add.png)
 
 <figcaption>Add a vault or an account.</figcaption>
 </figure>
 
-What each kind's fields mean, and where tokens come from, is in [Accounts](/orgs/accounts/)
-and [Vaults](/orgs/vaults/). Under the buttons, **Servers** has the **Show the server's login
-message** switch (`clear_login = false`: the banner and message of the day stay above a pane's
-first prompt, see [Command blocks](/servers/panes/#command-blocks)), the organization's servers
-file and **Import from Ásbrú** ([Import from Ásbrú](/servers/asbru/)). Under it, **Ticket
-workflow** teaches desk how the organization's tickets move ([Ticket workflow](/orgs/workflow/)),
-and **Models** picks
-which of desk's Claudes run on a **Model provider** (an account kind of its own) instead of your
-Claude subscription, and the model each company role runs on: see
-[Model providers](/orgs/models/).
+What each kind's fields mean, and where tokens come from, is in [Accounts](/orgs/accounts/),
+[Vaults](/orgs/vaults/) and [Model providers](/orgs/models/). Jira and Linear cards also have a
+switch that logs a card's work time on its ticket at Done (`worklog`), the same one as in
+[Git & review](#git--review).
 
 Save refuses a vault without a name, two vaults with the same name, and a token from a vault the
-organization doesn't have; a model provider without a name or a base URL, two with the same name,
-and a Claude on a provider the organization doesn't have.
+organization doesn't have; a model provider without a name or a base URL, and two with the same
+name.
 
-When the `desk.toml` doesn't read, its page says why in the bar ("… — fix it by hand") and has
-no Save: fix the file by hand, then open the settings again.
+### Ticket workflow
+
+How the organization's tickets move, as its people use them, with **Learn** to have Haiku read
+it: see [Ticket workflow](/orgs/workflow/).
+
+### Git & review
+
+<figure class="cut">
+
+![Git & review: Each card on its own worktree, on; then Work time on tickets with a switch for Jira · acme](../../../assets/shots/orgs-settings-git-page.png)
+
+<figcaption>Worktrees on, and Acme's Jira account logging work time.</figcaption>
+</figure>
+
+- **Each card on its own worktree** (`[git] worktrees`): a new card in a git repository gets its
+  own branch and worktree, and a Review that merges, pushes or opens a pull request. See
+  [Review & ship](/sessions/review/).
+- **Work time on tickets**: a switch per Jira or Linear account (its `worklog`). When a card goes
+  to Done, the time its Claude worked goes on its ticket: a worklog in Jira, a comment in Linear.
+  See [Digest](/board/digest/#work-time).
+
+### Triggers
+
+<figure class="cut">
+
+![Triggers: "New tickets" (ticket · start its claude) and "Fix red CI" (ci_failed) folded, and "Weekly audit" open: On schedule, At 09:00, Days mon, Card title Dependency audit, Column Backlog](../../../assets/shots/orgs-settings-triggers-page.png)
+
+<figcaption>Three triggers, one open.</figcaption>
+</figure>
+
+A card per `[[trigger]]`; **+ Trigger** adds one. Its fields: **Name**, **On** (`ticket`,
+`ci_failed`, `alert`, `schedule` or `digest`), **Project**, **Match**, **At**, **Days**, **After
+minutes**, **Column**, **Card title**, **Card notes**, and the switches **Start its Claude**,
+**Alert: warnings too** and **Off**. Each field's hint says which kinds use it. Save refuses a
+trigger without a name, and **After minutes** that isn't a whole number. What each kind does is in
+[Triggers](/orgs/triggers/).
+
+### Models
+
+Which of desk's Claudes run on your Claude subscription and which on one of the organization's
+model providers: see [Which Claude runs where](/orgs/models/#which-claude-runs-where). Save
+refuses a Claude on a provider the organization doesn't have.
+
+### Company
+
+<figure class="cut">
+
+![Company: Per card, dollars 5 and Per day, dollars 40](../../../assets/shots/orgs-settings-company-budgets.png)
+
+<figcaption>Budgets of 5 dollars a card and 40 a day.</figcaption>
+</figure>
+
+- **Per card, dollars** and **Per day, dollars** (`[company] card_budget`, `day_budget`): a
+  card's session pauses at the end of a turn once it has spent its budget since your last
+  message, or the organization its budget for the day. Empty: no limit. See
+  [Budgets](/orgs/company/#budgets).
+- **Company roles**: the model each of desk's roles runs on. See
+  [The roles' models](/orgs/models/#the-roles-models).
+
+### Servers
+
+The **Show the server's login message** switch (`clear_login = false`: the banner and message of
+the day stay above a pane's first prompt, see [Command blocks](/servers/panes/#command-blocks)),
+the organization's servers file and **Import from Ásbrú** ([Import from Ásbrú](/servers/asbru/)).
+
+### About me
+
+**Who am I here**, for who you are in this organization, and **Extend from global**: on (the
+default), its Claudes get the global [Who am I](#who-am-i), then the organization's; off, only the
+organization's. It is the organization's `[me]` in its desk.toml.
+
+### When desk.toml doesn't read
+
+Its pages say why in the bar ("… — fix it by hand") and have no Save: fix the file by hand, then
+open the settings again.

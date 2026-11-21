@@ -209,7 +209,7 @@ func TestReviewRefusals(t *testing.T) {
 	h.u.rvLoad(c.ID)
 	h.pumpUntil("reread", func() bool { return !h.u.rvOf(c.ID).loading })
 	h.frame()
-	if !h.has("1 changes not committed: below, but left out of a merge or push until committed.") {
+	if !h.has("1 change not committed: below, but left out of a merge or push until committed.") {
 		t.Fatal("changes not said")
 	}
 	h.u.archiveCard(c.ID)

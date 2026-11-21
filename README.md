@@ -188,8 +188,9 @@ CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
 
 1. **Lay out your work as organizations.** By default desk looks in `$DESK_ROOT` (`~/Work`), two
    levels down: every subfolder is an organization (`~/Work/Acme`, `~/Work/Globex`…). Change the
-   folders and depth in **Settings → General**, along with the languages cards are written in and
-   Claude speaks with you in (English unless you change them; each new card can pick its own).
+   folders and depth in **Settings → Search folders**, and in **Settings → General** the languages
+   cards are written in and Claude speaks with you in (English unless you change them; each new
+   card can pick its own).
 2. **Optionally give an org a Claude account.** A profile in `~/Secure/Claudes/<Org>/` makes that
    org's sessions run under it, sandboxed with bwrap (on macOS and Windows, with `CLAUDE_CONFIG_DIR` at it).
    Others use your own login.
@@ -382,7 +383,10 @@ Add links in the card's sheet (E): GitHub PRs and issues, Bitbucket PRs, GitLab 
 or bare keys (`ABC-12`: a Linear account listing that team, else Jira, else the only Linear
 account). Their state refreshes every 3 minutes through the organization's own accounts in
 `<Org>/.desk/desk.toml`: any number of each kind. Edit them in **Settings** or by hand (the dialog keeps
-keys it doesn't show, but not the file's comments). **Reload** looks for organizations again and
+keys it doesn't show, but not the file's comments). The settings list desk's own pages (General,
+Search folders, Phone, Keyboard shortcuts, Diagnostics), then each organization with a page per
+part: Accounts, Ticket workflow, Git & review, Triggers, Models, Company, Servers, About me; the
+search box on top finds a page by what's on it. **Reload** looks for organizations again and
 rechecks every link. desk keeps everything of its own in an org's `.desk/` (Claude Code's
 `.claude/` and `CLAUDE.md` stay where they are); a `desk.toml` or `ssh_config` still at the org's
 root from an older desk moves there by itself, and relative paths in them still start from the

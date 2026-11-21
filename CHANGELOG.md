@@ -6,6 +6,15 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Settings, rebuilt**: desk's own pages (General, Search folders, Phone, Keyboard shortcuts,
+  Diagnostics) come first, then each organization opens in the nav to a page per part
+  (Accounts, Ticket workflow, Git & review, Triggers, Models, Company, Servers, About me) instead
+  of one long page; a search box finds a page by what's on it. New there: the phone's Telegram bot
+  and New Relic crash reports, an organization's worktrees, worklog per Jira or Linear account,
+  its triggers (added and edited as cards) and its Company budgets.
+
 ### Added
 
 - **Digest & work time**: the sidebar's Digest writes your standup from the board (done, in
@@ -43,6 +52,11 @@ day). A release's section here is its notes on GitHub. The format follows
 - A card's Claude that asks for a new card (when its own card already has a ticket) is now told
   the card was made and its key. It used to hear nothing, think the request failed and ask again,
   which made the same card twice.
+
+### Security
+
+- `settings.toml` is now written readable by you alone (0600), since it can hold the phone bot's
+  token and the New Relic key.
 
 ## [2026.11.20.1] - 2026-11-20
 

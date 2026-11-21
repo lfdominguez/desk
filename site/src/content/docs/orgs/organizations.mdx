@@ -31,7 +31,7 @@ subfolder there is an organization, named after its folder:
 ```
 
 Folders whose name starts with `.` or `_` are left out. You can change all of this in
-**Settings → General**: search other folders, go deeper or shallower, and decide which folders
+**Settings → Search folders**: search other folders, go deeper or shallower, and decide which folders
 count. See [Settings](/orgs/settings/#search-folders).
 
 - **Search folders**: any number, searched top to bottom. When two folders give the same name,
@@ -56,15 +56,8 @@ org = "Billing"   # optional: without it, the organization is named after its fo
 ```
 
 A nested organization has its own accounts, tickets, CI and alerts. Its sessions run under the
-outer organization's Claude account (Acme's, here). The settings list it right under its outer
-one.
-
-<figure class="cut">
-
-![The settings' nav: Acme with Billing indented under it, then Globex, Initech and scratch](../../../assets/shots/orgs-settings-general-nav.png)
-
-<figcaption>Billing, nested in Acme, listed under it.</figcaption>
-</figure>
+outer organization's Claude account (Acme's, here). The settings' nav lists it under
+**Organizations** with *in Acme* beside it.
 
 ## A Claude account per organization
 

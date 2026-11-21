@@ -62,7 +62,9 @@ func TestConfigModels(t *testing.T) {
 	if e.text("sonnet") != "" || e.custom["sonnet"] {
 		t.Fatalf("not replaced: %q", e.text("sonnet"))
 	}
+	d.set.sub["Acme"] = "models"
 	h.clickIn(sz, all, w, "cfgTaskexplain1")
+	d.set.sub["Acme"] = "company"
 	h.clickIn(sz, all, w, "cfgRoletl2")
 	h.clickIn(sz, all, w, "cfgRoleqa4")
 	if d.changes() != 2 { // the provider, the Models part
@@ -98,8 +100,10 @@ func TestConfigModels(t *testing.T) {
 	d.open = d.entries[0]
 	d.open.ed("base_url").SetText("https://llm.example.com") // not OpenRouter: its names may differ
 	h.draw(sz, w)
+	d.set.sub["Acme"] = "company"
 	h.clickIn(sz, all, w, "cfgRoletl0")
 	h.clickIn(sz, all, w, "cfgRoleqa0")
+	d.set.sub["Acme"] = "models"
 	h.clickIn(sz, all, w, "cfgTaskexplain0")
 	h.u.saveConfig()
 	b, _ := os.ReadFile(orgs.File(h.u.root, "Acme"))

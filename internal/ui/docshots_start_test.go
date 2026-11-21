@@ -14,6 +14,7 @@ func init() {
 		}},
 		scene{"start-settings", func(s *shooter) {
 			s.u.openConfig(cfgFolders)
+			s.u.cfg.set.sub[cfgFolders] = "folders"
 			s.settle()
 			s.shot("start-settings")
 			s.u.openConfig("Acme")

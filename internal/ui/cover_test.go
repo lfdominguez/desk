@@ -1987,7 +1987,7 @@ func TestCoverConfigDialog(t *testing.T) {
 	if h.u.cfg == d || h.u.cfg.org != "Globex" {
 		t.Fatal("Globex's tab")
 	}
-	h.clickIn(sz, all, w, "cfgOrg"+cfgFolders)
+	h.clickIn(sz, all, w, "cfgSub"+cfgFolders+"/folders")
 	f := h.u.cfg.entries[0]
 	h.clickIn(sz, all, w, fmt.Sprintf("cfg%p", f)+"root")
 	if !f.on["root"] {

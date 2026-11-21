@@ -91,7 +91,11 @@ func (u *ui) reviewView(gtx layout.Context) layout.Dimensions {
 		rows = append(rows, note(c.Base+" has every commit of "+c.Branch+".", kit.CGreen))
 	}
 	if n := len(st.st.Dirty); n > 0 {
-		rows = append(rows, note(fmt.Sprintf("%d changes not committed: below, but left out of a merge or push until committed.", n), kit.COrange))
+		what := "changes"
+		if n == 1 {
+			what = "change"
+		}
+		rows = append(rows, note(fmt.Sprintf("%d %s not committed: below, but left out of a merge or push until committed.", n, what), kit.COrange))
 	}
 	for _, cm := range st.st.Commits {
 		rows = append(rows, func(gtx layout.Context) layout.Dimensions {

@@ -32,6 +32,17 @@ title = "Dependency audit"
 notes = "Check every repository's dependencies for known vulnerabilities and outdated majors."
 ```
 
+In [Settings](/orgs/settings/#triggers), the organization's **Triggers** page edits them: a card
+per trigger, **+ Trigger** to add one. Save refuses a trigger without a name, and an **After
+minutes** that isn't a whole number.
+
+<figure class="cut">
+
+![Acme's Triggers page: "New tickets" (ticket · start its claude) and "Fix red CI" (ci_failed) folded, and "Weekly audit" open: On schedule, At 09:00, Days mon, Card title Dependency audit, Column Backlog](../../../assets/shots/orgs-settings-triggers-page.png)
+
+<figcaption>The triggers in Settings, one open.</figcaption>
+</figure>
+
 ## What each watches
 
 | `on` | When | What it does |

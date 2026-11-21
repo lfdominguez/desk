@@ -27,6 +27,7 @@ func TestConfigWorkflow(t *testing.T) {
 			Status: map[string]string{"Review": "Code Review"}, Follow: map[string]string{"Test": "Review", "Deployed": "Done"}}, nil
 	}
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "workflow"
 	sz, all, w := modelsHarness(h)
 	h.draw(sz, w)
 	d := h.u.cfg
@@ -66,6 +67,7 @@ func TestConfigWorkflow(t *testing.T) {
 
 	// as read, kept as it was; everything emptied, no [workflow]
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "workflow"
 	d = h.u.cfg
 	h.u.saveOrg(d)
 	if b, _ := os.ReadFile(orgs.File(h.u.root, "Acme")); !strings.Contains(string(b), "later") {
@@ -87,6 +89,7 @@ func TestConfigWorkflow(t *testing.T) {
 func TestConfigWorkflowFails(t *testing.T) {
 	h := newHarness(t)
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "workflow"
 	sz, all, w := modelsHarness(h)
 	h.draw(sz, w)
 	d := h.u.cfg
@@ -138,6 +141,8 @@ func TestConfigWorkflowClosed(t *testing.T) {
 	}
 	for _, end := range []func(){h.u.dropConfig, func() { h.u.openConfig("Acme") }} {
 		h.u.openConfig("Acme")
+		h.u.cfg.set.sub["Acme"] = "workflow"
+	h.u.cfg.set.sub["Acme"] = "workflow"
 		d := h.u.cfg
 		d.wf.ed("instructions").SetText("Read ./process")
 		h.u.learnWorkflow(d)
@@ -149,6 +154,7 @@ func TestConfigWorkflowClosed(t *testing.T) {
 	}
 	h.orgToml("Acme", "[workflow.follow]\nTest = \"Nowhere\"\n")
 	h.u.openConfig("Acme")
+	h.u.cfg.set.sub["Acme"] = "workflow"
 	if d := h.u.cfg; !h.u.saveOrg(d) || d.err != "" {
 		t.Fatalf("held up: %q", d.err)
 	}

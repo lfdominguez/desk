@@ -60,6 +60,21 @@ func (u *ui) startPhone() (stop func()) {
 	return stop
 }
 
+// phoneSettled takes settings.toml's pairing and always into the running
+// bot, after Settings saved them; unpaired, a /start pairs again for
+// pairFor. A new token needs desk started again.
+func (u *ui) phoneSettled() {
+	ph := u.phone
+	if ph == nil {
+		return
+	}
+	p := orgs.PhoneSettings()
+	if p.Chat == 0 && ph.chat != 0 {
+		ph.pairUntil = time.Now().Add(pairFor)
+	}
+	ph.chat, ph.always = p.Chat, p.Always
+}
+
 // phonePoll hands each update to the UI goroutine until ctx ends; a failed
 // poll waits a little, then tries again.
 func (u *ui) phonePoll(ctx context.Context, bot *tgbot.Bot) {

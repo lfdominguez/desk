@@ -7,14 +7,14 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 An organization's accounts are what its cards' links, its tickets, its CI and its alerts go
 through. They live in the organization's `desk.toml`, and you can edit them in
-[Settings](/orgs/settings/#an-organizations-page) or by hand. An organization can have any
+[Settings](/orgs/settings/#accounts) or by hand. An organization can have any
 number of each kind.
 
-![Acme's settings page with its GitHub and Jira accounts](../../../assets/shots/orgs-settings-org.png)
+![Acme's Accounts page in Settings with its GitHub and Jira accounts](../../../assets/shots/orgs-settings-org.png)
 
 ## Adding one in Settings
 
-1. Open **Settings** and pick the organization in the nav.
+1. Open **Settings** and click the organization in the nav: its **Accounts** page opens.
 2. Click **+ GitHub** (or Jira, Linear, Bitbucket, GitLab, Nagios). A new card opens with its fields.
 3. Fill them in, and pick where its token comes from (below).
 4. **Save** (<kbd>Ctrl</kbd>+<kbd>S</kbd>).
@@ -55,6 +55,7 @@ token_env = "GITHUB_GLOBEX_TOKEN"
 | Email | `email` | the account the API token belongs to |
 | Projects | `projects` | keys like `ABC`: bare keys like `ABC-12` link here, and cards create their tickets in the first |
 | API token | see [Tokens](#tokens) | |
+| Log work time on the issue at Done | `worklog` | a switch: see [Work time](/board/digest/#work-time) |
 
 Only in the file: `issue_type` (what new tickets are created as; default Task), `sync = false`
 (column moves don't transition its issues), `ignore` (statuses sync leaves an issue in) and a
@@ -80,6 +81,7 @@ An OAuth token works too.
 | Workspace | `workspace` | its URL key: `globex` for `linear.app/globex`; bare keys link there |
 | Teams | `teams` | keys like `ENG`: bare keys like `ENG-12` link here, cards create their tickets in the first, and Tickets lists only these teams; empty: all |
 | API key | see [Tokens](#tokens) | |
+| Work time as a comment at Done | `worklog` | a switch: see [Work time](/board/digest/#work-time) |
 
 Only in the file: `sync = false` (column moves don't move its issues), `ignore` (states sync
 leaves an issue in) and a `[linear.status]` table naming the state a column moves issues to.

@@ -228,6 +228,7 @@ func TestFolderPage(t *testing.T) {
 	}
 	writeAt(filepath.Join(other, "Initech", ".desk", "desk.toml"), nil, 0o644)
 	h.u.openConfig(cfgFolders)
+	h.u.cfg.set.sub[cfgFolders] = "folders"
 	d := h.u.cfg
 	sz, all, w := cfgHarness(h)
 	h.draw(sz, w)
@@ -354,7 +355,7 @@ func TestConfigTexts(t *testing.T) {
 		}
 		return out
 	}
-	if k := keys(newEntry("jira", map[string]any{})); !slices.Equal(k, []string{"name+url", "email+projects", "token"}) {
+	if k := keys(newEntry("jira", map[string]any{})); !slices.Equal(k, []string{"name+url", "email+projects", "token", "worklog"}) {
 		t.Fatalf("jira rows %v", k)
 	}
 	if k := keys(newEntry("vault", map[string]any{"kind": "passbolt"})); !slices.Equal(k, []string{"name", "kind", "url+config_file", "key_file", "password"}) {
@@ -417,6 +418,7 @@ func TestConfigKeyRelease(t *testing.T) {
 func TestFolderPageClamp(t *testing.T) {
 	h := newHarness(t)
 	h.u.openConfig(cfgFolders)
+	h.u.cfg.set.sub[cfgFolders] = "folders"
 	d := h.u.cfg
 	d.entries[0].ed("depth").SetText("9")
 	if fs := d.folders(); fs[0].Depth != 6 {
@@ -439,6 +441,7 @@ func TestFolderPageClamp(t *testing.T) {
 func TestFolderSaveOnlyToml(t *testing.T) {
 	h := newHarness(t)
 	h.u.openConfig(cfgFolders)
+	h.u.cfg.set.sub[cfgFolders] = "folders"
 	h.u.cfg.entries[0].on["only_toml"] = true
 	h.u.cfg.entries[0].on["root"] = true
 	h.u.saveConfig()
@@ -449,6 +452,7 @@ func TestFolderSaveOnlyToml(t *testing.T) {
 		t.Fatalf("saved %+v", fs)
 	}
 	h.u.openConfig(cfgFolders)
+	h.u.cfg.set.sub[cfgFolders] = "folders"
 	if e := h.u.cfg.entries[0]; !e.on["only_toml"] || !e.on["root"] || e.edited() || !strings.HasSuffix(e.text("path"), filepath.Base(h.u.root)) {
 		t.Fatal("did not load back")
 	}

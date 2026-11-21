@@ -7,9 +7,13 @@ With worktrees on, each new card works on its own branch, in its own copy of the
 several cards can change the same repository at once without stepping on each other or on your
 checkout. When the card is done, its **Review** shows what the branch changed and ships it.
 
+![A card's Review: branch desk-6 into main, 1 commit ahead, its commit, and the files it changed as diffs](../../../assets/shots/sess-review.png)
+
 ## Turning it on
 
-Worktrees are per organization, off by default. Add to its `desk.toml`:
+Worktrees are per organization, off by default. In [Settings](/orgs/settings/#git--review), open
+the organization's **Git & review** page and turn on **Each card on its own worktree**, or add to
+its `desk.toml`:
 
 ```toml
 [git]
@@ -50,6 +54,13 @@ The reload button reads the branch again. Esc goes back to the session.
 | **Push** | pushes the branch to `origin`, setting it as its upstream |
 | **Open request** | pushes, then opens a pull request (GitHub) or merge request (GitLab) from the branch into its base, through the organization's account for that repository, titled after the card with its notes as the description. The request becomes a link on the card, with its state and CI |
 | **Merge into main** | fast-forwards the base branch to the card's branch, in the repository's main checkout. It asks for a second click first. The card then goes to Done |
+
+<figure class="cut">
+
+![The Review's head after one click on Merge: the button reads "Confirm: fast-forward main", with a note under it](../../../assets/shots/sess-review-merge-head.png)
+
+<figcaption>Merge asks for a second click.</figcaption>
+</figure>
 
 Merge never makes a merge commit. It refuses, with git's reason, when the main checkout isn't on
 the base branch, has changes not committed, or the base moved on since the branch left it: ask the

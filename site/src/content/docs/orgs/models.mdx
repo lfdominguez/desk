@@ -20,10 +20,10 @@ pick models that support tool calling.
 
 ## Adding a provider
 
-In [Settings](/orgs/settings/), an organization's page has **+ Model provider** among the account
-buttons. Its card has:
+In [Settings](/orgs/settings/), an organization's **Accounts** page has **+ Model provider** among
+the account buttons. Its card has:
 
-- **Name**: what the Models part calls it, for example `openrouter`.
+- **Name**: what the **Models** page calls it, for example `openrouter`.
 - **Base URL**: the endpoint, `https://openrouter.ai/api` for OpenRouter. It must speak
   Anthropic's API, not OpenAI's (OpenRouter's `/api/v1` is its OpenAI one).
 - **API key**: where its key comes from, like any account's token: a vault item, an environment
@@ -50,7 +50,7 @@ Save refuses a provider without a name or a base URL, and two with the same name
 
 ## Which Claude runs where
 
-Under the organization's servers, **Models** has a row per Claude desk starts, each with
+The organization's **Models** page in Settings has a row per Claude desk starts, each with
 **Claude subscription** and the organization's providers to pick from:
 
 | Row | The Claude |
@@ -72,7 +72,8 @@ Save refuses a row on a provider the organization no longer has.
 
 ## The roles' models
 
-**Company roles**, under it, sets the model each of desk's roles runs on as a card session's
+**Company roles**, on the organization's **Company** page in Settings (beside its
+[budgets](/orgs/company/#budgets)), sets the model each of desk's roles runs on as a card session's
 subagent: **Its own** (the one its file says, shown beside it), **Opus**, **Sonnet**, **Haiku**,
 or **The session's** (whatever the card's session runs on). On a provider, Opus, Sonnet and Haiku
 are what it puts in their place, so the tech lead can think on one model while QA runs on a

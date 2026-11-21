@@ -19,6 +19,13 @@ days**. Under each organization:
 | **Blocked** | cards in Blocked that changed in the span, with why |
 | **In progress** | cards in progress that changed in the span (an autopilot's own cards stay under it) |
 
+<figure class="cut">
+
+![The digest's text over the last 7 days, by organization: Done, In review, Blocked and In progress, each card with its key, title and work time](../../../assets/shots/board-digest-text.png)
+
+<figcaption>The last 7 days.</figcaption>
+</figure>
+
 Each line is the card's key and title, its tickets and pull requests, and the time its Claude
 worked on it. **Copy** puts the whole digest on the clipboard as Markdown, ready to paste into a
 chat or a standup note.
@@ -36,8 +43,10 @@ days = ["mon", "tue", "wed", "thu", "fri"]
 ## Work time
 
 desk keeps how long each card's Claude worked: from each message (or a turn Claude starts on its
-own) to the turn's end, added up. The digest shows it, and an account can log it on the ticket when
-the card goes to Done:
+own) to the turn's end, added up. The digest shows it, and a Jira or Linear account can log it on
+the ticket when the card goes to Done. Turn it on per account in [Settings](/orgs/settings/#git--review),
+on the organization's **Git & review** page (**Work time on tickets**) or on the account's card, or
+in its `desk.toml`:
 
 ```toml
 [[jira]]

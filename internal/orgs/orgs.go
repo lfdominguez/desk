@@ -464,6 +464,20 @@ type Phone struct {
 // PhoneSettings is settings.toml's [phone].
 func PhoneSettings() Phone { return loadSettings().Phone }
 
+// SavePhone keeps [phone] as p, the rest as it is.
+func SavePhone(p Phone) error {
+	s := loadSettings()
+	s.Phone = p
+	return saveSettings(s)
+}
+
+// SaveTelemetry keeps [newrelic] as n, the rest as it is.
+func SaveTelemetry(n NewRelic) error {
+	s := loadSettings()
+	s.NewRelic = n
+	return saveSettings(s)
+}
+
 // SetPhoneChat pairs the phone's chat, the rest as it is.
 func SetPhoneChat(chat int64) error {
 	s := loadSettings()
@@ -557,7 +571,8 @@ func saveSettings(s settings) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path+".tmp", b.Bytes(), 0o644); err != nil {
+	// 0600: the phone's token and New Relic's key may be here
+	if err := os.WriteFile(path+".tmp", b.Bytes(), 0o600); err != nil {
 		return err
 	}
 	err := os.Rename(path+".tmp", path)

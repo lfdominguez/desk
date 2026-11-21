@@ -21,11 +21,12 @@ These go before the first `[table]` (a TOML rule: after a table header, a key be
 | `agent` | string | none | The Claude Code agent new cards' sessions run as. The new-card dialog's **Agent** row starts on it. |
 | `agents` | string | `.claude/agents` | Where the agent files are, relative to this folder. |
 | `record` | bool | `true` | `false` stops recording the infra workspace's panes. |
-| `clear_login` | bool | `true` | `false` keeps what a server prints at login (banner, message of the day) above a pane's first prompt, after the shell integration clears the screen. The organization's settings page has it as **Show the server's login message**. |
+| `clear_login` | bool | `true` | `false` keeps what a server prints at login (banner, message of the day) above a pane's first prompt, after the shell integration clears the screen. The organization's **Servers** page in Settings has it as **Show the server's login message**. |
 
 ## [company]
 
-How desk's roles join the organization's own agents (see [The company](/orgs/company/)).
+How desk's roles join the organization's own agents (see [The company](/orgs/company/)). The
+organization's **Company** page in Settings edits `card_budget`, `day_budget` and `models`.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
@@ -57,6 +58,7 @@ tables give a column takes its card there, any other stays.
 ## [git]
 
 How the organization's cards use their git repositories (see [Review & ship](/sessions/review/)).
+The organization's **Git & review** page in Settings has it as **Each card on its own worktree**.
 
 | Key | Type | What it does |
 |---|---|---|
@@ -65,6 +67,7 @@ How the organization's cards use their git repositories (see [Review & ship](/se
 ## [[trigger]]
 
 What desk does by itself when something happens (see [Triggers](/orgs/triggers/)). Any number.
+The organization's **Triggers** page in Settings edits them.
 
 | Key | Type | What it does |
 |---|---|---|
@@ -351,7 +354,8 @@ health = "08:30"
 
 ## [me]
 
-Who you are in this organization (see [Who am I](/orgs/settings/#who-am-i)).
+Who you are in this organization (see [About me](/orgs/settings/#about-me)); the organization's
+**About me** page in Settings edits it.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
@@ -362,7 +366,8 @@ Here `me` is a table, not settings.toml's string: a `me = "…"` line makes the 
 
 ## settings.toml
 
-desk's own settings, not an organization's, are in `~/.config/desk/settings.toml`. **Settings → General** edits them.
+desk's own settings, not an organization's, are in `~/.config/desk/settings.toml`. desk's pages in **Settings** (General, Search folders, Phone,
+Keyboard shortcuts, Diagnostics) edit them.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
@@ -372,7 +377,8 @@ desk's own settings, not an organization's, are in `~/.config/desk/settings.toml
 | `zoom` | int | `100` | The text size of the terminals and the session panel, in percent, from 50 to 300. <kbd>Ctrl</kbd>+<kbd>=</kbd>, <kbd>Ctrl</kbd>+<kbd>-</kbd> and <kbd>Ctrl</kbd>+<kbd>0</kbd> change it. |
 | `[[folder]]` | tables | `$DESK_ROOT` (`~/Work`), depth 2 | Where desk looks for organizations, in order. When two give the same name, the first wins. |
 | `[editor]` | table | | The [workspace](/sessions/workspace/)'s layout, for every card. desk writes it as you drag. |
-| `[phone]` | table | none | A Telegram bot that brings cards that need you to your phone: `token`, `token_env` or `token_cmd` (the bot's token), `chat_id` (the paired chat; the first `/start` writes it) and `always` (also while desk has the focus). See [Your phone](/sessions/phone/). |
+| `[phone]` | table | none | A Telegram bot that brings cards that need you to your phone: `token`, `token_env` or `token_cmd` (the bot's token), `chat_id` (the paired chat; the first `/start` writes it) and `always` (also while desk has the focus). **Settings → Phone** edits it. See [Your phone](/sessions/phone/). |
+| `[newrelic]` | table | none | `license_key` and `app_name`: where desk reports its own crashes. **Settings → Diagnostics** edits it. See [Report to New Relic](/reference/troubleshooting/#report-to-new-relic). |
 | `[keys]` | table | none | The shortcuts you changed, a shortcut's name to its key (`"board.new" = "Alt+B"`). **Settings → Keyboard shortcuts** writes it; see [Changing shortcuts](/reference/keys/#changing-shortcuts). |
 
 `[editor]`:
