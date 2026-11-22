@@ -78,3 +78,30 @@ own. While an organization is mirrored, its cards' news comes to its topics inst
 bot's private chat.
 
 desk keeps which topic belongs to which card in `telegram.json`, beside the board.
+
+## The General chat
+
+Your private chat with the bot is desk's General chat. Cards of organizations that aren't mirrored
+still bring their requests there (see [Your phone](/sessions/phone/)), and from it you work with the
+whole board. The commands are in the chat's menu:
+
+| Command | What it does |
+|---|---|
+| `/board`, `/board Acme` | The board by column, each card with its state; Done only counted. |
+| `/inbox` | The cards waiting on you: a request, your turn, a block, a failure, a review. |
+| `/find login` | Cards on the board and in the archive that match, as desk's search matches. |
+| `/card DESK-12` | One card: its header, notes and last reply. **Start it** when it hasn't started, **Stop its turn** while it works. Reply to the message to write to its Claude. |
+| `/new @Acme fix the login #auth !high tomorrow` | A new card in To do, read as the [new card dialog](/board/cards/) reads it. Without an organization, buttons ask which. **Start it** starts it. |
+| `/tickets`, `/alerts`, `/ci` | Your assigned tickets, Nagios alerts, and the CI that failed or is running; each takes an organization too. |
+| `/digest`, `/digest week` | The [Digest](/board/digest/): today, `yesterday` or `week`. |
+| `/always on`, `/always off` | Whether cards come here even while desk has the focus. |
+| `/mirror Acme summary` | What an organization's group gets: `full`, `summary`, `notify` or `off`. |
+
+### The desk Claude
+
+Anything else you write goes to the **desk Claude**, a Claude with the whole board at hand: ask it
+what's blocked, what Acme did this week, or to make a card or tell one something. It reads cards and
+the digest, makes cards and messages them when you ask; it never edits files or runs commands, which
+stay the cards' work. It runs in your own Claude profile, in desk's search folder, and answers once
+it has finished. **/stop** stops its answer; **/forget** starts it afresh. Its conversation lasts
+until desk quits.

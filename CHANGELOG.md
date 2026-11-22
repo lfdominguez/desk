@@ -41,6 +41,11 @@ day). A release's section here is its notes on GitHub. The format follows
   come with Allow once, Deny and Allow every, a question with its options, and what you write in
   the topic goes to its Claude (`/stop` stops its turn). Done or archived closes the topic, a
   restore reopens it. What looks like a token is masked before it's sent.
+- **The General chat**: the bot's private chat works with the whole board. `/board`, `/inbox`,
+  `/find`, `/card DESK-12` (with Start it or Stop its turn), `/new @Acme fix the login !high`
+  (read as the new card dialog reads it), `/tickets`, `/alerts`, `/ci`, `/digest`, and `/always`
+  and `/mirror` to change what comes to Telegram. Anything else goes to the desk Claude, which
+  reads cards and the digest and makes or messages cards when you ask.
 - **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
   in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
   session's new Review button shows the branch's commits and every changed file as a diff, and

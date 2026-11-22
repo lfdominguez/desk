@@ -31,8 +31,12 @@ type phoneState struct {
 	always    bool
 	pairUntil time.Time
 	next      int
-	asks      map[string]phoneAsk // a button's data → what it answers
-	cards     map[int64]string    // a message sent → its card's id, for replies
+	asks      map[string]phoneAsk      // a button's data → what it answers
+	runs      map[string]func() string // a General chat button's data → what it does (remote_general.go)
+	cards     map[int64]string         // a message sent → its card's id, for replies
+	gnProc    session                  // the desk Claude, while it runs
+	gnSid     string                   // its session, resumed when it starts again
+	gnSaid    []string                 // what it said this turn
 }
 
 // phoneAsk is one button: card's request req, allowed or not, or answered
@@ -58,6 +62,9 @@ func (u *ui) startPhone() (stop func()) {
 	}
 	u.phone = &phoneState{bot: phoneBot(tok), chat: p.Chat, always: p.Always, pairUntil: time.Now().Add(pairFor),
 		asks: map[string]phoneAsk{}, cards: map[int64]string{}}
+	if p.Chat != 0 {
+		u.gnMenu()
+	}
 	u.startRemote()
 	go u.phonePoll(ctx, u.phone.bot)
 	return stop
@@ -124,11 +131,16 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 				u.showToast("Phone: "+err.Error(), true)
 			}
 			u.showToast("Phone paired: Telegram chat "+strconv.FormatInt(ph.chat, 10), false)
-			u.phoneSend("desk is paired with this chat: cards that need you come here.", nil, "")
+			u.phoneSend("desk is paired with this chat: cards that need you come here. Write anything to ask desk, or /help.", nil, "")
+			u.gnMenu()
 		}
 		return
 	}
 	if m.Chat.ID != ph.chat { // anyone else who found the bot
+		return
+	}
+	if cb := up.Callback; cb != nil && ph.runs[cb.Data] != nil {
+		u.gnPress(cb, m, ph.runs[cb.Data])
 		return
 	}
 	if cb := up.Callback; cb != nil {
@@ -148,7 +160,7 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 	}
 	c := u.b.Card(id)
 	if c == nil || strings.TrimSpace(m.Text) == "" {
-		u.phoneSend("Reply to a card's message to write to its Claude.", nil, "")
+		u.gnText(m)
 		return
 	}
 	key := c.Key() // before send: moving the card to In progress moves its slot

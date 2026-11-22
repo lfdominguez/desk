@@ -272,6 +272,10 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   cost); the conversation follows (Summary: yours and Claude's words; Full: also its tools),
   requests come with Allow once / Deny / Allow every, what you write goes to its Claude, `/stop`
   stops its turn. Done or archived closes the topic. Tokens are masked before anything leaves.
+  The bot's private chat is the General chat: `/board`, `/inbox`, `/find`, `/card DESK-12`,
+  `/new @Acme fix the login !high`, `/tickets`, `/alerts`, `/ci`, `/digest week`, `/always`,
+  `/mirror Acme summary`; anything else goes to the desk Claude, which reads the whole board and
+  makes or messages cards when you ask (never edits files or runs commands).
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and

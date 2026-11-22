@@ -41,6 +41,9 @@ func pidOf(cmd *exec.Cmd) int {
 }
 
 func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
+	if id == "desk:" { // Desk Control's desk Claude (remote_general.go)
+		return u.deskTool(name, raw)
+	}
 	if strings.HasPrefix(name, "drawing") {
 		return u.drawTool(id, name, raw)
 	}

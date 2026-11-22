@@ -316,6 +316,9 @@ func Run(b *kanban.Board, path string) error {
 		for _, st := range u.draws {
 			st.drawStop()
 		}
+		if u.phone != nil {
+			u.gnForget()
+		}
 	}()
 	go u.pollLinks() // its first round brings the remote tickets in step with the board
 	return u.loop(func() event.Event { ev := u.w.Event(); files.ListenEvents(ev); return ev })

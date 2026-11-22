@@ -120,9 +120,9 @@ func TestPhonePair(t *testing.T) {
 	}
 	h.pumpUntil("hello", func() bool { b, _ := f.said("sendMessage", "paired with this chat"); return b != nil })
 	f.ups <- tgMsg(7, "hi", 0) // a stranger
-	f.ups <- tgMsg(42, "hello", 0)
-	h.pumpUntil("help", func() bool { b, _ := f.said("sendMessage", "Reply to a card's message"); return b != nil })
-	if b, _ := f.said("sendMessage", ""); b["chat_id"] != float64(42) {
+	f.ups <- tgMsg(42, "/help", 0)
+	h.pumpUntil("help", func() bool { b, _ := f.said("sendRichMessage", ""); return b != nil })
+	if b, _ := f.said("sendRichMessage", ""); b["chat_id"] != float64(42) {
 		t.Fatalf("sent to %v", b["chat_id"])
 	}
 }

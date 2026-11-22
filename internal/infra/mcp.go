@@ -341,6 +341,9 @@ func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
 	if path, ok := strings.CutPrefix(groups, "draw="); ok { // a drawing's own Claude
 		tools, card = drawingTools, "draw:"+path
 	}
+	if groups == "desk" { // Desk Control's General chat's Claude
+		tools, card = deskTools, "desk:"
+	}
 	in := bufio.NewScanner(r)
 	in.Buffer(make([]byte, 1024*1024), 16*1024*1024)
 	out := json.NewEncoder(w)

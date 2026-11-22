@@ -54,8 +54,8 @@ func (u *ui) boardTool(id string, ws bool, name string, raw json.RawMessage) (st
 	return text, true
 }
 
-// boardList is org's cards matching query in column (either may be ""),
-// one line each.
+// boardList is org's cards ("" every organization's, each line naming
+// its) matching query in column (either may be ""), one line each.
 func (u *ui) boardList(org, query, column string) string {
 	var b strings.Builder
 	for _, col := range u.b.Columns {
@@ -67,10 +67,14 @@ func (u *ui) boardList(org, query, column string) string {
 			if l := ticketOf(&c); l != nil {
 				t = " " + l.Ref
 			}
-			if c.Org != org || query != "" && !matches(query, c.Title+" "+c.Notes+t) {
+			if org != "" && c.Org != org || query != "" && !matches(query, c.Title+" "+c.Notes+t) {
 				continue
 			}
-			fmt.Fprintf(&b, "%s [%s%s]%s %s\n", c.Key(), col.Title, statusOf(c), t, c.Title)
+			who := ""
+			if org == "" {
+				who = c.Org + " "
+			}
+			fmt.Fprintf(&b, "%s %s[%s%s]%s %s\n", c.Key(), who, col.Title, statusOf(c), t, c.Title)
 		}
 	}
 	if b.Len() == 0 {
