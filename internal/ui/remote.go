@@ -238,11 +238,24 @@ func (u *ui) rmCard(c *kanban.Card, col string, archived bool) *rmJob {
 			j.posts = append(j.posts, rmEmoji(c.Status)+" **"+tgfmt.Escape(statusWords(c))+"**\n\n"+tgfmt.Redact(cmp.Or(c.Last, c.Note)))
 		}
 	}
-	a := u.asks[c.ID]
-	if a != nil && a.r.ID != j.t.Ask && mode != orgs.MirrorOff {
-		j.ask, j.askID = u.rmAsk(c, a), a.r.ID
+	a := u.asks[c.ID] // its own request first, then its infra session's approval
+	tab, ia := u.infraAsk(c.Key())
+	cur := ""
+	switch {
+	case a != nil:
+		cur = a.r.ID
+	case ia != nil:
+		cur = fmt.Sprint("infra:", ia.ID)
 	}
-	if j.t.Ask != "" && (a == nil || a.r.ID != j.t.Ask) {
+	if cur != "" && cur != j.t.Ask && mode != orgs.MirrorOff {
+		if a != nil {
+			j.ask = u.rmAsk(c, a)
+		} else {
+			j.ask = u.rmApproval(tab, *ia)
+		}
+		j.askID = cur
+	}
+	if j.t.Ask != "" && cur != j.t.Ask {
 		j.askEnd = j.t.AskText + "\n\n→ answered"
 	}
 	if !j.create && j.act == "" && j.name == "" && j.head == "" && len(j.posts) == 0 && j.ask == nil && j.askEnd == "" && j.sent == j.t.Sent && j.said == j.t.Said {

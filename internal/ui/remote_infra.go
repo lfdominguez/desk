@@ -20,7 +20,8 @@ import (
 // command or change waiting for approval comes with Approve, Deny and
 // Always. What's typed there goes to the organization's infra Claude;
 // /screen shows a terminal when Settings allows it. A card's infra
-// session's news already reaches the card's topic, as peer messages.
+// session's news already reaches the card's topic, as peer messages, and
+// its approvals go there too when the card has a topic (rmCard).
 
 // infraAnswer and infraSay reach the infra workspace; tests replace them.
 var (
@@ -36,6 +37,29 @@ func rmInfraKey(org string) string { return "infra:" + org }
 func (u *ui) infraStatus(ss []infra.TabStatus) {
 	u.infraStat = ss
 	u.remoteKick()
+}
+
+// infraAsk is the first approval card key's own infra session waits on,
+// and that session's name; nil when none.
+func (u *ui) infraAsk(key string) (string, *infra.Approval) {
+	for _, s := range u.infraStat {
+		if s.Card == key && len(s.Pending) > 0 {
+			return s.Name, &s.Pending[0]
+		}
+	}
+	return "", nil
+}
+
+// rmCardTakes says whether card key's topic shows its infra session's
+// approvals (the Infra topic does otherwise): it's mirrored and has a
+// topic, or a conversation that makes one.
+func (u *ui) rmCardTakes(key string) bool {
+	c := u.cardOfKey(key)
+	if c == nil {
+		return false
+	}
+	mode, _ := u.rmMirror(c)
+	return mode != orgs.MirrorOff && (u.rm.topics[c.ID] != nil || len(u.chat(c.ID)) > 0)
 }
 
 // rmInfras is each mirrored organization's Infra topic's job; seen gets
@@ -86,7 +110,7 @@ func (u *ui) rmInfra(org string, o orgs.TelegramOrg) *rmJob {
 		for _, p := range s.Panes {
 			fmt.Fprintf(&b, "- `%s` %s\n", strings.ReplaceAll(p.Name, "`", "'"), tgfmt.Escape(p.Status))
 		}
-		if first == nil && len(s.Pending) > 0 {
+		if first == nil && len(s.Pending) > 0 && (s.Card == "" || !u.rmCardTakes(s.Card)) {
 			first, from = &s.Pending[0], s.Name
 		}
 		if s.Card == "" && s.Last != "" && o.Mirror != orgs.MirrorNotify && s.Last != j.t.Said {
@@ -174,7 +198,18 @@ func (u *ui) rmInfraIncoming(org string, m *tgbot.Message) {
 	case text == "":
 		post(tgbot.Out{Text: "Only text reaches the infra Claude from here, for now."})
 	case strings.HasPrefix(text, "/screen"):
-		post(u.rmScreen(org, strings.TrimSpace(strings.TrimPrefix(text, "/screen"))))
+		o, pic := u.rmScreen(org, strings.TrimSpace(strings.TrimPrefix(text, "/screen")))
+		if pic == nil {
+			post(o)
+			break
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			if _, err := bot.SendFile(ctx, chat, thread, "photo", "screen.png", pic, o.Text); err != nil {
+				u.later(func() { u.showToast("Telegram: "+firstLine(err.Error()), true) })
+			}
+		}()
 	case strings.HasPrefix(text, "/help"), strings.HasPrefix(text, "/start"):
 		post(tgbot.Out{Text: "Write here and it goes to " + org + "'s infra Claude. Buttons answer what it waits on. /screen shows a terminal (/screen web1), when Settings → Telegram allows it."})
 	case !infraSay(u.infra, org, text):
@@ -188,11 +223,12 @@ func (u *ui) rmInfraIncoming(org string, m *tgbot.Message) {
 	}
 }
 
-// rmScreen is a terminal of org's infra as text: the pane named host, else
-// the first one running something, else the first.
-func (u *ui) rmScreen(org, host string) tgbot.Out {
+// rmScreen is a terminal of org's infra: the pane named host, else the
+// first one running something, else the first. A picture with o.Text its
+// caption, or o alone (a refusal, or a pane without a picture: its text).
+func (u *ui) rmScreen(org, host string) (o tgbot.Out, pic []byte) {
 	if !orgs.PhoneSettings().Screen {
-		return tgbot.Out{Text: "/screen is off: turn on \"Let /screen show a terminal\" in desk's Settings → Telegram."}
+		return tgbot.Out{Text: "/screen is off: turn on \"Let /screen show a terminal\" in desk's Settings → Telegram."}, nil
 	}
 	var pick *infra.PaneStatus
 	for _, s := range u.infraStat {
@@ -208,8 +244,11 @@ func (u *ui) rmScreen(org, host string) tgbot.Out {
 		}
 	}
 	if pick == nil {
-		return tgbot.Out{Text: "No terminal open in " + org + "'s infra" + map[bool]string{true: "", false: " called " + host}[host == ""] + "."}
+		return tgbot.Out{Text: "No terminal open in " + org + "'s infra" + map[bool]string{true: "", false: " called " + host}[host == ""] + "."}, nil
+	}
+	if pick.Picture != nil { // ponytail: a picture isn't redacted; the Settings switch is the guard
+		return tgbot.Out{Text: "🖥 " + pick.Name + " · " + pick.Status}, pick.Picture()
 	}
 	scr := strings.TrimRight(pick.Screen(), "\n ")
-	return tgbot.Out{Markdown: "🖥 `" + strings.ReplaceAll(pick.Name, "`", "'") + "` · " + tgfmt.Escape(pick.Status) + "\n\n" + tgfmt.Fence("", clipKeep(tgfmt.Redact(scr), 3500))}
+	return tgbot.Out{Markdown: "🖥 `" + strings.ReplaceAll(pick.Name, "`", "'") + "` · " + tgfmt.Escape(pick.Status) + "\n\n" + tgfmt.Fence("", clipKeep(tgfmt.Redact(scr), 3500))}, nil
 }

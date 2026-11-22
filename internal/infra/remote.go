@@ -24,6 +24,7 @@ type TabStatus struct {
 type PaneStatus struct {
 	Name, Addr, Status string        // Status: Term.Status, "running …", "idle prompt"…
 	Screen             func() string `json:"-"` // its visible text now; any goroutine
+	Picture            func() []byte `json:"-"` // its screen now as a PNG; any goroutine
 }
 
 // Approval is a command or a change a tab's Claude waits on.
@@ -65,7 +66,7 @@ func statuses(m *model) []TabStatus {
 		t.mu.Unlock()
 		for _, p := range panes {
 			term := p.term
-			s.Panes = append(s.Panes, PaneStatus{Name: p.name, Addr: p.addr, Status: term.Status(), Screen: func() string { return term.Screen().Text }})
+			s.Panes = append(s.Panes, PaneStatus{Name: p.name, Addr: p.addr, Status: term.Status(), Screen: func() string { return term.Screen().Text }, Picture: term.PNG})
 		}
 		for _, a := range t.pending {
 			s.Pending = append(s.Pending, Approval{ID: a.id, Host: t.paneName(a.pane), Cmd: a.cmd, Reason: a.reason, Title: a.title, Fixed: a.fixed()})

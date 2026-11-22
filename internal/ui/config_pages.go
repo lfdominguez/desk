@@ -59,7 +59,7 @@ var (
 	phoneKind = cfgKind{"phone", "Telegram bot", []cfgField{
 		{key: "token", label: "Bot token", secret: "."},
 		{key: "always", label: "Also while desk has the focus", hint: "off: only while no desk window is in front", toggle: true},
-		{key: "screen", label: "Let /screen show a terminal", hint: "in an Infra topic: a server terminal's text, as it is on screen", toggle: true},
+		{key: "screen", label: "Let /screen show a terminal", hint: "in an Infra topic: a picture of a server terminal, as it is on screen", toggle: true},
 	}}
 	tgAcctKind = cfgKind{"tgacct", "Telegram account", []cfgField{
 		{key: "api_id", label: "App api_id", hint: "from my.telegram.org → API development tools", num: true},

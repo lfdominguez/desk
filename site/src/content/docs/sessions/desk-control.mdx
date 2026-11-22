@@ -88,17 +88,20 @@ card's) with its state and what each terminal runs right now ("running make depl
 prompt").
 
 - **The organization's infra Claude's replies** come to the topic (not with Notify). A card's own
-  infra session reports to the card instead: its results already arrive in the card's topic, as
-  the peer's messages.
+  infra session reports to the card instead: its results arrive in the card's topic as the peer's
+  messages, and what it waits to run comes there too, with the same buttons, after any request of
+  the card's own Claude. Only a card without a topic leaves its infra session's approvals to the
+  Infra topic.
 - **A command or change waiting for approval** comes with **Approve**, **Deny** and **Always**
   (allowed in this organization from then on, as the window's *always*). A file change or a
   servers file edit shows its diff and has no Always. Whichever side answers first counts; the
   message then says *→ answered*.
 - **Anything you write** there goes to the organization's infra Claude as your message, opening
   its session if it has none (the window stays where it is); while it works, it's queued.
-- **/screen** sends the text of a terminal as it is on screen: the one running something, or the
-  one you name (`/screen web1`). It's off until **Let /screen show a terminal** is on in
-  [Settings → Telegram](/orgs/settings/#telegram): a terminal can show more than you mean to send.
+- **/screen** sends a picture of a terminal as it is on screen, in desk's colors: the one running
+  something, or the one you name (`/screen web1`). It's off until **Let /screen show a terminal**
+  is on in [Settings → Telegram](/orgs/settings/#telegram): a terminal can show more than you mean
+  to send, and a picture's tokens aren't masked.
 
 ## The General chat
 

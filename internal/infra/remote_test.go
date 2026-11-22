@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -52,6 +53,9 @@ func TestRemoteStatus(t *testing.T) {
 		t.Fatal("no screen")
 	}
 	ss[0].Panes[0].Screen()
+	if p := ss[0].Panes[0].Picture(); !bytes.HasPrefix(p, []byte("\x89PNG")) {
+		t.Fatalf("picture %q", p[:min(8, len(p))])
+	}
 	select {
 	case <-got:
 		t.Fatal("told twice")

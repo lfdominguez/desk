@@ -5,12 +5,62 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/infra"
+	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/tgbot/tgfake"
 )
 
 // said is the text of the last plain message sent.
 func said(f *tgfake.Server) string { return fmt.Sprint(f.Last("sendMessage")["text"]) }
+
+// TestRemoteInfraCards: a card's infra session's approval comes to the
+// card's topic (after the card's own request), not the Infra topic, unless
+// the card has no topic; /screen sends a pane's picture.
+func TestRemoteInfraCards(t *testing.T) {
+	h := newHarness(t)
+	f := remoteOn(t, h, "full")
+	var answers []string
+	replace(t, &infraAnswer, func(_ *infra.Workspace, id int, v string) { answers = append(answers, fmt.Sprint(id, v)) })
+	c := h.u.b.Add(h.u.b.Column("In progress"), kanban.Card{Title: "Fix DNS", Org: "Acme", Status: kanban.StatusWorking})
+	h.u.say(c.ID, "you", "fix the DNS")
+	h.u.save()
+	key := h.u.b.Card(c.ID).Key()
+	h.u.asks[c.ID] = &askState{r: &claude.Request{ID: "r1", Tool: "Bash", Line: "dig example.com"}}
+	h.u.infraStatus([]infra.TabStatus{
+		{Org: "Acme", Card: key, Name: "Acme · " + key, State: "approval", Pending: []infra.Approval{{ID: 20, Host: "ns1", Cmd: "systemctl reload bind9"}}},
+		{Org: "Acme", Card: "DESK-99", Name: "Acme · DESK-99", State: "approval", Pending: []infra.Approval{{ID: 21, Cmd: "uptime"}}},
+	})
+	if top := h.topicOf(c.ID); top.Ask != "r1" {
+		t.Fatalf("the card's own request first: %q", top.Ask)
+	}
+	if top := h.topicOf(rmInfraKey("Acme")); top.Ask != "infra:21" {
+		t.Fatalf("a card without a topic: Infra's %q", top.Ask)
+	}
+	delete(h.u.asks, c.ID)
+	h.u.save()
+	if top := h.topicOf(c.ID); top.Ask != "infra:20" || !strings.Contains(top.AskText, "wants to run on `ns1`") {
+		t.Fatalf("card's topic %+v", top)
+	}
+	h.u.phoneUpdate(groupPress(42, buttonData(t, f, "Approve")))
+	if strings.Join(answers, ",") != "20y" {
+		t.Fatalf("answers %v", answers)
+	}
+	h.u.infraStatus([]infra.TabStatus{{Org: "Acme", Card: key, Name: "Acme · " + key, State: "working",
+		Panes: []infra.PaneStatus{{Name: "ns1", Status: "idle prompt", Picture: func() []byte { return []byte("\x89PNG pic") }}}}})
+	if top := h.topicOf(c.ID); top.Ask != "" {
+		t.Fatalf("still asking %q", top.Ask)
+	}
+	settingsFile(t, "[telegram]\ntoken = \"T0K\"\nchat_id = 42\nscreen = true\n[telegram.orgs.Acme]\nmirror = \"full\"\nchat_id = -100555\n")
+	h.u.phoneUpdate(groupMsg(42, h.topicOf(rmInfraKey("Acme")).Thread, "/screen"))
+	h.pumpUntil("photo", func() bool { return f.Last("sendPhoto") != nil })
+	if p := f.Last("sendPhoto"); fmt.Sprint(p["caption"]) != "🖥 ns1 · idle prompt" {
+		t.Fatalf("photo %v", p)
+	}
+	f.Fail("sendPhoto", "Bad Request: no")
+	h.u.phoneUpdate(groupMsg(42, h.topicOf(rmInfraKey("Acme")).Thread, "/screen"))
+	h.pumpUntil("toast", func() bool { return strings.Contains(h.u.toast, "Telegram: ") })
+}
 
 // TestRemoteInfra: a mirrored organization's infra gets an Infra topic
 // named by its state, a header of its tabs and terminals, its Claude's

@@ -278,7 +278,8 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   makes or messages cards when you ask (never edits files or runs commands). An organization with
   servers also gets an Infra topic: its infra sessions and what each terminal runs, its infra
   Claude's replies, approvals with Approve / Deny / Always, what you write going to that Claude,
-  and `/screen` for a terminal's text (off until Settings allows it).
+  and `/screen` for a picture of a terminal (off until Settings allows it). A card's own infra
+  session asks for its approvals in the card's topic.
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
