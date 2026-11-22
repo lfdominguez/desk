@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -37,6 +39,7 @@ var gnCommands = []tgbot.Command{
 	{Name: "alerts", What: "Nagios alerts"},
 	{Name: "ci", What: "CI that failed or is running"},
 	{Name: "digest", What: "The standup: /digest today, yesterday or week"},
+	{Name: "usage", What: "Each Claude account's plan limits"},
 	{Name: "always", What: "Messages even while desk has the focus: /always on or off"},
 	{Name: "mirror", What: "An organization's topics: /mirror Acme full, summary, notify or off"},
 	{Name: "stop", What: "Stop the desk Claude's answer"},
@@ -148,6 +151,8 @@ func (u *ui) gnText(m *tgbot.Message) {
 			return
 		}
 		u.gnPost(u.digestText("", digestSince(span, time.Now())), nil, "")
+	case "usage":
+		u.gnUsage()
 	case "always":
 		u.gnPost(u.gnAlways(arg), nil, "")
 	case "mirror":
@@ -393,7 +398,96 @@ func (u *ui) gnMade(org, text string, ts []smartTok) {
 		return
 	}
 	go u.checkLinks([]string{id})
-	u.gnPost(tgfmt.Escape(said), [][]tgbot.Button{{u.gnButton("Start it", "success", func() string { return u.gnStart(id) })}}, id)
+	u.gnPost(tgfmt.Escape(said), [][]tgbot.Button{{
+		u.gnButton("Improve it", "", func() string { return u.gnImprove(id) }),
+		u.gnButton("Start it", "success", func() string { return u.gnStart(id) }),
+	}}, id)
+}
+
+// gnImprove is /new's Improve it: the card's request through Prompt
+// Optimization, as the new card dialog's Improve, then the card takes the
+// draft (title and notes; labels added; priority, due and folder where
+// unset) unless it started meanwhile. Linked tickets aren't read here.
+func (u *ui) gnImprove(id string) string {
+	c := u.b.Card(id)
+	if c == nil {
+		return "That card is gone"
+	}
+	ask := u.optAsk(c.Org, c.Dir, cmp.Or(strings.TrimSpace(c.Notes), c.Title), c.Lang)
+	org, key := c.Org, c.Key()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+		defer cancel()
+		var d claude.Draft
+		env, err := u.goEnv(org, "improve")
+		if err == nil {
+			ask.Env = env
+			d, err = optimize(ctx, ask, func(claude.Progress) {})
+		}
+		u.later(func() {
+			c := u.b.Card(id)
+			switch {
+			case c == nil:
+				return
+			case err != nil:
+				u.gnPost(tgfmt.Escape(key+": Improve didn't finish: "+firstLine(err.Error())), nil, "")
+				return
+			case c.Session.ID != "" || c.Status != "":
+				u.gnPost(tgfmt.Escape(key+" started before Improve finished: left as it was."), nil, "")
+				return
+			}
+			c.Title = cmp.Or(strings.TrimSpace(d.Title), c.Title)
+			c.Notes = cmp.Or(strings.TrimSpace(d.Prompt), c.Notes)
+			for _, l := range d.Labels {
+				if l = strings.ToLower(strings.TrimSpace(l)); l != "" && !slices.Contains(c.Labels, l) {
+					c.Labels = append(c.Labels, l)
+				}
+			}
+			if p := slices.IndexFunc(prioNames, func(n string) bool { return strings.EqualFold(n, d.Priority) }); p > 0 && c.Priority == 0 {
+				c.Priority = p
+			}
+			if _, err := time.Parse(kanban.DateLayout, d.Due); err == nil && c.Due == "" {
+				c.Due = d.Due
+			}
+			if f := strings.Trim(d.Folder, "/"); f != "" && c.Dir == "" {
+				if fi, err := os.Stat(orgs.Dir(u.root, org, f)); err == nil && fi.IsDir() {
+					c.Dir = f
+				}
+			}
+			c.Updated = time.Now()
+			u.save()
+			u.gnPost("**"+tgfmt.Escape(key+" · "+c.Title)+"**\n\n"+c.Notes,
+				[][]tgbot.Button{{u.gnButton("Start it", "success", func() string { return u.gnStart(id) })}}, id)
+		})
+	}()
+	return "Improving " + key + " with Claude…"
+}
+
+// gnUsage posts each Claude account's plan limits, with the organizations
+// that use it, read off the UI goroutine.
+func (u *ui) gnUsage() {
+	by := map[string][]string{} // account → its organizations
+	for _, o := range u.orgList {
+		a := orgs.Account(u.root, o)
+		by[a] = append(by[a], o)
+	}
+	home := u.home
+	go func() {
+		var b strings.Builder
+		for _, a := range slices.Sorted(maps.Keys(by)) {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			ls, err := planLimits(ctx, home, a)
+			cancel()
+			fmt.Fprintf(&b, "\n### %s\n", tgfmt.Escape(cmp.Or(a, "default")+" · "+strings.Join(by[a], ", ")))
+			if err != nil {
+				fmt.Fprintf(&b, "%s\n", tgfmt.Escape(firstLine(err.Error())))
+			}
+			for _, l := range ls {
+				fmt.Fprintf(&b, "- %s · %s\n", tgfmt.Escape(l.Name), tgfmt.Escape(fmt.Sprintf("%.0f%%, resets %s", l.Percent, resets(l.Resets))))
+			}
+		}
+		u.later(func() { u.gnPost(cmp.Or(strings.TrimSpace(b.String()), "No organizations."), nil, "") })
+	}()
 }
 
 // gnOrgs is org as a list of one, or every organization that has m's
@@ -569,9 +663,14 @@ func (u *ui) gnLaunch() (session, error) {
 		o.Args = append(o.Args, "--mcp-config", mcp)
 	}
 	o.Args = append(o.Args, "--allowedTools="+strings.Join(allow, ","), "--disallowedTools=Edit,Write,NotebookEdit,Bash")
-	if ph.gnSid == "" { // ponytail: the session lives while desk runs; keep it in settings if restarts should resume it
+	if ph.gnSid == "" { // the last run's, kept beside the board
+		b, _ := os.ReadFile(u.gnSidFile())
+		ph.gnSid = strings.TrimSpace(string(b))
+	}
+	if ph.gnSid == "" {
 		ph.gnSid = claude.NewSessionID()
 		o.New = ph.gnSid
+		os.WriteFile(u.gnSidFile(), []byte(ph.gnSid+"\n"), 0o600)
 	} else {
 		o.Resume = ph.gnSid
 	}
@@ -614,14 +713,24 @@ func (u *ui) gnEvent(p session, e claude.Event) {
 	}
 }
 
-// gnForget ends the desk Claude and its session: the next message starts
-// a new one.
-func (u *ui) gnForget() {
+// gnSidFile keeps the desk Claude's session over restarts.
+func (u *ui) gnSidFile() string { return filepath.Join(filepath.Dir(u.path), "telegram-claude.txt") }
+
+// gnQuit ends the desk Claude's process; its session stays for the next.
+func (u *ui) gnQuit() {
 	ph := u.phone
 	if ph.gnProc != nil {
 		ph.gnProc.Close()
 	}
-	ph.gnProc, ph.gnSaid, ph.gnSid = nil, nil, ""
+	ph.gnProc, ph.gnSaid = nil, nil
+}
+
+// gnForget ends the desk Claude and its session: the next message starts
+// a new one.
+func (u *ui) gnForget() {
+	u.gnQuit()
+	u.phone.gnSid = ""
+	os.Remove(u.gnSidFile())
 }
 
 // deskTool answers the desk Claude's tool call, off the UI goroutine.

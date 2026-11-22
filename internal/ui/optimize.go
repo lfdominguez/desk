@@ -22,6 +22,33 @@ var optimize = claude.Optimize
 // describe reads what a linked ticket says, for the optimizer; tests replace it.
 var describe = links.Describe
 
+// optAsk is what the optimizer gets for request req in org's folder dir
+// ("" or not a folder: it picks one of the org's), written in lang.
+func (u *ui) optAsk(org, dir, req, lang string) claude.Ask {
+	var folders, labels []string
+	dir = strings.Trim(strings.TrimSpace(dir), "/")
+	if fi, err := os.Stat(orgs.Dir(u.root, org, dir)); dir != "" && (err != nil || !fi.IsDir()) {
+		dir = "" // not a folder (yet): Improve picks one
+	}
+	if dir == "" {
+		ents, _ := os.ReadDir(orgs.Dir(u.root, org, ""))
+		for _, e := range ents {
+			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+				folders = append(folders, e.Name())
+			}
+		}
+	}
+	for _, c := range u.boardCards() {
+		for _, l := range c.Labels {
+			if !slices.Contains(labels, l) {
+				labels = append(labels, l)
+			}
+		}
+	}
+	return claude.Ask{Home: u.home, Account: orgs.Account(u.root, org), Org: org, Dir: orgs.Dir(u.root, org, dir), Root: orgs.Dir(u.root, org, ""), Folder: dir, Request: req,
+		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: lang, About: orgs.AboutMe(u.root, org)}
+}
+
 // optimizeCard runs Prompt Optimization on the new card's request (its
 // notes, else its title) in the chosen organization, then fills the dialog
 // with the draft for the user to look over before Create (which a new card
@@ -50,28 +77,7 @@ func (u *ui) optimizeCard() {
 		u.showToast("Write what to do first", true)
 		return
 	}
-	var folders, labels []string
-	dir := strings.Trim(strings.TrimSpace(s.dir.Text()), "/")
-	if fi, err := os.Stat(orgs.Dir(u.root, org, dir)); dir != "" && (err != nil || !fi.IsDir()) {
-		dir = "" // not a folder (yet): Improve picks one
-	}
-	if dir == "" {
-		ents, _ := os.ReadDir(orgs.Dir(u.root, org, ""))
-		for _, e := range ents {
-			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
-				folders = append(folders, e.Name())
-			}
-		}
-	}
-	for _, c := range u.boardCards() {
-		for _, l := range c.Labels {
-			if !slices.Contains(labels, l) {
-				labels = append(labels, l)
-			}
-		}
-	}
-	ask := claude.Ask{Home: u.home, Account: orgs.Account(u.root, org), Org: org, Dir: orgs.Dir(u.root, org, dir), Root: orgs.Dir(u.root, org, ""), Folder: dir, Request: req,
-		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: strings.TrimSpace(s.lang.Text()), About: orgs.AboutMe(u.root, org)}
+	ask := u.optAsk(org, s.dir.Text(), req, strings.TrimSpace(s.lang.Text()))
 	cfg := u.orgConfig(org)
 	var ls []kanban.Link
 	for _, w := range strings.FieldsFunc(req+"\n"+s.links.Text(), func(r rune) bool { return strings.ContainsRune(" \t\n,;()<>\"'", r) }) {

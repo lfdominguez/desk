@@ -97,6 +97,14 @@ func TestRemoteTopic(t *testing.T) {
 	if p := posted(f); len(p) != 2 || !strings.Contains(p[0], "**"+c.Key()+"** · Fix login") || !strings.Contains(p[0], "In progress") || p[1] != "On it." {
 		t.Fatalf("posted %q", p)
 	}
+	h.pumpUntil("the group's menu", func() bool { return f.Last("setMyCommands") != nil })
+	if m := f.Last("setMyCommands"); fmt.Sprint(m["scope"]) != "map[chat_id:-100555 type:chat]" {
+		t.Fatalf("the group's menu %v", m)
+	}
+	h.u.rmConfig()
+	if n := len(f.Calls("setMyCommands")); n != 1 {
+		t.Fatalf("menu set %d times", n)
+	}
 	if f.Last("pinChatMessage") == nil {
 		t.Fatal("header not pinned")
 	}
@@ -183,8 +191,22 @@ func TestRemoteTopic(t *testing.T) {
 	h.u.phoneUpdate(groupMsg(42, th, "/help"))
 	h.pumpUntil("help", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "/stop stops") })
 	h.u.phoneUpdate(groupMsg(42, th, ""))
-	h.pumpUntil("text only", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "Only text") })
+	h.pumpUntil("text only", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "Text and pictures") })
+
+	f.Files = map[string][]byte{"big": []byte("\x89PNG\r\n\x1a\n....")}
+	pic := groupMsg(42, th, "")
+	pic.Message.Caption, pic.Message.Photo = "look at this", []tgbot.File{{ID: "small"}, {ID: "big"}}
 	n := len(fk.prompts)
+	h.u.phoneUpdate(pic)
+	h.pumpUntil("picture sent", func() bool { return len(fk.prompts) == n+1 })
+	if !strings.Contains(fk.prompts[n], "look at this [Image 1]") {
+		t.Fatalf("prompt %q", fk.prompts[n])
+	}
+	doc := groupMsg(42, th, "")
+	doc.Message.Document = &tgbot.File{ID: "gone", Mime: "image/png"}
+	h.u.phoneUpdate(doc)
+	h.pumpUntil("no picture", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "Couldn't take") })
+	n = len(fk.prompts)
 	h.u.phoneUpdate(groupMsg(7, th, "from someone else"))
 	h.u.phoneUpdate(groupMsg(42, th+100, "in no card's topic"))
 	if len(fk.prompts) != n {

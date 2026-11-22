@@ -19,6 +19,7 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 | `board.json.bak` | An earlier board, at most about an hour older than the last save before it: kept so a spoiled board leaves the one from before. When `board.json` doesn't read, desk opens this one instead. To go back to it by hand, quit desk and copy it over `board.json`. |
 | `board.json.lock` | Held while desk runs, so only one desk at a time works on the board: a second one tells you desk is already running and quits. |
 | `chats/<card>.jsonl` | Each card's conversation, one message per line. |
+| `telegram-claude.txt` | The [desk Claude](/sessions/desk-control/#the-desk-claude)'s session, resumed after a restart until `/forget`. 0600. |
 | `telegram.json` | [Desk Control](/sessions/desk-control/)'s topics: for each card, its group, topic, pinned header and how much of its conversation went there. 0600. |
 | `chats/ws-<card>.jsonl` | Its [workspace](/sessions/workspace/) Claude's conversation. |
 | `images/` | Images you pasted: a card's notes reference them as `![image](path)`, a message as `[Image n]`. |

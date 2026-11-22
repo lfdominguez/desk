@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -52,6 +54,22 @@ func TestGeneralCommands(t *testing.T) {
 	}
 	if got := h.ask(f, "/board Nope"); !strings.Contains(got, "no organization called Nope") {
 		t.Fatalf("no org: %s", got)
+	}
+
+	h.u.orgList = []string{"Acme", "Globex"}
+	replace(t, &planLimits, func(_ context.Context, _, acct string) ([]claude.Limit, error) {
+		return []claude.Limit{{Name: "5h", Percent: 40, Resets: time.Now().Add(2 * time.Hour)}}, nil
+	})
+	if got := h.ask(f, "/usage"); !strings.Contains(got, "### Acme · Acme") || !strings.Contains(got, "### Globex") || !strings.Contains(got, `- 5h · 40\%`) {
+		t.Fatalf("usage: %s", got)
+	}
+	replace(t, &planLimits, func(context.Context, string, string) ([]claude.Limit, error) { return nil, errors.New("token expired") })
+	if got := h.ask(f, "/usage"); !strings.Contains(got, "token expired") {
+		t.Fatalf("usage error: %s", got)
+	}
+	h.u.orgList = nil
+	if got := h.ask(f, "/usage"); !strings.Contains(got, "No organizations") {
+		t.Fatalf("no orgs: %s", got)
 	}
 
 	if got := h.ask(f, "/inbox"); got != "Nothing waits on you\\." && got != "Nothing waits on you." {
@@ -180,6 +198,33 @@ func TestGeneralCards(t *testing.T) {
 	if n.Org != "Globex" || n.Title != "add a logout button" || n.Priority != 3 || len(n.Labels) != 1 || n.Labels[0] != "auth" {
 		t.Fatalf("made %+v", n)
 	}
+	var asked claude.Ask
+	replace(t, &optimize, func(_ context.Context, a claude.Ask, _ func(claude.Progress)) (claude.Draft, error) {
+		asked = a
+		return claude.Draft{Title: "Add a logout button to the header", Prompt: "Add a **logout** button.", Labels: []string{"ui", "auth"}, Priority: "low", Due: "2026-12-01"}, nil
+	})
+	data = buttonData(t, f, "Improve it")
+	h.u.phoneUpdate(tgbot.Update{Callback: &tgbot.Callback{ID: "cb3", Data: data, From: tgbot.User{ID: 42}, Message: &tgbot.Message{ID: 79, Chat: tgbot.Chat{ID: 42, Type: "private"}}}})
+	h.pumpUntil("improved", func() bool { return strings.Contains(posted(f)[len(posted(f))-1], "Add a logout button to the header") })
+	if m := h.u.b.Card(n.ID); asked.Org != "Globex" || asked.Request != "add a logout button #auth !high" ||
+		m.Title != "Add a logout button to the header" || m.Notes != "Add a **logout** button." || m.Priority != 3 || m.Due != "2026-12-01" || strings.Join(m.Labels, ",") != "auth,ui" {
+		t.Fatalf("improved %+v (asked %+v)", m, asked)
+	}
+	replace(t, &optimize, func(context.Context, claude.Ask, func(claude.Progress)) (claude.Draft, error) { return claude.Draft{}, errors.New("haiku down") })
+	h.u.gnImprove(n.ID)
+	h.pumpUntil("not improved", func() bool { return strings.Contains(posted(f)[len(posted(f))-1], "Improve didn") })
+	replace(t, &optimize, func(context.Context, claude.Ask, func(claude.Progress)) (claude.Draft, error) {
+		return claude.Draft{Title: "late"}, nil
+	})
+	h.u.gnImprove(n.ID)
+	h.u.b.Card(n.ID).Status = kanban.StatusWorking
+	h.pumpUntil("started meanwhile", func() bool { return strings.Contains(posted(f)[len(posted(f))-1], "left as it was") })
+	h.u.gnImprove(n.ID)
+	h.u.b.Delete(n.ID) // gone meanwhile: nothing said
+	if got := h.u.gnImprove(n.ID); got != "That card is gone" {
+		t.Fatalf("gone: %s", got)
+	}
+
 	got = h.ask(f, "/new @Initech whatever")
 	if !strings.Contains(got, "Which organization") { // Initech isn't one of desk's: no org read
 		t.Fatalf("unknown org: %s", got)
@@ -361,6 +406,12 @@ func TestGeneralClaude(t *testing.T) {
 	if len(fakes) != 2 || fakes[1].opts.Resume != sid {
 		t.Fatalf("resumed %+v", fakes[1].opts)
 	}
+	h.u.gnQuit() // desk quits; the next run resumes the same session
+	h.u.phone.gnSid = ""
+	h.u.phoneUpdate(dm("after a restart"))
+	if len(fakes) != 3 || fakes[2].opts.Resume != sid {
+		t.Fatalf("after a restart %+v", fakes[2].opts)
+	}
 	fakes[0].on(claude.Event{Kind: claude.KindText, Text: "old"}) // a replaced one's
 	h.frame()
 	if len(h.u.phone.gnSaid) != 0 {
@@ -369,7 +420,7 @@ func TestGeneralClaude(t *testing.T) {
 	if got := h.ask(f, "/stop"); !strings.Contains(got, "Stopped") {
 		t.Fatalf("stop: %s", got)
 	}
-	if got := h.ask(f, "/forget"); !strings.Contains(got, "afresh") || h.u.phone.gnProc != nil || h.u.phone.gnSid != "" {
+	if got := h.ask(f, "/forget"); !strings.Contains(got, "afresh") || h.u.phone.gnProc != nil || h.u.phone.gnSid != "" || func() bool { _, err := os.Stat(h.u.gnSidFile()); return err == nil }() {
 		t.Fatalf("forget: %s", got)
 	}
 	fail = true

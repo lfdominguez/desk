@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,6 +52,14 @@ type remote struct {
 	busy   bool              // a plan is being sent
 	again  bool              // the board changed meanwhile: plan again after
 	from   map[string]string // a card's message that came from its topic: not sent back
+	menus  map[int64]bool    // the groups whose command menu is set this run
+}
+
+// rmCommands is an organization group's command menu.
+var rmCommands = []tgbot.Command{
+	{Name: "stop", What: "In a card's topic: stop its Claude's turn"},
+	{Name: "screen", What: "In the Infra topic: a picture of a terminal, /screen web1"},
+	{Name: "help", What: "What this topic does"},
 }
 
 // rmFile is where the topics are kept.
@@ -58,7 +67,7 @@ func (u *ui) rmFile() string { return filepath.Join(filepath.Dir(u.path), "teleg
 
 // startRemote reads the topics desk made; after startPhone.
 func (u *ui) startRemote() {
-	u.rm = &remote{topics: map[string]*rmTopic{}, from: map[string]string{}}
+	u.rm = &remote{topics: map[string]*rmTopic{}, from: map[string]string{}, menus: map[int64]bool{}}
 	if b, err := os.ReadFile(u.rmFile()); err == nil {
 		json.Unmarshal(b, &u.rm.topics)
 	}
@@ -72,6 +81,19 @@ func (u *ui) rmConfig() {
 		return
 	}
 	u.rm.orgs = orgs.TelegramSettings().Orgs
+	if u.phone != nil {
+		bot := u.phone.bot
+		for _, o := range u.rm.orgs {
+			if o.Chat != 0 && !u.rm.menus[o.Chat] {
+				u.rm.menus[o.Chat] = true
+				go func(chat int64) {
+					ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+					defer cancel()
+					bot.Commands(ctx, chat, rmCommands)
+				}(o.Chat)
+			}
+		}
+	}
 	u.remoteKick()
 }
 
@@ -486,9 +508,35 @@ func (u *ui) rmIncoming(id string, m *tgbot.Message) {
 			bot.Post(ctx, tgbot.Out{Chat: chat, Thread: thread, Text: s})
 		}()
 	}
+	pic := ""
+	if n := len(m.Photo); n > 0 {
+		pic = m.Photo[n-1].ID // the largest size
+	} else if d := m.Document; d != nil && strings.HasPrefix(d.Mime, "image/") {
+		pic = d.ID
+	}
 	switch {
+	case pic != "":
+		text = strings.TrimSpace(m.Caption + " " + imgTag(1))
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			data, err := bot.Download(ctx, pic)
+			u.later(func() {
+				path := ""
+				if err == nil {
+					path, err = u.saveImage(data, http.DetectContentType(data))
+				}
+				if err != nil {
+					reply("Couldn't take the picture: " + err.Error())
+					return
+				}
+				u.rm.from[id] = text
+				u.deliver(id, text, false, path)
+				go bot.React(context.Background(), chat, msg, "👀")
+			})
+		}()
 	case text == "":
-		reply("Only text reaches the card's Claude from here, for now.")
+		reply("Text and pictures reach the card's Claude from here; nothing else, for now.")
 	case strings.HasPrefix(text, "/stop"):
 		u.stop(id)
 		reply("Stopping its turn.")

@@ -319,7 +319,7 @@ func Run(b *kanban.Board, path string) error {
 			st.drawStop()
 		}
 		if u.phone != nil {
-			u.gnForget()
+			u.gnQuit()
 		}
 	}()
 	go u.pollLinks() // its first round brings the remote tickets in step with the board

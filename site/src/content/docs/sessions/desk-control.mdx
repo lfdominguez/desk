@@ -61,11 +61,14 @@ seconds behind desk.
   comes with its options. Whichever side answers first counts, desk or the topic; the request's
   message then says *→ answered* and loses its buttons.
 - **Anything you write** in the topic goes to the card's Claude as your message, as if typed in
-  desk; desk reacts 👀 when it has it. It isn't sent back to the topic.
-- **/stop** stops Claude's turn; **/help** says what the topic does.
+  desk; desk reacts 👀 when it has it. It isn't sent back to the topic. A **picture** (a photo,
+  or an image sent as a file) goes too, as an image of your message, its caption the text.
+- **/stop** stops Claude's turn; **/help** says what the topic does. The group's command menu
+  lists them, with the Infra topic's **/screen**.
 
 Only your own Telegram account, the one paired with the bot, is heard in the groups: anyone else's
-messages and button presses are ignored. For now, only text reaches Claude from a topic.
+messages and button presses are ignored. Text and pictures reach Claude from a topic; voice notes
+and other files don't, for now.
 
 ## When the card moves
 
@@ -115,9 +118,10 @@ whole board. The commands are in the chat's menu:
 | `/inbox` | The cards waiting on you: a request, your turn, a block, a failure, a review. |
 | `/find login` | Cards on the board and in the archive that match, as desk's search matches. |
 | `/card DESK-12` | One card: its header, notes and last reply. **Start it** when it hasn't started, **Stop its turn** while it works. Reply to the message to write to its Claude. |
-| `/new @Acme fix the login #auth !high tomorrow` | A new card in To do, read as the [new card dialog](/board/cards/) reads it. Without an organization, buttons ask which. **Start it** starts it. |
+| `/new @Acme fix the login #auth !high tomorrow` | A new card in To do, read as the [new card dialog](/board/cards/) reads it. Without an organization, buttons ask which. **Improve it** runs it through Improve with Claude, as the dialog's Improve (without reading the tickets it names), and the card takes the draft unless it started meanwhile; **Start it** starts it. |
 | `/tickets`, `/alerts`, `/ci` | Your assigned tickets, Nagios alerts, and the CI that failed or is running; each takes an organization too. |
 | `/digest`, `/digest week` | The [Digest](/board/digest/): today, `yesterday` or `week`. |
+| `/usage` | Each Claude account's plan limits (as the session view's foot shows them), with the organizations using it. |
 | `/always on`, `/always off` | Whether cards come here even while desk has the focus. |
 | `/mirror Acme summary` | What an organization's group gets: `full`, `summary`, `notify` or `off`. |
 
@@ -127,5 +131,6 @@ Anything else you write goes to the **desk Claude**, a Claude with the whole boa
 what's blocked, what Acme did this week, or to make a card or tell one something. It reads cards and
 the digest, makes cards and messages them when you ask; it never edits files or runs commands, which
 stay the cards' work. It runs in your own Claude profile, in desk's search folder, and answers once
-it has finished. **/stop** stops its answer; **/forget** starts it afresh. Its conversation lasts
-until desk quits.
+it has finished. **/stop** stops its answer; **/forget** starts it afresh. Its conversation goes on
+after desk restarts (its session is kept in `telegram-claude.txt`, beside the board) until you
+**/forget** it.
