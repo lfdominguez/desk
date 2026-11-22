@@ -275,7 +275,12 @@ func (u *ui) phoneGroup(up tgbot.Update, m *tgbot.Message) {
 		if ph.chat == 0 || cb.From.ID != ph.chat {
 			return
 		}
-		said := u.phonePress(ph.asks[cb.Data])
+		var said string
+		if f := ph.runs[cb.Data]; f != nil { // an Infra topic's approval: the next plan takes its buttons off
+			said = f()
+		} else {
+			said = u.phonePress(ph.asks[cb.Data])
+		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
@@ -290,7 +295,10 @@ func (u *ui) phoneGroup(up tgbot.Update, m *tgbot.Message) {
 		u.phoneLink(m)
 		return
 	}
-	if id := u.rmCardOf(m.Chat.ID, m.Thread); id != "" && u.b.Card(id) != nil {
+	id := u.rmCardOf(m.Chat.ID, m.Thread)
+	if org, ok := strings.CutPrefix(id, "infra:"); ok {
+		u.rmInfraIncoming(org, m)
+	} else if id != "" && u.b.Card(id) != nil {
 		u.rmIncoming(id, m)
 	}
 }

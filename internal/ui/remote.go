@@ -190,6 +190,7 @@ func (u *ui) remotePlan() (jobs []*rmJob) {
 			jobs = append(jobs, j)
 		}
 	}
+	jobs = append(jobs, u.rmInfras(seen)...)
 	for id, t := range u.rm.topics { // cards deleted: their topics go
 		if !seen[id] {
 			jobs = append(jobs, &rmJob{id: id, t: *t, act: "delete"})

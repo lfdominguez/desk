@@ -59,6 +59,7 @@ var (
 	phoneKind = cfgKind{"phone", "Telegram bot", []cfgField{
 		{key: "token", label: "Bot token", secret: "."},
 		{key: "always", label: "Also while desk has the focus", hint: "off: only while no desk window is in front", toggle: true},
+		{key: "screen", label: "Let /screen show a terminal", hint: "in an Infra topic: a server terminal's text, as it is on screen", toggle: true},
 	}}
 	tgAcctKind = cfgKind{"tgacct", "Telegram account", []cfgField{
 		{key: "api_id", label: "App api_id", hint: "from my.telegram.org → API development tools", num: true},
@@ -507,7 +508,7 @@ func (u *ui) cfgTriggers(gtx layout.Context) layout.Dimensions {
 // organization's mirror as "mirror.<org>") and [newrelic] as entries.
 func loadPhone() (phone, acct, diag *cfgEntry) {
 	t, nr := orgs.TelegramSettings(), orgs.Telemetry()
-	raw := map[string]any{"token": t.Token, "token_env": t.TokenEnv, "token_cmd": t.TokenCmd, "always": t.Always, "chat_id": t.Chat}
+	raw := map[string]any{"token": t.Token, "token_env": t.TokenEnv, "token_cmd": t.TokenCmd, "always": t.Always, "screen": t.Screen, "chat_id": t.Chat}
 	phone = newEntry(phoneKind.key, raw)
 	ar := map[string]any{"api_hash": map[string]any{"token": t.APIHash.Token, "token_env": t.APIHash.TokenEnv, "token_cmd": t.APIHash.TokenCmd},
 		"phone_number": t.Number, "folder": t.Folder}
@@ -548,7 +549,7 @@ func (d *cfgDialog) savePhone() error {
 			if p.on["unpair"] {
 				chat = 0
 			}
-			t.Phone = orgs.Phone{Secret: secretOf(p, "."), Chat: chat, Always: p.on["always"]}
+			t.Phone = orgs.Phone{Secret: secretOf(p, "."), Chat: chat, Always: p.on["always"], Screen: p.on["screen"]}
 		}
 		if a != nil {
 			id, err := strconv.Atoi(cmp.Or(a.text("api_id"), "0"))

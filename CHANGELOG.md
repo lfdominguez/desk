@@ -46,6 +46,11 @@ day). A release's section here is its notes on GitHub. The format follows
   (read as the new card dialog reads it), `/tickets`, `/alerts`, `/ci`, `/digest`, and `/always`
   and `/mirror` to change what comes to Telegram. Anything else goes to the desk Claude, which
   reads cards and the digest and makes or messages cards when you ask.
+- **The Infra topic**: an organization with servers gets an Infra topic in its group, named by its
+  infra Claudes' state, its header listing each infra session and what its terminals run. The
+  infra Claude's replies follow, a command or change waiting for approval comes with Approve, Deny
+  and Always, and what you write there goes to that Claude. `/screen` sends a terminal's text,
+  once "Let /screen show a terminal" is on in Settings → Telegram.
 - **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
   in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
   session's new Review button shows the branch's commits and every changed file as a diff, and

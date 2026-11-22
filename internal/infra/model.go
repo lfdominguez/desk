@@ -683,7 +683,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case questionMsg:
 		m.asks = append(m.asks, msg.q)
 	case approvalMsg:
-		msg.tab.pending = append(msg.tab.pending, msg.a)
+		msg.tab.await(msg.a)
 		if m.elsewhere(msg.tab) {
 			desktopNotify("Approval needed · "+msg.tab.name, msg.a.cmd)
 		}
@@ -730,7 +730,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			a := &approval{cmd: b.ToolInput.Command, reason: b.ToolInput.Reason, why: "blocked by Claude Code's permission classifier",
 				pane: b.ToolInput.Pane, blocked: true, done: make(chan approvalResult, 1)}
-			t.pending = append(t.pending, a)
+			t.await(a)
 			if m.elsewhere(t) {
 				desktopNotify("Approval needed · "+t.name, a.cmd)
 			}

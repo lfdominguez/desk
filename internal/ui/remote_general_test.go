@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/kanban"
@@ -90,6 +91,9 @@ func TestGeneralCommands(t *testing.T) {
 		t.Fatalf("tickets: %s", got)
 	}
 
+	if got := h.ask(f, "/find ABC-1"); !strings.Contains(got, "Fix login") {
+		t.Fatalf("find by ticket: %s", got)
+	}
 	if got := h.ask(f, "/alerts"); got != "No alerts\\." && got != "No alerts." {
 		t.Fatalf("no alerts: %s", got)
 	}
@@ -287,6 +291,11 @@ func TestGeneralEdges(t *testing.T) {
 	}
 	if got := h.ask(f, "/mirror Acme full"); !strings.Contains(got, "Not saved") {
 		t.Fatalf("mirror unsaved: %s", got)
+	}
+	h.u.phone.chat, h.u.phone.pairUntil = 0, time.Now().Add(time.Minute)
+	h.u.phoneUpdate(dm("/start")) // paired while desk runs, though not kept
+	if h.u.phone.chat != 42 {
+		t.Fatalf("pairing %d", h.u.phone.chat)
 	}
 	os.Chmod(dir, 0o700)
 

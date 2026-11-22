@@ -106,6 +106,7 @@ type ui struct {
 	cardSock   string              // where card sessions' desk tools call (cardtools.go); "" in tests
 	ciList     layout.List
 	infra      *infra.Workspace              // the servers; nil in tests
+	infraStat  []infra.TabStatus             // its tabs as last told, for Desk Control's Infra topics (remote_infra.go)
 	tree       []infra.Org                   // its host tree, read once a frame
 	infraTasks []infra.Task                  // and the server tasks cards handed it
 	infraOn    bool                          // the workspace is what the user looks at
@@ -256,6 +257,7 @@ func (u *ui) startInfra() {
 	u.infra.OnInvestigate(func(org, host, service, state, output string, since time.Time) {
 		u.later(func() { u.investigate(org, host, service, state, output, "", since) })
 	})
+	u.infra.OnStatus(func(ss []infra.TabStatus) { u.later(func() { u.infraStatus(ss) }) })
 	if sock, err := infra.ServeCards(u.cardTool); err == nil {
 		u.cardSock = sock
 	} else {

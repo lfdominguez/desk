@@ -275,7 +275,10 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   The bot's private chat is the General chat: `/board`, `/inbox`, `/find`, `/card DESK-12`,
   `/new @Acme fix the login !high`, `/tickets`, `/alerts`, `/ci`, `/digest week`, `/always`,
   `/mirror Acme summary`; anything else goes to the desk Claude, which reads the whole board and
-  makes or messages cards when you ask (never edits files or runs commands).
+  makes or messages cards when you ask (never edits files or runs commands). An organization with
+  servers also gets an Infra topic: its infra sessions and what each terminal runs, its infra
+  Claude's replies, approvals with Approve / Deny / Always, what you write going to that Claude,
+  and `/screen` for a terminal's text (off until Settings allows it).
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and

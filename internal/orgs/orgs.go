@@ -460,6 +460,7 @@ type Phone struct {
 	Secret
 	Chat   int64 `toml:"chat_id,omitempty"`
 	Always bool  `toml:"always,omitempty"` // also while a desk window has the focus
+	Screen bool  `toml:"screen,omitempty"` // /screen in an Infra topic shows a terminal's text
 }
 
 // PhoneSettings is the bot of settings.toml's [telegram].

@@ -34,6 +34,9 @@ type driver struct {
 	last    time.Time
 	dirty   bool   // something besides output or the clock changed since the last snapshot
 	sig     string // the last snapshot's viewSig
+
+	onStatus  func([]TabStatus) // Desk Control's (remote.go), told on each change
+	statusSig string            // what it was last told
 }
 
 // start runs m at startup: peers, the last session
@@ -70,6 +73,7 @@ func (d *driver) loop(m model) {
 		default:
 			d.update(&m, x)
 		}
+		d.tellStatus(&m)
 		d.dirty = true
 		d.emit(&m)
 	}

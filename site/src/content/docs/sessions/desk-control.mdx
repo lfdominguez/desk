@@ -79,6 +79,27 @@ bot's private chat.
 
 desk keeps which topic belongs to which card in `telegram.json`, beside the board.
 
+## The Infra topic
+
+An organization with [servers](/servers/overview/) gets one more topic in its group, **Infra**,
+once an infra session is open. Its name follows the infra Claudes: 🔐 waiting for an approval,
+🟢 working, ⏸ otherwise. Its pinned header lists each infra session (the organization's own, and a
+card's) with its state and what each terminal runs right now ("running make deploy", "idle
+prompt").
+
+- **The organization's infra Claude's replies** come to the topic (not with Notify). A card's own
+  infra session reports to the card instead: its results already arrive in the card's topic, as
+  the peer's messages.
+- **A command or change waiting for approval** comes with **Approve**, **Deny** and **Always**
+  (allowed in this organization from then on, as the window's *always*). A file change or a
+  servers file edit shows its diff and has no Always. Whichever side answers first counts; the
+  message then says *→ answered*.
+- **Anything you write** there goes to the organization's infra Claude as your message, opening
+  its session if it has none (the window stays where it is); while it works, it's queued.
+- **/screen** sends the text of a terminal as it is on screen: the one running something, or the
+  one you name (`/screen web1`). It's off until **Let /screen show a terminal** is on in
+  [Settings → Telegram](/orgs/settings/#telegram): a terminal can show more than you mean to send.
+
 ## The General chat
 
 Your private chat with the bot is desk's General chat. Cards of organizations that aren't mirrored

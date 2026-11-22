@@ -1124,6 +1124,7 @@ type approval struct {
 	done             chan approvalResult
 
 	file, title string // a file tool's or add_host's: the file (cmd is its diff) and the sheet's title; never edited or "always"
+	id          int    // its number for Desk Control (Tab.await)
 }
 
 // fixed says the user can only approve or deny a: a secret, a file's diff.

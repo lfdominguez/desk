@@ -297,7 +297,7 @@ func (u *ui) gnCard(key string) {
 	col, _ := u.b.Find(c.ID)
 	md := rmHead(c, u.b.Columns[col].Title)
 	if s := strings.TrimSpace(c.Notes); s != "" {
-		md += "\n\n" + tgfmt.Clip(s, 1500)
+		md += "\n\n" + clipKeep(s, 1500)
 	}
 	if posts := u.rmPosts(c.ID, orgs.MirrorSummary, lastOf(u.chat(c.ID), boardReadMsgs)); len(posts) > 0 {
 		md += "\n\n———\n\n" + posts[len(posts)-1]
