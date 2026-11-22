@@ -36,11 +36,12 @@ type phoneState struct {
 }
 
 // phoneAsk is one button: card's request req, allowed or not, or answered
-// with option (-1 none).
+// with option (-1 none); always allows every later use of its tool.
 type phoneAsk struct {
 	card, req string
 	allow     bool
 	option    int
+	always    bool
 }
 
 // phoneBot makes the bot for settings p; tests replace it.
@@ -57,6 +58,7 @@ func (u *ui) startPhone() (stop func()) {
 	}
 	u.phone = &phoneState{bot: phoneBot(tok), chat: p.Chat, always: p.Always, pairUntil: time.Now().Add(pairFor),
 		asks: map[string]phoneAsk{}, cards: map[int64]string{}}
+	u.startRemote()
 	go u.phonePoll(ctx, u.phone.bot)
 	return stop
 }
@@ -112,9 +114,7 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 		return
 	}
 	if t := m.Chat.Type; t == "group" || t == "supergroup" {
-		if up.Message != nil && ph.chat != 0 && m.From.ID == ph.chat && strings.HasPrefix(m.Text, "/link") {
-			u.phoneLink(m) // only the paired chat's own user: a private chat's id is its user's
-		}
+		u.phoneGroup(up, m)
 		return
 	}
 	if ph.chat == 0 {
@@ -163,6 +163,11 @@ func (u *ui) phonePress(pa phoneAsk) string {
 	if pa.card == "" || a == nil || a.r.ID != pa.req {
 		return "Already answered"
 	}
+	if pa.always {
+		tool := a.r.Tool
+		u.allowAll(pa.card)
+		return "Allowed every " + cmp.Or(tool, "use")
+	}
 	if pa.option >= 0 {
 		a.picks[0][pa.option] = true
 		u.answerAsk(pa.card, true)
@@ -180,19 +185,22 @@ func (u *ui) phoneTell(c *kanban.Card, what string) {
 	if ph == nil || ph.chat == 0 || !ph.always && u.anyFocused() {
 		return
 	}
+	if mode, _ := u.rmMirror(c); mode != orgs.MirrorOff { // its topic tells it
+		return
+	}
 	text := c.Key() + " · " + what + "\n" + c.Title
 	var rows [][]tgbot.Button
 	if a := u.asks[c.ID]; a != nil {
 		switch {
 		case len(a.r.Questions) == 0:
 			text += "\n\nWants to run " + a.r.Line
-			rows = [][]tgbot.Button{{u.phoneButton("Allow", phoneAsk{c.ID, a.r.ID, true, -1}), u.phoneButton("Deny", phoneAsk{c.ID, a.r.ID, false, -1})}}
+			rows = [][]tgbot.Button{{u.phoneButton("Allow", phoneAsk{c.ID, a.r.ID, true, -1, false}), u.phoneButton("Deny", phoneAsk{c.ID, a.r.ID, false, -1, false})}}
 		default:
 			q := a.r.Questions[0]
 			text += "\n\n" + interviewText(a.r.Questions)
 			if len(a.r.Questions) == 1 && !q.Multi {
 				for j, o := range q.Options {
-					rows = append(rows, []tgbot.Button{u.phoneButton(o.Label, phoneAsk{c.ID, a.r.ID, true, j})})
+					rows = append(rows, []tgbot.Button{u.phoneButton(o.Label, phoneAsk{c.ID, a.r.ID, true, j, false})})
 				}
 			}
 			text += "\n\nReply to this message to answer in your own words."
@@ -245,6 +253,36 @@ func (u *ui) anyFocused() bool {
 	return false
 }
 
+// phoneGroup is an update from a group, heeded only from the paired chat's
+// own user (a private chat's id is its user's): /link, a button under a
+// topic's request (its message changes once the request is gone), what's
+// typed in a card's topic.
+func (u *ui) phoneGroup(up tgbot.Update, m *tgbot.Message) {
+	ph := u.phone
+	if cb := up.Callback; cb != nil {
+		if ph.chat == 0 || cb.From.ID != ph.chat {
+			return
+		}
+		said := u.phonePress(ph.asks[cb.Data])
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			ph.bot.Answer(ctx, cb.ID, said)
+		}()
+		return
+	}
+	if ph.chat == 0 || m.From.ID != ph.chat {
+		return
+	}
+	if strings.HasPrefix(m.Text, "/link") {
+		u.phoneLink(m)
+		return
+	}
+	if id := u.rmCardOf(m.Chat.ID, m.Thread); id != "" && u.b.Card(id) != nil {
+		u.rmIncoming(id, m)
+	}
+}
+
 // phoneLink is /link Acme in a group the user made: that forum group is
 // the organization's in Desk Control, mirrored fully unless Settings says
 // how already. A group desk didn't make can't go in the folder.
@@ -279,6 +317,7 @@ func (u *ui) phoneLink(m *tgbot.Message) {
 		}
 		reply = "Linked: this group is " + org + "'s in desk. Its cards get a topic each."
 		u.showToast("Telegram: a group linked to "+org, false)
+		defer u.rmConfig()
 	}
 	bot, chat, thread := u.phone.bot, m.Chat.ID, m.Thread
 	go func() {

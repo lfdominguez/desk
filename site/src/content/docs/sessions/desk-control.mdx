@@ -1,0 +1,80 @@
+---
+title: Desk Control
+description: Every card's session in a Telegram topic of its organization's group, where you follow it, answer its requests and write to its Claude.
+---
+
+Desk Control puts your cards in Telegram. Each organization you turn on has its own private
+forum group, and every card with a conversation gets a **topic** there: you follow the session,
+answer what it asks, and write to its Claude from your phone, while desk keeps running on your
+machine. desk still does the work: Telegram is another window on it.
+
+Set it up in [Settings → Telegram](/orgs/settings/#telegram): the bot, then **Log in** with your
+account and **Set up / Repair** (or `/link Acme` in a group you made). Each organization stays off
+until you pick what its group gets.
+
+## A card's topic
+
+The topic opens the first time the card has something to say, named by the card and its state:
+
+| Name starts with | The card |
+|---|---|
+| 🟢 | Claude is working |
+| 🟡 | your turn |
+| 🔴 | blocked |
+| ❌ | failed |
+| 👀 | ready for review |
+| ✅ | done |
+| ⏸ | idle |
+
+Its first message, pinned, is the card's header: its key and title, its column and state, its
+links (pull requests, tickets) with their state, and what the session has cost, how many turns and
+how much of the context it uses. It changes in place as the card does.
+
+A card that was already talking when you turned its organization on starts its topic with its last
+message, not its whole history.
+
+## What comes to the topic
+
+That depends on what the organization's group gets:
+
+| | Notify | Summary | Full |
+|---|---|---|---|
+| Your messages written in desk | | ✓ | ✓ |
+| Claude's replies | | ✓ | ✓ |
+| Its tools (commands, edits), run together in a block | | | ✓ |
+| Errors, and what other Claudes and leads tell it | | ✓ | ✓ |
+| A turn that ends on you (your turn, blocked, failed, review) | ✓ | | |
+| A permission request or a question, with buttons | ✓ | ✓ | ✓ |
+
+Replies arrive as Claude finishes each one, in Telegram's rich text: headings, lists, tables, code
+blocks. Messages that come together go as one, cut where a message would get too long, without
+cutting a code block. Anything that looks like a token or a private key is masked
+(`‹redacted›`) before it leaves your machine.
+
+Telegram takes about one message every 3 seconds in a group, so a busy card catches up a few
+seconds behind desk.
+
+## Answering from the topic
+
+- **A permission request** ("Wants to run …") comes with **Allow once**, **Deny** and **Allow
+  every Bash** (the tool it asks for, for the rest of desk's run). A **question** with one answer
+  comes with its options. Whichever side answers first counts, desk or the topic; the request's
+  message then says *→ answered* and loses its buttons.
+- **Anything you write** in the topic goes to the card's Claude as your message, as if typed in
+  desk; desk reacts 👀 when it has it. It isn't sent back to the topic.
+- **/stop** stops Claude's turn; **/help** says what the topic does.
+
+Only your own Telegram account, the one paired with the bot, is heard in the groups: anyone else's
+messages and button presses are ignored. For now, only text reaches Claude from a topic.
+
+## When the card moves
+
+- To **Done**, or into the archive: the topic closes.
+- Back on the board: it opens again.
+- Deleted: its topic goes too.
+
+A card your organization's autopilot runs reports to the autopilot's card, not to a topic of its
+own. While an organization is mirrored, its cards' news comes to its topics instead of to the
+bot's private chat.
+
+desk keeps which topic belongs to which card in `telegram.json`, beside the board.

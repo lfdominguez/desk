@@ -161,6 +161,7 @@ type ui struct {
 	wtTried    map[string]bool               // cards whose worktree was made or tried this run
 	phone      *phoneState                   // the phone's Telegram bot (phone.go), nil none
 	tg         tgState                       // Settings' Telegram part: login and setup (telegram_setup.go)
+	rm         *remote                       // Desk Control's card topics (remote.go), nil without a bot
 	turnAt     map[string]time.Time          // when each card's running turn started (Session.Work)
 	logging    map[string]bool               // cards whose work time is being logged on their ticket
 	dgSpan     int                           // the Digest's span (digest.go)
@@ -566,6 +567,7 @@ func (u *ui) mainView() layout.Widget {
 func (u *ui) save() {
 	u.pilotFollow()
 	u.gen++
+	u.remoteKick()
 	if u.saveAfter == 0 {
 		u.flush()
 	} else if !u.dirty {

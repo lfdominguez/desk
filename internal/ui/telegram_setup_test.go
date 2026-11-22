@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/io/key"
+
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/tgbot"
 	"github.com/lfdominguez/desk/internal/tgbot/tgfake"
@@ -153,7 +155,11 @@ func TestTelegramLogin(t *testing.T) {
 	}
 	h.draw(sz, w)
 	h.u.tg.login.ed.SetText("pw")
-	h.clickIn(sz, all, w, "tgSend")
+	h.r.Source().Execute(key.FocusCmd{Tag: &h.u.tg.login.ed}) // Enter sends it
+	h.draw(sz, w)
+	h.r.Queue(key.Event{Name: key.NameReturn, State: key.Press})
+	h.draw(sz, w)
+	h.draw(sz, w)
 	h.pumpUntil("logged in", func() bool { return h.u.tg.login == nil })
 	if strings.Join(got, ",") != "12345,pw" || !strings.Contains(h.u.tg.note, "Logged in") {
 		t.Fatalf("%v %q", got, h.u.tg.note)
@@ -354,4 +360,16 @@ func TestPhoneLink(t *testing.T) {
 	os.MkdirAll(orgs.SettingsFile()+".tmp", 0o700) // the save's temp file can't be written
 	link(42, "/link Globex", true)
 	said("Not linked")
+}
+
+// TestTelegramReal: the real account calls give up at once on a canceled
+// context, without reaching Telegram.
+func TestTelegramReal(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	a := tgsetup.Account{ID: 1, Hash: "h", Session: filepath.Join(t.TempDir(), "s")}
+	tgAccountLogin(ctx, a, "+1", tgsetup.Asker{})
+	tgAccountLogout(ctx, a)
+	tgForum(ctx, a, "Acme", "", "desk_test_bot")
+	tgFolder(ctx, a, 0, "Desk", "desk_test_bot", nil)
 }

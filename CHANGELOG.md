@@ -35,6 +35,12 @@ day). A release's section here is its notes on GitHub. The format follows
   2FA password asked in desk) to make a "Desk Control" chat folder and a private forum group per
   organization you turn on, with the bot as their admin; or send `/link Acme` in a group you made.
   Each organization is off until you pick what its group gets: Notify, Summary or Full.
+- **Card topics**: in a mirrored organization's group, every card with a conversation gets a
+  Telegram topic named by its state (🟢 working, 🟡 your turn, 🔴 blocked…) with a pinned header
+  of its column, links and cost. Its conversation follows in rich text, its permission requests
+  come with Allow once, Deny and Allow every, a question with its options, and what you write in
+  the topic goes to its Claude (`/stop` stops its turn). Done or archived closes the topic, a
+  restore reopens it. What looks like a token is masked before it's sent.
 - **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
   in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
   session's new Review button shows the branch's commits and every changed file as a diff, and

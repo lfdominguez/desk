@@ -514,6 +514,9 @@ func (u *ui) saveConfig() {
 		}
 	}
 	u.dropConfig()
+	if deskSaved {
+		u.rmConfig() // the mirrors may have changed
+	}
 	if folders {
 		u.reloadConfig()
 		return

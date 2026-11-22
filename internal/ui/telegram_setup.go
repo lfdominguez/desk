@@ -204,6 +204,7 @@ func (u *ui) tgSetup() {
 			for org, o := range made { // the groups made stay, even when a later step failed
 				orgs.SetTelegramOrg(org, o)
 			}
+			defer u.rmConfig()
 			if folder != 0 && folder != t.FolderID {
 				s := orgs.TelegramSettings()
 				s.FolderID = folder

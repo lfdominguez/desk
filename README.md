@@ -267,7 +267,11 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   account (an app's `api_id`/`api_hash` from my.telegram.org; the code and 2FA password asked in
   desk, the session in `~/.local/state/desk/telegram.session`) to make a "Desk Control" folder and
   a private forum group per organization you turn on (Notify, Summary or Full), with the bot as
-  their admin. Or make the group yourself and send `/link Acme` in it.
+  their admin. Or make the group yourself and send `/link Acme` in it. Each card with a
+  conversation gets a topic there, named by its state, with a pinned header (column, links,
+  cost); the conversation follows (Summary: yours and Claude's words; Full: also its tools),
+  requests come with Allow once / Deny / Allow every, what you write goes to its Claude, `/stop`
+  stops its turn. Done or archived closes the topic. Tokens are masked before anything leaves.
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
   workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and

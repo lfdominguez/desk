@@ -48,6 +48,7 @@ export default defineConfig({
 						'sessions/terminal',
 						'sessions/usage',
 						'sessions/phone',
+						'sessions/desk-control',
 					],
 				},
 				{
