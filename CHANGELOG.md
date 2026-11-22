@@ -51,6 +51,12 @@ day). A release's section here is its notes on GitHub. The format follows
   ask, and keeps its conversation over restarts. With topics on for the bot in BotFather, the chat
   gets Board, Inbox, Digest and Settings topics, each with a pinned message that follows the board;
   cards that need you come to Inbox.
+- **Pictures and reviews in Telegram**: `/drawings` sends drawings as pictures and `/canvas` a
+  card's canvas; a Claude's drawing suggestion comes as the drawing it would make, with Approve,
+  Rework (your next message goes back to that Claude) and Dismiss; `/review` in a card's topic (or
+  `/review DESK-12` in the private chat) sends its branch, commits and files with the diff as a
+  file, and Merge, Push and Open PR, each asked twice; `/widget` puts the board in the private chat
+  as a live widget (column counts, the cards waiting on you, a tap posts one).
 - **The Infra topic**: an organization with servers gets an Infra topic in its group, named by its
   infra Claudes' state, its header listing each infra session and what its terminals run. The
   infra Claude's replies follow, a command or change waiting for approval comes with Approve, Deny

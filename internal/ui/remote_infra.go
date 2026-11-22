@@ -206,7 +206,7 @@ func (u *ui) rmInfraIncoming(org string, m *tgbot.Message) {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
-			if _, err := bot.SendFile(ctx, chat, thread, "photo", "screen.png", pic, o.Text); err != nil {
+			if _, err := bot.SendFile(ctx, chat, thread, "photo", "screen.png", pic, o.Text, nil); err != nil {
 				u.later(func() { u.showToast("Telegram: "+firstLine(err.Error()), true) })
 			}
 		}()

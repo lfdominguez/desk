@@ -66,6 +66,25 @@ seconds behind desk.
   and named in your message by its path, for Claude to read.
 - **/stop** stops Claude's turn; **/help** says what the topic does. The group's command menu
   lists them, with the Infra topic's **/screen**.
+- **/review** shows the card's [Review](/sessions/review/) when it works in its own worktree: the
+  branch against its base, its commits, each changed file with its lines added and removed, and
+  the whole diff as a `.diff` file. **Merge**, **Push** and **Open PR** each ask once more
+  before they run, then say how it went.
+- **/drawings** offers the card's [drawings](/drawings/overview/) and its organization's as buttons;
+  the one you press comes as a picture.
+- **/canvas** sends the card's [canvas](/sessions/canvas/) as a picture: its parts as boxes (the
+  card, its Claudes, their checks, Done) with what each holds, joined as the canvas joins them,
+  drawn in the drawings' hand.
+
+## Drawing suggestions
+
+When a Claude suggests a change to a drawing, the drawing as it would be comes as a picture with
+the suggestion's note and **Approve**, **Rework** or **Dismiss**: in the card's topic when the card
+has one, else in the bot's private chat (Inbox, with its topics on). Approve applies it as desk's
+own Approve does, on the drawing open in desk or on its file. Rework asks what to change: your next
+message in that chat goes back to the Claude who suggested it, as desk's Rework sends it, and its
+next suggestion replaces this one (a command instead cancels). The infra Claude's suggestions have
+no Rework, as in desk.
 
 Only your own Telegram account, the one paired with the bot, is heard in the groups: anyone else's
 messages and button presses are ignored. Text, pictures and files reach Claude from a topic; voice
@@ -123,6 +142,10 @@ whole board. The commands are in the chat's menu:
 | `/tickets`, `/alerts`, `/ci` | Your assigned tickets, Nagios alerts, and the CI that failed or is running; each takes an organization too. |
 | `/digest`, `/digest week` | The [Digest](/board/digest/): today, `yesterday` or `week`. |
 | `/company`, `/company Acme` | The [Company](/orgs/company/) in words: each organization's cards with a session by state (needs you, stuck, your turn, working, ready), the leads with briefs waiting, the last hand-offs and what it spent today. |
+| `/drawings`, `/drawings Acme` | The drawings as buttons; the one you press comes as a picture. |
+| `/review DESK-12` | A card's Review, as `/review` in its topic: its branch, the diff as a file, Merge, Push and Open PR, each asked twice. |
+| `/canvas DESK-12` | A card's canvas as a picture, as `/canvas` in its topic. |
+| `/widget` | The board as a live widget: each column's count and the cards waiting on you, kept up to date as the board changes. Tap a card and desk posts it here, as `/card` does. Widgets need a Telegram app that has them (Bot API 10.4); after desk restarts, send `/widget` again for one that follows the board. |
 | `/usage` | Each Claude account's plan limits (as the session view's foot shows them), with the organizations using it. |
 | `/always on`, `/always off` | Whether cards come here even while desk has the focus. |
 | `/mirror Acme summary` | What an organization's group gets: `full`, `summary`, `notify` or `off`. |

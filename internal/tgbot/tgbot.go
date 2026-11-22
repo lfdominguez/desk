@@ -74,9 +74,19 @@ type Message struct {
 
 // Update is something that happened: a message, or a button pressed.
 type Update struct {
-	ID       int64     `json:"update_id"`
-	Message  *Message  `json:"message"`
-	Callback *Callback `json:"callback_query"`
+	ID       int64        `json:"update_id"`
+	Message  *Message     `json:"message"`
+	Callback *Callback    `json:"callback_query"`
+	Widget   *WidgetQuery `json:"widget_query"`
+}
+
+// WidgetQuery is a tap in one of the bot's HTML widgets: the data its
+// TelegramWidget.request sent (1-64 bytes), answered by AnswerWidget
+// within 15 seconds.
+type WidgetQuery struct {
+	ID   string `json:"id"`
+	From User   `json:"from"`
+	Data string `json:"data"`
 }
 
 // Callback is a button pressed under one of the bot's messages.
@@ -243,7 +253,7 @@ func (b *Bot) client() *http.Client {
 func (b *Bot) Updates(ctx context.Context, offset int64) ([]Update, error) {
 	var us []Update
 	err := b.call(ctx, "getUpdates", map[string]any{"offset": offset, "timeout": int(Poll.Seconds()),
-		"allowed_updates": []string{"message", "callback_query"}}, &us)
+		"allowed_updates": []string{"message", "callback_query", "widget_query"}}, &us)
 	return us, err
 }
 
@@ -301,6 +311,30 @@ func (b *Bot) Post(ctx context.Context, o Out) (int64, error) {
 // rich message stays rich. Without Rows its buttons go.
 func (b *Bot) Change(ctx context.Context, msg int64, o Out) error {
 	return b.call(ctx, "editMessageText", o.content(map[string]any{"chat_id": o.Chat, "message_id": msg}), nil)
+}
+
+// SendWidget sends an HTML widget (Bot API 10.4: private chats only, at
+// most 4096 bytes zlib-compressed) to chat's thread with chatData for it
+// to read; its taps may query the bot. It returns the message's id.
+func (b *Bot) SendWidget(ctx context.Context, chat, thread int64, html, chatData string) (int64, error) {
+	p := map[string]any{"chat_id": chat, "html": html, "chat_data": chatData, "allow_queries": true}
+	if thread != 0 {
+		p["message_thread_id"] = thread
+	}
+	var m Message
+	err := b.call(ctx, "sendWidget", p, &m)
+	return m.ID, err
+}
+
+// WidgetData replaces widget message msg's chat data (at most 1024 bytes):
+// the widget redraws from it.
+func (b *Bot) WidgetData(ctx context.Context, chat, msg int64, chatData string) error {
+	return b.call(ctx, "editMessageWidgetData", map[string]any{"chat_id": chat, "message_id": msg, "chat_data": chatData}, nil)
+}
+
+// AnswerWidget answers widget query id with data (only that widget sees it).
+func (b *Bot) AnswerWidget(ctx context.Context, id, data string) error {
+	return b.call(ctx, "answerWidgetQuery", map[string]any{"widget_query_id": id, "data": data}, nil)
 }
 
 // Buttons replaces message msg's buttons only (none: rows nil).
@@ -386,8 +420,8 @@ func (b *Bot) Commands(ctx context.Context, chat int64, cs []Command) error {
 }
 
 // SendFile sends data as kind "photo" or "document" named name, with a
-// caption; the message's ID.
-func (b *Bot) SendFile(ctx context.Context, chat, thread int64, kind, name string, data []byte, caption string) (int64, error) {
+// caption and buttons under it; the message's ID.
+func (b *Bot) SendFile(ctx context.Context, chat, thread int64, kind, name string, data []byte, caption string, rows [][]Button) (int64, error) {
 	if err := b.pace(ctx, chat); err != nil {
 		return 0, err
 	}
@@ -399,6 +433,10 @@ func (b *Bot) SendFile(ctx context.Context, chat, thread int64, kind, name strin
 	}
 	if caption != "" {
 		w.WriteField("caption", caption)
+	}
+	if len(rows) > 0 {
+		k, _ := json.Marshal(map[string]any{"inline_keyboard": rows})
+		w.WriteField("reply_markup", string(k))
 	}
 	f, _ := w.CreateFormFile(kind, name)
 	f.Write(data)

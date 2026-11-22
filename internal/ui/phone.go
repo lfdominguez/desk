@@ -40,6 +40,8 @@ type phoneState struct {
 	gnThread  int64                    // the topic its question came from
 	thread    int64                    // the topic of the message being handled (0: the chat itself)
 	topics    bool                     // the bot has topics in private chats (BotFather's switch)
+	rework    *tgRework                // a suggestion whose Rework was tapped: the next message is its comment
+	widget    *tgWidget                // the board widget that follows the board (remote_widget.go)
 }
 
 // phoneAsk is one button: card's request req, allowed or not, or answered
@@ -117,6 +119,12 @@ var phoneRetry = 5 * time.Second
 // /start, a button pressed, a reply to a card's message.
 func (u *ui) phoneUpdate(up tgbot.Update) {
 	ph := u.phone
+	if q := up.Widget; q != nil {
+		if ph != nil && ph.chat != 0 && q.From.ID == ph.chat {
+			u.tgWidgetQuery(q)
+		}
+		return
+	}
 	m := up.Message
 	if up.Callback != nil {
 		m = up.Callback.Message
@@ -145,6 +153,9 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 		return
 	}
 	ph.thread = m.Thread // the General chat's answers go to the topic asked in
+	if up.Callback == nil && u.tgReworkTake(m) {
+		return
+	}
 	if cb := up.Callback; cb != nil && ph.runs[cb.Data] != nil {
 		u.gnPress(cb, m, ph.runs[cb.Data])
 		return
@@ -299,12 +310,11 @@ func (u *ui) phoneGroup(up tgbot.Update, m *tgbot.Message) {
 		if ph.chat == 0 || cb.From.ID != ph.chat {
 			return
 		}
-		var said string
-		if f := ph.runs[cb.Data]; f != nil { // an Infra topic's approval: the next plan takes its buttons off
-			said = f()
-		} else {
-			said = u.phonePress(ph.asks[cb.Data])
+		if f := ph.runs[cb.Data]; f != nil { // a button that runs: its buttons come off
+			u.gnPress(cb, m, f)
+			return
 		}
+		said := u.phonePress(ph.asks[cb.Data])
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
@@ -313,6 +323,9 @@ func (u *ui) phoneGroup(up tgbot.Update, m *tgbot.Message) {
 		return
 	}
 	if ph.chat == 0 || m.From.ID != ph.chat {
+		return
+	}
+	if u.tgReworkTake(m) {
 		return
 	}
 	if strings.HasPrefix(m.Text, "/link") {

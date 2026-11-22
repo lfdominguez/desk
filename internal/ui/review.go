@@ -143,11 +143,18 @@ func (u *ui) rvLoad(id string) {
 // rvAct runs a Review's action for card id: "merge" (fast-forward its base
 // in the main checkout; the card goes to Done), "push" (its branch) or "pr"
 // (push, then a pull or merge request linked to the card). Merge asks a
-// second click first.
-func (u *ui) rvAct(id, what string) {
+// second click first. done, when given, hears how it ended (Telegram's
+// Review, which asked twice already).
+func (u *ui) rvAct(id, what string, done ...func(string)) {
 	c := u.b.Card(id)
 	st := u.rvOf(id)
+	tell := func(s string) {
+		for _, f := range done {
+			f(s)
+		}
+	}
 	if c == nil || c.Worktree == "" || st.busy != "" {
+		tell("Not now: the card is gone, has no worktree or is busy.")
 		return
 	}
 	if what == "merge" && st.armed != "merge" {
@@ -176,9 +183,11 @@ func (u *ui) rvAct(id, what string) {
 			u.rvGen++
 			c := u.b.Card(id)
 			if c == nil {
+				tell(key + " is gone from the board.")
 				return
 			}
 			if err != nil {
+				tell(key + ": " + firstLine(err.Error()))
 				u.showToast(key+": "+firstLine(err.Error()), true)
 				u.rvLoad(id)
 				return
@@ -186,14 +195,17 @@ func (u *ui) rvAct(id, what string) {
 			switch what {
 			case "merge":
 				u.showToast(key+": "+branch+" merged into "+base, false)
+				tell(key + ": " + branch + " merged into " + base + "; the card is in Done.")
 				c.Status, c.Note = kanban.StatusDone, ""
 				u.moveTo(id, "Done")
 			case "push":
 				u.showToast(key+": pushed "+branch, false)
+				tell(key + ": pushed " + branch + ".")
 			case "pr":
 				u.addLinks(c, []string{l.URL})
 				go u.checkLinks([]string{id})
 				u.showToast(key+": opened "+l.Ref, false)
+				tell(key + ": opened " + l.Ref + " " + l.URL)
 			}
 			u.save()
 			u.rvLoad(id)

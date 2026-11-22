@@ -153,7 +153,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	var result any = true
 	switch method {
-	case "sendMessage", "sendRichMessage", "sendPhoto", "sendDocument":
+	case "sendMessage", "sendRichMessage", "sendPhoto", "sendDocument", "sendWidget":
 		s.id++
 		result = map[string]any{"message_id": s.id, "chat": map[string]any{"id": params["chat_id"]}, "message_thread_id": params["message_thread_id"]}
 	case "createForumTopic":

@@ -133,11 +133,20 @@ func (u *ui) newDrawing(p drawPlace) {
 
 // openDrawing shows the drawing at path, read once while desk runs.
 func (u *ui) openDrawing(org, path string) {
+	if _, err := u.drawLoad(org, path); err != nil {
+		u.showToast("Couldn't open the drawing: "+err.Error(), true)
+		return
+	}
+	u.view = "draw:" + path
+}
+
+// drawLoad is the drawing at path's state, read once into u.draws without
+// showing it (Telegram's Rework needs its Claude).
+func (u *ui) drawLoad(org, path string) (*drawState, error) {
 	if _, ok := u.draws[path]; !ok {
 		s, err := draw.Load(path)
 		if err != nil {
-			u.showToast("Couldn't open the drawing: "+err.Error(), true)
-			return
+			return nil, err
 		}
 		st := &drawState{org: org, path: path, ed: draw.NewEditor(s), zoom: 1, side: loadSide(path)}
 		if dir := filepath.Dir(path); dir != u.drawingsDir(org) { // a card's own
@@ -150,7 +159,7 @@ func (u *ui) openDrawing(org, path string) {
 		st.title.SetText(drawName(path))
 		u.draws[path] = st
 	}
-	u.view = "draw:" + path
+	return u.draws[path], nil
 }
 
 // drawSides are the kinds of desk's files beside a drawing (drawSide).

@@ -58,6 +58,9 @@ type remote struct {
 // rmCommands is an organization group's command menu.
 var rmCommands = []tgbot.Command{
 	{Name: "stop", What: "In a card's topic: stop its Claude's turn"},
+	{Name: "drawings", What: "In a card's topic: its drawings and its organization's, as pictures"},
+	{Name: "review", What: "In a card's topic: its branch, the diff, merge, push or PR"},
+	{Name: "canvas", What: "In a card's topic: its canvas as a picture"},
 	{Name: "screen", What: "In the Infra topic: a picture of a terminal, /screen web1"},
 	{Name: "help", What: "What this topic does"},
 }
@@ -525,8 +528,14 @@ func (u *ui) rmIncoming(id string, m *tgbot.Message) {
 	case strings.HasPrefix(text, "/stop"):
 		u.stop(id)
 		reply("Stopping its turn.")
+	case strings.HasPrefix(text, "/drawings"):
+		u.tgDrawings(chat, thread, u.b.Card(id).Org, id)
+	case strings.HasPrefix(text, "/review"):
+		u.tgReview(chat, thread, id)
+	case strings.HasPrefix(text, "/canvas"):
+		u.tgCanvas(chat, thread, id)
 	case strings.HasPrefix(text, "/help"), strings.HasPrefix(text, "/start"):
-		reply("Write here and it goes to this card's Claude as your message. /stop stops its turn. Buttons answer its requests.")
+		reply("Write here and it goes to this card's Claude as your message. /stop stops its turn, /review shows its branch, /canvas its canvas, /drawings its drawings. Buttons answer its requests.")
 	default:
 		u.rm.from[id] = text
 		u.send(id, text)

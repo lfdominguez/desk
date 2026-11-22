@@ -279,7 +279,8 @@ func (u *ui) drawSuggest(w drawWho, name, note string, p draw.Patch) (string, er
 	if err != nil {
 		return "", err
 	}
-	if _, _, err := draw.Preview(s, p); err != nil {
+	after, _, err := draw.Preview(s, p)
+	if err != nil {
 		return "", err
 	}
 	sg := drawSuggestion{ID: draw.NewID(), Who: w.key, Name: w.name, Note: note, Patch: p, At: time.Now()}
@@ -296,5 +297,6 @@ func (u *ui) drawSuggest(w drawWho, name, note string, p draw.Patch) (string, er
 		st.side = side
 		st.ed.Gen++
 	}
+	u.tgSuggest(path, w, sg, after)
 	return "Suggested on " + drawName(path) + ": it waits for the user to approve, send back or dismiss.", nil
 }

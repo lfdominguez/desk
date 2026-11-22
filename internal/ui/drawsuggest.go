@@ -317,27 +317,28 @@ func (u *ui) drawDismiss(st *drawState, id string) { u.drawTake(st, id) }
 
 // drawRework sends suggestion id back to its Claude with the user's
 // comment; it waits, marked sent, for the one that replaces it.
-func (u *ui) drawRework(st *drawState, id, comment string) {
+func (u *ui) drawRework(st *drawState, id, comment string) error {
 	comment = strings.TrimSpace(comment)
 	if comment == "" {
-		return
+		return nil
 	}
 	i := slices.IndexFunc(st.side.Suggestions, func(s drawSuggestion) bool { return s.ID == id })
 	if i < 0 {
-		return
+		return nil
 	}
 	sg := st.side.Suggestions[i]
 	msg := "The user sent back your suggestion for the drawing \"" + drawName(st.path) + "\" (" + sg.Note + ") with:\n" + comment +
 		"\nRead the drawing and suggest again with drawing_suggest: your new one replaces it."
 	if err := u.drawTellBack(sg.Who, msg); err != nil {
 		u.showToast("Couldn't send it back: "+err.Error(), true)
-		return
+		return err
 	}
 	st.side.Suggestions = slices.Clone(st.side.Suggestions)
 	st.side.Suggestions[i].Sent = true
 	u.drawKeepSide(st)
 	st.rework = ""
 	st.ed.Gen++
+	return nil
 }
 
 // drawTellBack brings msg to the Claude who: a drawing's, a card's

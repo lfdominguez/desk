@@ -128,12 +128,12 @@ func TestTopics(t *testing.T) {
 // thread; a file comes down by its id, refused over MaxFile.
 func TestFiles(t *testing.T) {
 	f, b, ctx := fake(t)
-	id, err := b.SendFile(ctx, -100, 4, "photo", "canvas.png", []byte("PNG"), "DESK-1's canvas")
+	id, err := b.SendFile(ctx, -100, 4, "photo", "canvas.png", []byte("PNG"), "DESK-1's canvas", [][]Button{{{Text: "Open", Data: "o"}}})
 	p := f.Last("sendPhoto")
-	if err != nil || id == 0 || p["file"] != "PNG" || p["file_name"] != "canvas.png" || p["caption"] != "DESK-1's canvas" || js(p["message_thread_id"]) != "4" {
+	if err != nil || id == 0 || p["file"] != "PNG" || p["file_name"] != "canvas.png" || p["caption"] != "DESK-1's canvas" || js(p["message_thread_id"]) != "4" || !strings.Contains(fmt.Sprint(p["reply_markup"]), `"callback_data":"o"`) {
 		t.Fatal(id, err, p)
 	}
-	if _, err := b.SendFile(ctx, 1, 0, "document", "x.diff", []byte("+a"), ""); err != nil || f.Last("sendDocument")["caption"] != nil || f.Last("sendDocument")["message_thread_id"] != nil {
+	if _, err := b.SendFile(ctx, 1, 0, "document", "x.diff", []byte("+a"), "", nil); err != nil || f.Last("sendDocument")["caption"] != nil || f.Last("sendDocument")["message_thread_id"] != nil {
 		t.Fatal(err, f.Last("sendDocument"))
 	}
 	f.Files["abc"] = []byte("a voice")
@@ -152,7 +152,7 @@ func TestFiles(t *testing.T) {
 		t.Fatal("getFile refused")
 	}
 	API = "http://127.0.0.1:1"
-	if _, err := b.SendFile(ctx, 1, 0, "photo", "a", nil, ""); err == nil || strings.Contains(err.Error(), "T0K") {
+	if _, err := b.SendFile(ctx, 1, 0, "photo", "a", nil, "", nil); err == nil || strings.Contains(err.Error(), "T0K") {
 		t.Fatalf("unreachable, token kept out: %v", err)
 	}
 	API = "://bad"
@@ -248,7 +248,7 @@ func TestEdges(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("429 wait cut short: %v", err)
 	}
-	if _, err := b.SendFile(cctx, 1, 0, "photo", "a", nil, ""); !errors.Is(err, context.Canceled) {
+	if _, err := b.SendFile(cctx, 1, 0, "photo", "a", nil, "", nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("upload canceled: %v", err)
 	}
 	gb := &Bot{Token: "T0K", Client: &http.Client{Transport: noGet{}}}
@@ -264,5 +264,31 @@ func TestEdges(t *testing.T) {
 	}
 	if (&retryError{time.Second}).Error() != "retry after 1s" {
 		t.Fatal("retryError")
+	}
+}
+
+// TestWidget: a widget goes with its chat data and queries allowed, its
+// data is replaced in place, a query is answered; widget queries are
+// among the updates asked for.
+func TestWidget(t *testing.T) {
+	f, b, ctx := fake(t)
+	id, err := b.SendWidget(ctx, 42, 9, "<div>hi</div>", `{"a":1}`)
+	p := f.Last("sendWidget")
+	if err != nil || id == 0 || p["html"] != "<div>hi</div>" || p["chat_data"] != `{"a":1}` || p["allow_queries"] != true || js(p["message_thread_id"]) != "9" {
+		t.Fatal(id, err, p)
+	}
+	if _, err := b.SendWidget(ctx, 42, 0, "x", ""); err != nil || f.Last("sendWidget")["message_thread_id"] != nil {
+		t.Fatal(err)
+	}
+	if err := b.WidgetData(ctx, 42, id, `{"a":2}`); err != nil || f.Last("editMessageWidgetData")["chat_data"] != `{"a":2}` {
+		t.Fatal(err)
+	}
+	if err := b.AnswerWidget(ctx, "q1", "ok"); err != nil || f.Last("answerWidgetQuery")["widget_query_id"] != "q1" {
+		t.Fatal(err)
+	}
+	f.Push(map[string]any{"widget_query": map[string]any{"id": "q2", "from": map[string]any{"id": 42}, "data": "c:DESK-1"}})
+	us, err := b.Updates(ctx, 0)
+	if err != nil || len(us) != 1 || us[0].Widget == nil || us[0].Widget.Data != "c:DESK-1" || us[0].Widget.From.ID != 42 {
+		t.Fatal(us, err)
 	}
 }

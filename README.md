@@ -271,9 +271,11 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   conversation gets a topic there, named by its state, with a pinned header (column, links,
   cost); the conversation follows (Summary: yours and Claude's words; Full: also its tools),
   requests come with Allow once / Deny / Allow every, what you write (pictures and files too) goes to its Claude, `/stop`
-  stops its turn. Done or archived closes the topic. Tokens are masked before anything leaves.
+  stops its turn, `/review` sends its branch and diff with Merge / Push / Open PR (each asked
+  twice), `/drawings` its drawings as pictures, `/canvas` its canvas as a picture. A Claude's drawing
+  suggestion comes as a picture with Approve / Rework (your next message goes back to that Claude) / Dismiss. Done or archived closes the topic. Tokens are masked before anything leaves.
   The bot's private chat is the General chat: `/board`, `/inbox`, `/find`, `/card DESK-12`,
-  `/new @Acme fix the login !high`, `/tickets`, `/alerts`, `/ci`, `/digest week`, `/company`, `/usage`, `/always`,
+  `/new @Acme fix the login !high`, `/tickets`, `/alerts`, `/ci`, `/digest week`, `/company`, `/usage`, `/drawings`, `/review DESK-12`, `/canvas DESK-12`, `/widget` (the board as a live HTML widget), `/always`,
   `/mirror Acme summary`; anything else goes to the desk Claude, which reads the whole board and
   makes or messages cards when you ask (never edits files or runs commands). An organization with
   servers also gets an Infra topic: its infra sessions and what each terminal runs, its infra

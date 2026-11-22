@@ -573,6 +573,7 @@ func (u *ui) save() {
 	u.pilotFollow()
 	u.gen++
 	u.remoteKick()
+	u.tgWidgetSync()
 	if u.saveAfter == 0 {
 		u.flush()
 	} else if !u.dirty {

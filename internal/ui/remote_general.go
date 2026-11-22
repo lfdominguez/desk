@@ -41,6 +41,10 @@ var gnCommands = []tgbot.Command{
 	{Name: "ci", What: "CI that failed or is running"},
 	{Name: "digest", What: "The standup: /digest today, yesterday or week"},
 	{Name: "usage", What: "Each Claude account's plan limits"},
+	{Name: "drawings", What: "Drawings as pictures: /drawings or /drawings Acme"},
+	{Name: "review", What: "A card's branch, its diff, merge, push or PR: /review DESK-12"},
+	{Name: "canvas", What: "A card's canvas as a picture: /canvas DESK-12"},
+	{Name: "widget", What: "The board as a live widget: its columns and what waits on you"},
 	{Name: "company", What: "Who works on what, the leads and the last hand-offs: /company or /company Acme"},
 	{Name: "always", What: "Messages even while desk has the focus: /always on or off"},
 	{Name: "mirror", What: "An organization's topics: /mirror Acme full, summary, notify or off"},
@@ -73,7 +77,12 @@ func (u *ui) gnPost(md string, rows [][]tgbot.Button, card string) {
 
 // gnPostIn is gnPost into the private chat's topic thread (0: the chat).
 func (u *ui) gnPostIn(thread int64, md string, rows [][]tgbot.Button, card string) {
-	bot, chat := u.phone.bot, u.phone.chat
+	u.gnPostAt(u.phone.chat, thread, md, rows, card)
+}
+
+// gnPostAt is gnPost into any chat and thread: an organization's topic too.
+func (u *ui) gnPostAt(chat, thread int64, md string, rows [][]tgbot.Button, card string) {
+	bot := u.phone.bot
 	parts := tgfmt.Split(tgfmt.Redact(md), tgfmt.Max-96)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -173,6 +182,24 @@ func (u *ui) gnText(m *tgbot.Message) {
 		u.gnUsage()
 	case "company":
 		u.gnPost(u.gnCompany(arg), nil, "")
+	case "drawings":
+		u.tgDrawings(u.phone.chat, u.phone.thread, arg, "")
+	case "review":
+		c := u.cardOfKey(strings.ToUpper(arg))
+		if c == nil {
+			u.gnPost("No card "+tgfmt.Escape(cmp.Or(arg, "named"))+": /review DESK-12", nil, "")
+			return
+		}
+		u.tgReview(u.phone.chat, u.phone.thread, c.ID)
+	case "widget":
+		u.tgWidgetSend(u.phone.thread)
+	case "canvas":
+		c := u.cardOfKey(strings.ToUpper(arg))
+		if c == nil {
+			u.gnPost("No card "+tgfmt.Escape(cmp.Or(arg, "named"))+": /canvas DESK-12", nil, "")
+			return
+		}
+		u.tgCanvas(u.phone.chat, u.phone.thread, c.ID)
 	case "always":
 		u.gnPost(u.gnAlways(arg), nil, "")
 	case "mirror":
