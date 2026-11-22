@@ -191,7 +191,7 @@ func TestRemoteTopic(t *testing.T) {
 	h.u.phoneUpdate(groupMsg(42, th, "/help"))
 	h.pumpUntil("help", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "/stop stops") })
 	h.u.phoneUpdate(groupMsg(42, th, ""))
-	h.pumpUntil("text only", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "Text and pictures") })
+	h.pumpUntil("text only", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "voice notes don") })
 
 	f.Files = map[string][]byte{"big": []byte("\x89PNG\r\n\x1a\n....")}
 	pic := groupMsg(42, th, "")
@@ -201,6 +201,15 @@ func TestRemoteTopic(t *testing.T) {
 	h.pumpUntil("picture sent", func() bool { return len(fk.prompts) == n+1 })
 	if !strings.Contains(fk.prompts[n], "look at this [Image 1]") {
 		t.Fatalf("prompt %q", fk.prompts[n])
+	}
+	f.Files["notes"] = []byte("plain notes")
+	file := groupMsg(42, th, "")
+	file.Message.Document = &tgbot.File{ID: "notes", Name: "../notes.txt"}
+	n = len(fk.prompts)
+	h.u.phoneUpdate(file)
+	h.pumpUntil("file sent", func() bool { return len(fk.prompts) == n+1 })
+	if p := fk.prompts[n]; !strings.Contains(p, "I sent you a file: ") || !strings.HasSuffix(p, "-notes.txt") || !strings.Contains(p, h.u.imagesDir()) {
+		t.Fatalf("file prompt %q", p)
 	}
 	doc := groupMsg(42, th, "")
 	doc.Message.Document = &tgbot.File{ID: "gone", Mime: "image/png"}

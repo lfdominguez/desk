@@ -39,15 +39,18 @@ day). A release's section here is its notes on GitHub. The format follows
   Telegram topic named by its state (🟢 working, 🟡 your turn, 🔴 blocked…) with a pinned header
   of its column, links and cost. Its conversation follows in rich text, its permission requests
   come with Allow once, Deny and Allow every, a question with its options, and what you write in
-  the topic goes to its Claude, a picture too (`/stop` stops its turn); the group's menu lists
-  its commands. Done or archived closes the topic, a
+  the topic goes to its Claude, pictures and files too (`/stop` stops its turn); the group's menu
+  lists its commands. Done or archived closes the topic, a
   restore reopens it. What looks like a token is masked before it's sent.
 - **The General chat**: the bot's private chat works with the whole board. `/board`, `/inbox`,
   `/find`, `/card DESK-12` (with Start it or Stop its turn), `/new @Acme fix the login !high`
   (read as the new card dialog reads it, with Improve it and Start it), `/tickets`, `/alerts`,
-  `/ci`, `/digest`, `/usage` (each Claude account's plan limits), and `/always` and `/mirror` to
-  change what comes to Telegram. Anything else goes to the desk Claude, which reads cards and the
-  digest and makes or messages cards when you ask, and keeps its conversation over restarts.
+  `/ci`, `/digest`, `/company` (the Company in words), `/usage` (each Claude account's plan
+  limits), and `/always` and `/mirror` to change what comes to Telegram. Anything else goes to the
+  desk Claude, which reads cards and the digest, looks at pictures, makes or messages cards when you
+  ask, and keeps its conversation over restarts. With topics on for the bot in BotFather, the chat
+  gets Board, Inbox, Digest and Settings topics, each with a pinned message that follows the board;
+  cards that need you come to Inbox.
 - **The Infra topic**: an organization with servers gets an Infra topic in its group, named by its
   infra Claudes' state, its header listing each infra session and what its terminals run. The
   infra Claude's replies follow, a command or change waiting for approval comes with Approve, Deny

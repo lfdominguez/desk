@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/company"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
@@ -55,6 +56,27 @@ func TestGeneralCommands(t *testing.T) {
 	if got := h.ask(f, "/board Nope"); !strings.Contains(got, "no organization called Nope") {
 		t.Fatalf("no org: %s", got)
 	}
+
+	if got := h.ask(f, "/company"); !strings.Contains(got, "No card has a session") {
+		t.Fatalf("empty company: %s", got)
+	}
+	if got := h.ask(f, "/company Nope"); !strings.Contains(got, "no organization called Nope") {
+		t.Fatalf("company, no org: %s", got)
+	}
+	h.u.b.Card(work.ID).Session.ID = "s1"
+	sec := h.u.b.Add(h.u.b.Column("In progress"), kanban.Card{Title: "Rotate keys", Org: "Globex", Status: kanban.StatusBlocked, Session: kanban.Session{ID: "s2"}})
+	h.u.leads = map[string]*leadState{}
+	h.u.leads[leadKey("Initech", "security")] = &leadState{org: "Initech", dept: company.Departments[1], from: []string{sec.ID}}
+	company.Log(orgs.Dir(h.u.root, "Acme", ""), company.Entry{At: time.Now(), Kind: "result", From: "desk-qa", To: work.Key(), Text: "tests pass", Verdict: "READY"})
+	got = h.ask(f, "/company")
+	if !strings.Contains(got, "### Acme") || !strings.Contains(got, "**Working:** `"+work.Key()+"` Fix login") || !strings.Contains(got, "**Stuck:** `"+sec.Key()+"`") ||
+		!strings.Contains(got, "### Initech") || !strings.Contains(got, "1 brief waiting") || !strings.Contains(got, "tests pass") || !strings.Contains(got, "**READY**") {
+		t.Fatalf("company: %s", got)
+	}
+	if got := h.ask(f, "/company globex"); strings.Contains(got, "### Acme") || !strings.Contains(got, "### Globex") {
+		t.Fatalf("Globex's company: %s", got)
+	}
+	h.u.b.Delete(sec.ID)
 
 	h.u.orgList = []string{"Acme", "Globex"}
 	replace(t, &planLimits, func(_ context.Context, _, acct string) ([]claude.Limit, error) {
@@ -134,7 +156,7 @@ func TestGeneralCommands(t *testing.T) {
 	if got := h.ask(f, "/help"); !strings.Contains(got, "/board") || !strings.Contains(got, "desk Claude") {
 		t.Fatalf("help: %s", got)
 	}
-	if got := h.ask(f, ""); !strings.Contains(got, "Only text") {
+	if got := h.ask(f, ""); !strings.Contains(got, "voice notes don") {
 		t.Fatalf("empty: %s", got)
 	}
 }
@@ -182,6 +204,27 @@ func TestGeneralCards(t *testing.T) {
 	if fake.prompts[len(fake.prompts)-1] != "and the button" {
 		t.Fatalf("reply: %v", fake.prompts)
 	}
+	f.Files = map[string][]byte{"shot": []byte("\x89PNG\r\n\x1a\n....")}
+	pic := dm("")
+	pic.Message.Reply, pic.Message.Photo, pic.Message.Caption = &tgbot.Message{ID: msg}, []tgbot.File{{ID: "shot"}}, "this one"
+	np := len(fake.prompts)
+	h.u.phoneUpdate(pic)
+	h.pumpUntil("picture to the card", func() bool { return len(fake.prompts) > np })
+	if fake.prompts[np] != "this one [Image 1]" || len(fake.images[np]) != 1 {
+		t.Fatalf("picture reply: %q %v", fake.prompts[np], fake.images[np])
+	}
+	f.Files["log"] = []byte("plain text")
+	doc := dm("")
+	doc.Message.Reply, doc.Message.Document = &tgbot.Message{ID: msg}, &tgbot.File{ID: "log", Name: "build.log"}
+	h.u.phoneUpdate(doc)
+	h.pumpUntil("file to the card", func() bool { return len(fake.prompts) > np+1 })
+	if !strings.HasSuffix(fake.prompts[np+1], "-build.log") || len(fake.images[np+1]) != 0 {
+		t.Fatalf("file reply: %q", fake.prompts[np+1])
+	}
+	gone := dm("")
+	gone.Message.Reply, gone.Message.Document = &tgbot.Message{ID: msg}, &tgbot.File{ID: "nope"}
+	h.u.phoneUpdate(gone)
+	h.pumpUntil("not taken", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(fmtAny(p["text"]), "Couldn't take") })
 
 	if got := h.ask(f, "/new"); !strings.Contains(got, "Say what to do") {
 		t.Fatalf("empty /new: %s", got)
@@ -198,16 +241,28 @@ func TestGeneralCards(t *testing.T) {
 	if n.Org != "Globex" || n.Title != "add a logout button" || n.Priority != 3 || len(n.Labels) != 1 || n.Labels[0] != "auth" {
 		t.Fatalf("made %+v", n)
 	}
+	h.u.b.Card(n.ID).Links = []kanban.Link{{Kind: links.KindJira, Ref: "ABC-123", URL: "https://globex.atlassian.net/browse/ABC-123"}, {Kind: links.KindJira, Ref: "ABC-124"}, {Kind: links.KindURL, URL: "https://example.com"}}
+	replace(t, &describe, func(_ context.Context, l kanban.Link, _ orgs.Config) (string, error) {
+		if l.Ref == "ABC-124" {
+			return "", errors.New("no access")
+		}
+		return l.Ref + ": the login is broken", nil
+	})
 	var asked claude.Ask
-	replace(t, &optimize, func(_ context.Context, a claude.Ask, _ func(claude.Progress)) (claude.Draft, error) {
+	os.MkdirAll(orgs.Dir(h.u.root, "Globex", "web"), 0o755)
+	replace(t, &optimize, func(_ context.Context, a claude.Ask, on func(claude.Progress)) (claude.Draft, error) {
 		asked = a
-		return claude.Draft{Title: "Add a logout button to the header", Prompt: "Add a **logout** button.", Labels: []string{"ui", "auth"}, Priority: "low", Due: "2026-12-01"}, nil
+		on(claude.Progress{Step: "Writing"})
+		return claude.Draft{Title: "Add a logout button to the header", Prompt: "Add a **logout** button.", Labels: []string{"ui", " ", "auth"}, Priority: "low", Due: "2026-12-01", Folder: "web/"}, nil
 	})
 	data = buttonData(t, f, "Improve it")
 	h.u.phoneUpdate(tgbot.Update{Callback: &tgbot.Callback{ID: "cb3", Data: data, From: tgbot.User{ID: 42}, Message: &tgbot.Message{ID: 79, Chat: tgbot.Chat{ID: 42, Type: "private"}}}})
 	h.pumpUntil("improved", func() bool { return strings.Contains(posted(f)[len(posted(f))-1], "Add a logout button to the header") })
+	if strings.Join(asked.Linked, "|") != "ABC-123: the login is broken|ABC-124: not read (no access)" {
+		t.Fatalf("linked %q", asked.Linked)
+	}
 	if m := h.u.b.Card(n.ID); asked.Org != "Globex" || asked.Request != "add a logout button #auth !high" ||
-		m.Title != "Add a logout button to the header" || m.Notes != "Add a **logout** button." || m.Priority != 3 || m.Due != "2026-12-01" || strings.Join(m.Labels, ",") != "auth,ui" {
+		m.Title != "Add a logout button to the header" || m.Notes != "Add a **logout** button." || m.Priority != 3 || m.Due != "2026-12-01" || m.Dir != "web" || strings.Join(m.Labels, ",") != "auth,ui" {
 		t.Fatalf("improved %+v (asked %+v)", m, asked)
 	}
 	replace(t, &optimize, func(context.Context, claude.Ask, func(claude.Progress)) (claude.Draft, error) { return claude.Draft{}, errors.New("haiku down") })
@@ -384,6 +439,33 @@ func TestGeneralClaude(t *testing.T) {
 	if len(fakes) != 1 || len(fakes[0].prompts) != 2 {
 		t.Fatal("a second Claude")
 	}
+	f.Files = map[string][]byte{"pic": []byte("GIF89a...."), "doc": []byte("text")}
+	pic := dm("")
+	pic.Message.Photo, pic.Message.Caption = []tgbot.File{{ID: "pic"}}, "what's this?"
+	h.u.phoneUpdate(pic)
+	h.pumpUntil("picture asked", func() bool { return len(fakes[0].prompts) == 3 })
+	if fakes[0].prompts[2] != "what's this? [Image 1]" || len(fakes[0].images[2]) != 1 {
+		t.Fatalf("picture: %q %v", fakes[0].prompts[2], fakes[0].images[2])
+	}
+	doc := dm("")
+	doc.Message.Document = &tgbot.File{ID: "doc", Name: "a.txt"}
+	n0 := len(posted(f))
+	h.u.phoneUpdate(doc)
+	h.pumpUntil("file refused", func() bool { return len(posted(f)) > n0 })
+	if got := posted(f)[n0]; !strings.Contains(got, "text and pictures") || len(fakes[0].prompts) != 3 {
+		t.Fatalf("file: %s", got)
+	}
+	if ents, _ := os.ReadDir(h.u.imagesDir()); len(ents) != 1 {
+		t.Fatalf("the refused file kept: %v", ents)
+	}
+	gone := dm("")
+	gone.Message.Document = &tgbot.File{ID: "nope"}
+	if got := h.ask(f, ""); !strings.Contains(got, "voice notes") {
+		t.Fatalf("empty: %s", got)
+	}
+	n0 = len(posted(f))
+	h.u.phoneUpdate(gone)
+	h.pumpUntil("not taken", func() bool { return len(posted(f)) > n0 })
 	on := func(e claude.Event) { fakes[len(fakes)-1].on(e); h.frame() }
 	on(claude.Event{Kind: claude.KindText, Text: "Nothing is blocked."})
 	on(claude.Event{Kind: claude.KindText, Text: "sub", Parent: "t1"})

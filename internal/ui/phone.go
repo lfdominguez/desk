@@ -37,6 +37,9 @@ type phoneState struct {
 	gnProc    session                  // the desk Claude, while it runs
 	gnSid     string                   // its session, resumed when it starts again
 	gnSaid    []string                 // what it said this turn
+	gnThread  int64                    // the topic its question came from
+	thread    int64                    // the topic of the message being handled (0: the chat itself)
+	topics    bool                     // the bot has topics in private chats (BotFather's switch)
 }
 
 // phoneAsk is one button: card's request req, allowed or not, or answered
@@ -64,6 +67,7 @@ func (u *ui) startPhone() (stop func()) {
 		asks: map[string]phoneAsk{}, cards: map[int64]string{}}
 	if p.Chat != 0 {
 		u.gnMenu()
+		u.phoneTopics()
 	}
 	u.startRemote()
 	go u.phonePoll(ctx, u.phone.bot)
@@ -133,12 +137,14 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 			u.showToast("Phone paired: Telegram chat "+strconv.FormatInt(ph.chat, 10), false)
 			u.phoneSend("desk is paired with this chat: cards that need you come here. Write anything to ask desk, or /help.", nil, "")
 			u.gnMenu()
+			u.phoneTopics()
 		}
 		return
 	}
 	if m.Chat.ID != ph.chat { // anyone else who found the bot
 		return
 	}
+	ph.thread = m.Thread // the General chat's answers go to the topic asked in
 	if cb := up.Callback; cb != nil && ph.runs[cb.Data] != nil {
 		u.gnPress(cb, m, ph.runs[cb.Data])
 		return
@@ -159,6 +165,19 @@ func (u *ui) phoneUpdate(up tgbot.Update) {
 		id = ph.cards[m.Reply.ID]
 	}
 	c := u.b.Card(id)
+	if c != nil && u.tgTake(m, func(s string) { u.phoneSend(s, nil, "") }, func(text, pic, _ string) {
+		if c := u.b.Card(id); c != nil {
+			key := c.Key()
+			if pic != "" {
+				u.deliver(id, text, false, pic)
+			} else {
+				u.deliver(id, text, false)
+			}
+			u.phoneSend("Sent to "+key+".", nil, "")
+		}
+	}) {
+		return
+	}
 	if c == nil || strings.TrimSpace(m.Text) == "" {
 		u.gnText(m)
 		return
@@ -223,7 +242,7 @@ func (u *ui) phoneTell(c *kanban.Card, what string) {
 	if r := []rune(text); len(r) > phoneText {
 		text = string(r[:phoneText-1]) + "…"
 	}
-	u.phoneSend(text, rows, c.ID)
+	u.phoneSendIn(u.gtThread("inbox"), text, rows, c.ID)
 }
 
 // phoneButton is a button standing for pa.
@@ -237,11 +256,16 @@ func (u *ui) phoneButton(label string, pa phoneAsk) tgbot.Button {
 // phoneSend sends text off the UI goroutine; a card's message is kept for
 // the replies to it.
 func (u *ui) phoneSend(text string, rows [][]tgbot.Button, card string) {
+	u.phoneSendIn(u.phone.thread, text, rows, card)
+}
+
+// phoneSendIn is phoneSend into the private chat's topic thread.
+func (u *ui) phoneSendIn(thread int64, text string, rows [][]tgbot.Button, card string) {
 	bot, chat := u.phone.bot, u.phone.chat
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		id, err := bot.Send(ctx, chat, text, rows)
+		id, err := bot.Post(ctx, tgbot.Out{Chat: chat, Thread: thread, Text: text, Rows: rows})
 		u.later(func() {
 			if err != nil {
 				u.showToast("Phone: "+err.Error(), true)

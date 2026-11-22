@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/company"
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
@@ -40,6 +41,7 @@ var gnCommands = []tgbot.Command{
 	{Name: "ci", What: "CI that failed or is running"},
 	{Name: "digest", What: "The standup: /digest today, yesterday or week"},
 	{Name: "usage", What: "Each Claude account's plan limits"},
+	{Name: "company", What: "Who works on what, the leads and the last hand-offs: /company or /company Acme"},
 	{Name: "always", What: "Messages even while desk has the focus: /always on or off"},
 	{Name: "mirror", What: "An organization's topics: /mirror Acme full, summary, notify or off"},
 	{Name: "stop", What: "Stop the desk Claude's answer"},
@@ -66,13 +68,18 @@ func (u *ui) gnMenu() {
 // gnPost sends md (redacted, split) to the General chat in order, the
 // last part with rows; a card's message is kept for the replies to it.
 func (u *ui) gnPost(md string, rows [][]tgbot.Button, card string) {
+	u.gnPostIn(u.phone.thread, md, rows, card)
+}
+
+// gnPostIn is gnPost into the private chat's topic thread (0: the chat).
+func (u *ui) gnPostIn(thread int64, md string, rows [][]tgbot.Button, card string) {
 	bot, chat := u.phone.bot, u.phone.chat
 	parts := tgfmt.Split(tgfmt.Redact(md), tgfmt.Max-96)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 		for i, p := range parts {
-			o := tgbot.Out{Chat: chat, Markdown: p}
+			o := tgbot.Out{Chat: chat, Thread: thread, Markdown: p}
 			if i == len(parts)-1 {
 				o.Rows = rows
 			}
@@ -116,8 +123,19 @@ func (u *ui) gnPress(cb *tgbot.Callback, m *tgbot.Message, f func() string) {
 // a card: a command, or a question for the desk Claude.
 func (u *ui) gnText(m *tgbot.Message) {
 	text := strings.TrimSpace(m.Text)
+	took := u.tgTake(m, func(s string) { u.gnPost(tgfmt.Escape(s), nil, "") }, func(text, pic, file string) {
+		if file != "" { // the desk Claude reads no files: only a card can take one
+			os.Remove(file)
+			u.gnPost(tgfmt.Escape("The desk Claude takes text and pictures. Send a file as a reply to a card's message to give it to that card."), nil, "")
+			return
+		}
+		u.gnAsk(m, text, pic)
+	})
+	if took {
+		return
+	}
 	if text == "" {
-		u.gnPost("Only text reaches desk from here, for now.", nil, "")
+		u.gnPost(tgfmt.Escape("Text, pictures and files reach desk from here; voice notes don't yet."), nil, "")
 		return
 	}
 	if !strings.HasPrefix(text, "/") {
@@ -153,6 +171,8 @@ func (u *ui) gnText(m *tgbot.Message) {
 		u.gnPost(u.digestText("", digestSince(span, time.Now())), nil, "")
 	case "usage":
 		u.gnUsage()
+	case "company":
+		u.gnPost(u.gnCompany(arg), nil, "")
 	case "always":
 		u.gnPost(u.gnAlways(arg), nil, "")
 	case "mirror":
@@ -398,26 +418,43 @@ func (u *ui) gnMade(org, text string, ts []smartTok) {
 		return
 	}
 	go u.checkLinks([]string{id})
-	u.gnPost(tgfmt.Escape(said), [][]tgbot.Button{{
-		u.gnButton("Improve it", "", func() string { return u.gnImprove(id) }),
-		u.gnButton("Start it", "success", func() string { return u.gnStart(id) }),
-	}}, id)
+	u.gnPost(tgfmt.Escape(said), [][]tgbot.Button{{u.gnButton("Improve it", "", func() string { return u.gnImprove(id) }), u.gnStartBtn(id)}}, id)
+}
+
+// gnStartBtn is a card's Start it.
+func (u *ui) gnStartBtn(id string) tgbot.Button {
+	return u.gnButton("Start it", "success", func() string { return u.gnStart(id) })
 }
 
 // gnImprove is /new's Improve it: the card's request through Prompt
 // Optimization, as the new card dialog's Improve, then the card takes the
 // draft (title and notes; labels added; priority, due and folder where
-// unset) unless it started meanwhile. Linked tickets aren't read here.
+// unset) unless it started meanwhile. Its tickets and PRs are read first.
 func (u *ui) gnImprove(id string) string {
 	c := u.b.Card(id)
 	if c == nil {
 		return "That card is gone"
 	}
 	ask := u.optAsk(c.Org, c.Dir, cmp.Or(strings.TrimSpace(c.Notes), c.Title), c.Lang)
-	org, key := c.Org, c.Key()
+	org, key, thread, cfg := c.Org, c.Key(), u.phone.thread, u.orgConfig(c.Org)
+	var ls []kanban.Link
+	for _, l := range c.Links {
+		if l.Kind != links.KindURL {
+			ls = append(ls, l)
+		}
+	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 		defer cancel()
+		for _, l := range ls { // what its tickets and PRs say, through the org's accounts, as the dialog's Improve
+			text, err := describe(ctx, l, cfg)
+			if err != nil {
+				text = l.Ref + ": not read (" + firstLine(err.Error()) + ")"
+			}
+			if text != "" {
+				ask.Linked = append(ask.Linked, text)
+			}
+		}
 		var d claude.Draft
 		env, err := u.goEnv(org, "improve")
 		if err == nil {
@@ -430,10 +467,10 @@ func (u *ui) gnImprove(id string) string {
 			case c == nil:
 				return
 			case err != nil:
-				u.gnPost(tgfmt.Escape(key+": Improve didn't finish: "+firstLine(err.Error())), nil, "")
+				u.gnPostIn(thread, tgfmt.Escape(key+": Improve didn't finish: "+firstLine(err.Error())), nil, "")
 				return
 			case c.Session.ID != "" || c.Status != "":
-				u.gnPost(tgfmt.Escape(key+" started before Improve finished: left as it was."), nil, "")
+				u.gnPostIn(thread, tgfmt.Escape(key+" started before Improve finished: left as it was."), nil, "")
 				return
 			}
 			c.Title = cmp.Or(strings.TrimSpace(d.Title), c.Title)
@@ -456,11 +493,75 @@ func (u *ui) gnImprove(id string) string {
 			}
 			c.Updated = time.Now()
 			u.save()
-			u.gnPost("**"+tgfmt.Escape(key+" · "+c.Title)+"**\n\n"+c.Notes,
-				[][]tgbot.Button{{u.gnButton("Start it", "success", func() string { return u.gnStart(id) })}}, id)
+			u.gnPostIn(thread, "**"+tgfmt.Escape(key+" · "+c.Title)+"**\n\n"+c.Notes,
+				[][]tgbot.Button{{u.gnStartBtn(id)}}, id)
 		})
 	}()
 	return "Improving " + key + " with Claude…"
+}
+
+// gnCompanyStates are coCardState's states, in the order /company lists them.
+var gnCompanyStates = []struct{ state, what string }{
+	{"you", "Needs you"}, {"stuck", "Stuck"}, {"turn", "Your turn"}, {"work", "Working"}, {"done", "Ready for review"},
+}
+
+// gnCompany is the Company view in words (org's, "" every one's): its
+// cards with a session by state, the leads at work and the last hand-offs.
+func (u *ui) gnCompany(org string) string {
+	if org != "" {
+		o, ok := u.gnOrg(org)
+		if !ok {
+			return tgfmt.Escape("desk has no organization called " + org + ".")
+		}
+		org = o
+	}
+	byOrg := map[string][]kanban.Card{}
+	for _, c := range u.coCards() {
+		if org == "" || c.Org == org {
+			byOrg[c.Org] = append(byOrg[c.Org], c)
+		}
+	}
+	for _, st := range u.leads {
+		if _, ok := byOrg[st.org]; !ok && (org == "" || st.org == org) {
+			byOrg[st.org] = nil
+		}
+	}
+	var b strings.Builder
+	b.WriteString("**Company** · " + tgfmt.Escape(u.companySentence()) + "\n")
+	if len(byOrg) == 0 {
+		b.WriteString("\nNo card has a session.")
+		return b.String()
+	}
+	now := time.Now()
+	for _, o := range slices.Sorted(maps.Keys(byOrg)) {
+		dir := orgs.Dir(u.root, o, "")
+		fmt.Fprintf(&b, "\n### %s · %s\n", tgfmt.Escape(o), tgfmt.Escape(fmt.Sprintf("$%.2f today", company.Spent(dir, now))))
+		for _, s := range gnCompanyStates {
+			var keys []string
+			for _, c := range byOrg[o] {
+				if u.coCardState(c) == s.state {
+					keys = append(keys, "`"+c.Key()+"` "+tgfmt.Escape(tgfmt.Clip(c.Title, 40)))
+				}
+			}
+			if len(keys) > 0 {
+				fmt.Fprintf(&b, "- **%s:** %s\n", s.what, strings.Join(keys, ", "))
+			}
+		}
+		for _, k := range slices.Sorted(maps.Keys(u.leads)) {
+			if st := u.leads[k]; st.org == o && len(st.from) > 0 {
+				fmt.Fprintf(&b, "- **%s lead:** %s\n", tgfmt.Escape(st.dept.Name), tgfmt.Escape(fmt.Sprintf("%d %s waiting", len(st.from), map[bool]string{true: "brief", false: "briefs"}[len(st.from) == 1])))
+			}
+		}
+		es := company.Read(dir)
+		for _, e := range es[max(0, len(es)-5):] {
+			what := tgfmt.Escape(e.From + " → " + e.To + ": " + tgfmt.Clip(e.Text, 80))
+			if e.Verdict != "" {
+				what += " · **" + tgfmt.Escape(e.Verdict) + "**"
+			}
+			fmt.Fprintf(&b, "- _%s_ %s\n", e.At.Format("15:04"), what)
+		}
+	}
+	return b.String()
 }
 
 // gnUsage posts each Claude account's plan limits, with the organizations
@@ -471,7 +572,7 @@ func (u *ui) gnUsage() {
 		a := orgs.Account(u.root, o)
 		by[a] = append(by[a], o)
 	}
-	home := u.home
+	home, thread := u.home, u.phone.thread
 	go func() {
 		var b strings.Builder
 		for _, a := range slices.Sorted(maps.Keys(by)) {
@@ -486,7 +587,7 @@ func (u *ui) gnUsage() {
 				fmt.Fprintf(&b, "- %s · %s\n", tgfmt.Escape(l.Name), tgfmt.Escape(fmt.Sprintf("%.0f%%, resets %s", l.Percent, resets(l.Resets))))
 			}
 		}
-		u.later(func() { u.gnPost(cmp.Or(strings.TrimSpace(b.String()), "No organizations."), nil, "") })
+		u.later(func() { u.gnPostIn(thread, cmp.Or(strings.TrimSpace(b.String()), "No organizations."), nil, "") })
 	}()
 }
 
@@ -631,7 +732,7 @@ You don't write code or run commands yourself: that is the cards' work.
 Your answers are read on a phone: short, Markdown, card keys in backticks.`
 
 // gnAsk hands text to the desk Claude, started when it isn't running.
-func (u *ui) gnAsk(m *tgbot.Message, text string) {
+func (u *ui) gnAsk(m *tgbot.Message, text string, pics ...string) {
 	ph := u.phone
 	if ph.gnProc == nil {
 		p, err := u.gnLaunch()
@@ -641,7 +742,8 @@ func (u *ui) gnAsk(m *tgbot.Message, text string) {
 		}
 		ph.gnProc = p
 	}
-	if err := ph.gnProc.Send(text); err != nil {
+	ph.gnThread = ph.thread
+	if err := ph.gnProc.Send(text, pics...); err != nil {
 		u.gnPost("Not sent: "+tgfmt.Escape(err.Error()), nil, "")
 		return
 	}
@@ -703,12 +805,12 @@ func (u *ui) gnEvent(p session, e claude.Event) {
 			said = strings.TrimSpace(said + "\n\n" + tgfmt.Escape("Error: "+firstLine(e.Text)))
 		}
 		if said != "" {
-			u.gnPost(said, nil, "")
+			u.gnPostIn(ph.gnThread, said, nil, "")
 		}
 	case claude.KindExit:
 		ph.gnProc, ph.gnSaid = nil, nil
 		if e.Text != "" {
-			u.gnPost("The desk Claude stopped: "+tgfmt.Escape(firstLine(e.Text)), nil, "")
+			u.gnPostIn(ph.gnThread, "The desk Claude stopped: "+tgfmt.Escape(firstLine(e.Text)), nil, "")
 		}
 	}
 }

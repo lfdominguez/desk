@@ -134,7 +134,7 @@ func (u *ui) runTrigger(org string, t orgs.Trigger, s *trigSeen, first bool) boo
 		case t.On == "schedule":
 			u.trigCard(org, t, t.Title, strings.TrimSpace(t.Notes+"\n\n"+why), nil)
 		case u.phone != nil && u.phone.chat != 0:
-			u.phoneSend(u.digestText(org, digestSince(1, trigNow())), nil, "")
+			u.phoneSendIn(u.gtThread("digest"), u.digestText(org, digestSince(1, trigNow())), nil, "")
 		default:
 			u.showToast(t.Name+": a digest goes to the phone, and none is paired ([phone] in settings.toml)", true)
 		}
