@@ -42,6 +42,10 @@ func TestServerFieldsRefused(t *testing.T) {
 	if a, err := ServerFields(org, "web"); err != nil || a.User != "x" {
 		t.Errorf("a name beside a pattern: %+v %v", a, err)
 	}
+	os.WriteFile(file, []byte("Host \"q\"\n    User x\n"), 0o600)
+	if _, err := ServerFields(org, "q"); err == nil || !strings.Contains(err.Error(), "by hand") {
+		t.Errorf("a quoted Host line: %v", err)
+	}
 }
 
 // TestServerDiff: only what changed goes to edit_server; an emptied field
@@ -64,6 +68,9 @@ func TestServerDiff(t *testing.T) {
 	}
 	if d := ServerDiff(ServerArgs{Name: "a"}, ServerArgs{Name: "a", User: "u", Desc: "x"}); d.User != "u" || d.Desc != "x" || d.Options != nil {
 		t.Errorf("set: %+v", d)
+	}
+	if d := ServerDiff(ServerArgs{Name: "a"}, ServerArgs{Name: "a", Options: map[string]string{"#@ password": "item"}}); !reflect.DeepEqual(d.Options, map[string]string{"#@ password": "item"}) {
+		t.Errorf("a password alone: %+v", d)
 	}
 }
 

@@ -34,12 +34,13 @@ func TestPickerNewServer(t *testing.T) {
 	}
 	f.ed[sfAddr].SetText("192.0.2.20")
 	f.ed[sfGroup].SetText("db")
+	f.ed[sfPass].SetText("item")
 	h.frame()
 	h.send(press(key.NameReturn, 0)) // in the address, focused as the form opened
 	if h.u.srvForm != nil || h.u.pick != "Acme" || !strings.Contains(h.u.toast, "Added db1") {
 		t.Fatalf("form %v, picker %q, toast %q", h.u.srvForm, h.u.pick, h.u.toast)
 	}
-	if !strings.HasSuffix(h.acmeServers(), "#@ group db\nHost db1\n    HostName 192.0.2.20\n") {
+	if !strings.Contains(h.acmeServers(), "#@ group db\nHost db1\n    HostName 192.0.2.20\n") || !strings.Contains(h.acmeServers(), "    #@ password item\n") {
 		t.Fatalf("file:\n%s", h.acmeServers())
 	}
 }
@@ -78,6 +79,11 @@ func TestPickerEdit(t *testing.T) {
 	if !strings.Contains(h.acmeServers(), "Host h01\n    User root\n    Port 2222\nHost h02") {
 		t.Fatalf("file:\n%s", h.acmeServers())
 	}
+	h.send(press("E", key.ModShortcut))
+	if f := h.u.srvForm; f == nil || f.ed[sfPort].Text() != "2222" {
+		t.Fatalf("reopened: %+v", f)
+	}
+	h.u.srvForm = nil
 	h.u.pickSel = 4 // New server
 	h.frame()
 	h.send(press("E", key.ModShortcut))
@@ -133,7 +139,12 @@ func TestServerFormErrors(t *testing.T) {
 			t.Errorf("%q %q: err %q", c.name, c.port, f.err)
 		}
 	}
-	h.frame()
+	h.frame() // the SetTexts' changes clear it
+	h.u.saveServer()
+	h.frame() // drawn under the fields
+	if f.err == "" {
+		t.Fatal("a frame cleared the error")
+	}
 	h.send(key.EditEvent{Text: "a"})
 	if f.err != "" {
 		t.Errorf("typing keeps %q", f.err)
