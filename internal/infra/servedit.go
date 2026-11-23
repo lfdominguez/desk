@@ -366,14 +366,7 @@ func ServerApply(org, tool string, raw json.RawMessage) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	path, _, next, err := serverChange(org, tool, a)
-	if err != nil {
-		return "", err
-	}
-	if err := writeServers(path, next); err != nil {
-		return "", err
-	}
-	return serverDone(tool, a.Name, path), nil
+	return ServerSave(org, tool, a)
 }
 
 // writeServers writes a servers file: a new one 0600 (it may hold a

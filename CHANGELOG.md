@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Add and edit servers from the picker**: the server picker (double-click Servers) ends with a
+  New server row, and the selected server has Edit (Ctrl+E). Both open a form with the name,
+  address, port, user, key file, group, description and vault password; Enter saves it to the
+  organization's servers file, changing only what you changed.
+
 ## [2026.11.20.1] - 2026-11-20
 
 ### Added

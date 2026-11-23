@@ -533,6 +533,9 @@ Match all
 - **Ask Claude to change the servers file**: a card's Claude and the infra Claude add, change and
   remove servers with `add_server`, `edit_server` and `remove_server` ("add web4 and web5, user
   deploy, key ~/.ssh/acme"), and you approve each change as a diff.
+- **Or do it yourself from the picker**: double-click Servers, then **New server** (its last row)
+  or **Edit** (Ctrl+E) on the selected one: a form with address, port, user, key, group,
+  description and vault password, saved to the servers file.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
   read when connecting but never listed, so your personal hosts never show as the org's servers.
 - **Relative paths** (`IdentityFile`, `UserKnownHostsFile`, `Include`…) are from the folder of

@@ -139,7 +139,7 @@ func (u *ui) palItems() []*palItem {
 			preview: [][2]string{{"Organization", org}}, run: func() { u.palServer(org, pickRow{}) }})
 		for _, g := range o.Groups {
 			for _, h := range g.Hosts {
-				r := pickRow{g.Name, h}
+				r := pickRow{group: g.Name, host: h}
 				pv := [][2]string{{"Group", org + " / " + g.Name}}
 				if h.Addr != "" {
 					pv = append([][2]string{{"Address", h.Addr}}, pv...)
