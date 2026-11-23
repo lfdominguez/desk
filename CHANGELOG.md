@@ -34,7 +34,9 @@ day). A release's section here is its notes on GitHub. The format follows
 - **Desk Control setup**: Settings → Telegram logs in as your own Telegram account (the code and
   2FA password asked in desk) to make a "Desk Control" chat folder and a private forum group per
   organization you turn on, with the bot as their admin; or send `/link Acme` in a group you made.
-  Each organization is off until you pick what its group gets: Notify, Summary or Full.
+  Each organization is off until you pick what its group gets: Notify, Summary or Full. A login
+  that doesn't finish isn't kept, a session Telegram refuses asks you to log in again, and Set up
+  waits out Telegram's "slow down" between groups.
 - **Card topics**: in a mirrored organization's group, every card with a conversation gets a
   Telegram topic named by its state (🟢 working, 🟡 your turn, 🔴 blocked…) with a pinned header
   of its column, links and cost. Its conversation follows in rich text, its permission requests

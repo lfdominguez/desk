@@ -19,10 +19,12 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/gotd/td/bin"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
+	"github.com/gotd/td/tgerr"
 )
 
 // Account is the user's Telegram account as an app (api_id and api_hash
@@ -46,10 +48,56 @@ var run = func(ctx context.Context, a Account, f func(context.Context, *tg.Clien
 	return f(ctx, k.api)
 }
 
+// floodMax is the longest FLOOD_WAIT waitFlood sits out; a longer one
+// comes back as the error.
+var floodMax = 2 * time.Minute
+
+// waitFlood retries a call Telegram asked to slow down (FLOOD_WAIT, as
+// making several groups in a row gets) after the wait it names. Only that
+// call: retrying a whole step would make a second group.
+func waitFlood(next tg.Invoker) telegram.InvokeFunc {
+	return func(ctx context.Context, in bin.Encoder, out bin.Decoder) error {
+		for {
+			err := next.Invoke(ctx, in, out)
+			d, ok := tgerr.AsFloodWait(err)
+			if !ok || d > floodMax {
+				return err
+			}
+			select {
+			case <-time.After(d):
+			case <-ctx.Done():
+				return err
+			}
+		}
+	}
+}
+
+// act runs f on a's connection. A session Telegram refuses (a login never
+// finished, or ended from another device) is dropped, so LoggedIn turns
+// false and Settings asks for a new login.
+func act(ctx context.Context, a Account, f func(context.Context, *tg.Client) error) error {
+	err := run(ctx, a, f)
+	if auth.IsUnauthorized(err) {
+		drop(a)
+		return fmt.Errorf("Telegram no longer takes this login, log in again (Settings → Telegram): %w", err)
+	}
+	return err
+}
+
+// drop ends a's connection and removes its session file.
+func drop(a Account) error {
+	forget(a)
+	if err := os.Remove(a.Session); !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
 // connect connects as a until ctx ends, handing Telegram's updates to up
 // and calling f once connected; tests replace it.
 var connect = func(ctx context.Context, a Account, up telegram.UpdateHandler, f func(context.Context, *tg.Client) error) error {
-	c := telegram.NewClient(a.ID, a.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: a.Session}, UpdateHandler: up})
+	c := telegram.NewClient(a.ID, a.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: a.Session}, UpdateHandler: up,
+		Middlewares: []telegram.Middleware{telegram.MiddlewareFunc(waitFlood)}})
 	return c.Run(ctx, func(ctx context.Context) error { return f(ctx, c.API()) })
 }
 
@@ -151,13 +199,19 @@ type Asker struct {
 	Password func(ctx context.Context) (string, error)
 }
 
-// Login logs a in as phone's account, unless its session already is.
+// Login logs a in as phone's account, unless its session already is. A
+// login that doesn't finish (canceled, a wrong code or password) drops its
+// session: gotd writes the file on connecting, before the account is in.
 func (a Account) Login(ctx context.Context, phone string, ask Asker) error {
-	return run(ctx, a, func(ctx context.Context, api *tg.Client) error {
+	err := run(ctx, a, func(ctx context.Context, api *tg.Client) error {
 		err := auth.NewClient(api, rand.Reader, a.ID, a.Hash).IfNecessary(ctx, auth.NewFlow(user{phone, ask}, auth.SendCodeOptions{}))
 		os.Chmod(a.Session, 0o600)
 		return err
 	})
+	if err != nil {
+		drop(a)
+	}
+	return err
 }
 
 // LoggedIn is whether a login left a session (not whether Telegram still
@@ -173,8 +227,7 @@ func (a Account) Logout(ctx context.Context) error {
 		_, err := api.AuthLogOut(ctx)
 		return err
 	})
-	forget(a)
-	if rm := os.Remove(a.Session); err == nil && !errors.Is(rm, os.ErrNotExist) {
+	if rm := drop(a); err == nil {
 		err = rm
 	}
 	return err
@@ -211,7 +264,7 @@ type Chat struct {
 // Forum makes a private forum supergroup titled title, with the bot (by
 // its username) as an admin that manages topics, pins and deletes.
 func (a Account) Forum(ctx context.Context, title, about, bot string) (c Chat, err error) {
-	err = run(ctx, a, func(ctx context.Context, api *tg.Client) error {
+	err = act(ctx, a, func(ctx context.Context, api *tg.Client) error {
 		c, err = forum(ctx, api, title, about, bot)
 		return err
 	})
@@ -281,7 +334,7 @@ const FolderMax = 12
 // Folder makes or updates (id, 0: a new one) the folder titled title
 // holding the bot's chat and chats; its id.
 func (a Account) Folder(ctx context.Context, id int, title, bot string, chats []Chat) (n int, err error) {
-	err = run(ctx, a, func(ctx context.Context, api *tg.Client) error {
+	err = act(ctx, a, func(ctx context.Context, api *tg.Client) error {
 		n, err = folder(ctx, api, id, title, bot, chats)
 		return err
 	})
@@ -413,7 +466,7 @@ func await(ctx context.Context, id int64) (string, bool, error) {
 // Transcribe is the text Telegram's transcription makes of v (the
 // account needs Premium, or the free trials left), once done.
 func (a Account) Transcribe(ctx context.Context, v Voice) (text string, err error) {
-	err = run(ctx, a, func(ctx context.Context, api *tg.Client) error {
+	err = act(ctx, a, func(ctx context.Context, api *tg.Client) error {
 		text, err = transcribe(ctx, api, v)
 		return err
 	})

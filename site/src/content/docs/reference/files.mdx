@@ -20,6 +20,7 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 | `board.json.lock` | Held while desk runs, so only one desk at a time works on the board: a second one tells you desk is already running and quits. |
 | `chats/<card>.jsonl` | Each card's conversation, one message per line. |
 | `telegram-claude.txt` | The [desk Claude](/sessions/desk-control/#the-desk-claude)'s session, resumed after a restart until `/forget`. 0600. |
+| `telegram-widget.json` | The `/widget` message in the General chat, so it keeps following the board after a restart. 0600. |
 | `telegram.json` | [Desk Control](/sessions/desk-control/)'s topics: for each card, its group, topic, pinned header and how much of its conversation went there. 0600. |
 | `chats/ws-<card>.jsonl` | Its [workspace](/sessions/workspace/) Claude's conversation. |
 | `images/` | Images you pasted: a card's notes reference them as `![image](path)`, a message as `[Image n]`. |
@@ -35,7 +36,7 @@ time it starts.
 
 | Path | What's in it |
 |---|---|
-| `settings.toml` | desk's own settings: the search folders (`[[folder]]` with `path`, `depth`, `only_toml`, `root`), the languages (`card_lang`, `chat_lang`), the text size (`zoom`), the shortcuts you changed (`[keys]`), who you are (`me`), Desk Control (`[telegram]`: the bot's token, `chat_id`, `always`, `screen`, your account's `api_id`, `api_hash` and `phone_number`, the folder, and each organization's mirror and group: [Settings → Telegram](/orgs/settings/#telegram)) and a New Relic account for desk's own crashes (`[newrelic]`: [Report to New Relic](/reference/troubleshooting/#report-to-new-relic)). Edit them in **Settings**, desk's pages: General, Search folders, Telegram, Keyboard shortcuts and Diagnostics. The workspace's layout (`[editor]`) is written as you change it there. |
+| `settings.toml` | desk's own settings: the search folders (`[[folder]]` with `path`, `depth`, `only_toml`, `root`), the languages (`card_lang`, `chat_lang`), the text size (`zoom`), the shortcuts you changed (`[keys]`), who you are (`me`), Desk Control (`[telegram]`: the bot's token, `chat_id`, `always`, `screen`, `quiet`, `redact`, your account's `api_id`, `api_hash` and `phone_number`, the folder, and each organization's mirror and group: [Settings → Telegram](/orgs/settings/#telegram)) and a New Relic account for desk's own crashes (`[newrelic]`: [Report to New Relic](/reference/troubleshooting/#report-to-new-relic)). Edit them in **Settings**, desk's pages: General, Search folders, Telegram, Keyboard shortcuts and Diagnostics. The workspace's layout (`[editor]`) is written as you change it there. |
 | `infra-layout.json` | The infra workspace's look: its theme, whether its sidebar and Claude panel show, and the Claude panel's width. |
 
 ## Organizations: `$DESK_ROOT` (`~/Work`)

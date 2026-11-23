@@ -176,7 +176,7 @@ func TestFolder(t *testing.T) {
 // the flow: the code comes from the Asker and signs in, the session file
 // kept 0600; Logout ends it and removes the file.
 func TestLogin(t *testing.T) {
-	authorized := true
+	authorized, twoFA := true, false
 	var signed *tg.AuthSignInRequest
 	f := &fake{}
 	f.answer = func(req bin.Encoder) (bin.Encoder, error) {
@@ -190,6 +190,9 @@ func TestLogin(t *testing.T) {
 			return &tg.AuthSentCode{Type: &tg.AuthSentCodeTypeApp{Length: 5}, PhoneCodeHash: "hash"}, nil
 		case *tg.AuthSignInRequest:
 			signed = r
+			if twoFA {
+				return nil, tgerr.New(401, "SESSION_PASSWORD_NEEDED")
+			}
 			return &tg.AuthAuthorization{User: &tg.User{ID: 1}}, nil
 		case *tg.AuthLogOutRequest:
 			return &tg.AuthLoggedOut{}, nil
@@ -228,6 +231,23 @@ func TestLogin(t *testing.T) {
 	if _, err := u.SignUp(ctx); err == nil {
 		t.Fatal("sign up")
 	}
+
+	// A login stopped at the password leaves no session to look logged in.
+	twoFA = true
+	os.WriteFile(a.Session, []byte("{}"), 0o600)
+	if err := a.Login(ctx, "+10000000000", ask); err == nil || a.LoggedIn() {
+		t.Fatalf("login stopped at the password: %v, logged in %v", err, a.LoggedIn())
+	}
+	// An action Telegram refuses drops the session and asks for a login.
+	os.WriteFile(a.Session, []byte("{}"), 0o600)
+	err := act(ctx, a, func(context.Context, *tg.Client) error { return tgerr.New(401, "SESSION_PASSWORD_NEEDED") })
+	if err == nil || !strings.Contains(err.Error(), "log in again") || a.LoggedIn() {
+		t.Fatalf("refused: %v, logged in %v", err, a.LoggedIn())
+	}
+	if err := act(ctx, a, func(context.Context, *tg.Client) error { return errors.New("other") }); err == nil || strings.Contains(err.Error(), "log in again") {
+		t.Fatalf("another error: %v", err)
+	}
+
 	os.MkdirAll(a.Session, 0o700) // a folder where the file goes: it can't be removed as one
 	os.WriteFile(filepath.Join(a.Session, "x"), nil, 0o600)
 	if err := a.Logout(ctx); err == nil {
@@ -391,5 +411,34 @@ func TestTranscribe(t *testing.T) {
 	transcribeEvery = time.Hour
 	if _, err := transcribe(gone, tg.NewClient(f), Voice{Chat: Chat{Channel: 55}, Msg: 9}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled while pending: %v", err)
+	}
+}
+
+// TestWaitFlood: a FLOOD_WAIT is sat out and the same call sent again; one
+// longer than floodMax, or a context ended meanwhile, returns the error.
+func TestWaitFlood(t *testing.T) {
+	calls := 0
+	waits := []error{tgerr.New(420, "FLOOD_WAIT_0"), nil}
+	inv := waitFlood(telegram.InvokeFunc(func(context.Context, bin.Encoder, bin.Decoder) error {
+		calls++
+		return waits[min(calls, len(waits))-1]
+	}))
+	ctx := context.Background()
+	if err := inv.Invoke(ctx, nil, nil); err != nil || calls != 2 {
+		t.Fatalf("sat out: %v after %d calls", err, calls)
+	}
+	calls, waits = 0, []error{tgerr.New(420, "FLOOD_WAIT_3600")}
+	if err := inv.Invoke(ctx, nil, nil); !tgerr.Is(err, "FLOOD_WAIT") || calls != 1 {
+		t.Fatalf("too long: %v after %d calls", err, calls)
+	}
+	calls, waits = 0, []error{tgerr.New(420, "FLOOD_WAIT_60")}
+	done, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := inv.Invoke(done, nil, nil); err == nil || calls != 1 {
+		t.Fatalf("canceled: %v after %d calls", err, calls)
+	}
+	calls, waits = 0, []error{errors.New("other")}
+	if err := inv.Invoke(ctx, nil, nil); err == nil || calls != 1 {
+		t.Fatalf("another error: %v after %d calls", err, calls)
 	}
 }

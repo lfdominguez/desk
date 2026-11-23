@@ -226,7 +226,9 @@ Desk Control up:
 **Save**, then **Log in**: the code Telegram sends you and, when your account has one, its 2FA
 password are asked right there, and go from this window to Telegram only. The session is kept in
 desk's state folder (`~/.local/state/desk/telegram.session`), readable by you alone; **Log out**
-ends it at Telegram and removes it.
+ends it at Telegram and removes it. A login that doesn't finish (canceled, a wrong code or
+password) isn't kept, and a session Telegram stops taking (ended from another device) is dropped
+the next time desk uses it, with a note to log in again.
 
 ### Organizations
 
@@ -244,7 +246,10 @@ you turn it on.
 
 **Set up / Repair** makes what's missing: a private forum group for each organization that isn't
 off, with the bot as an admin that manages topics, then the folder holding the bot's chat and
-those groups. Running it again only adds what's new. Next to each organization, *group ready* or
+those groups. Running it again only adds what's new. When Telegram asks desk to slow down (making
+several groups in a row), desk waits the seconds it names, up to two minutes, and goes on. A step
+Telegram refuses stops it with *Set up stopped:* and why; the groups made before are kept, and the
+next press picks up from there. Next to each organization, *group ready* or
 *no group yet*.
 
 Without logging in, make a group yourself: turn on **Topics** in its settings, add the bot as an

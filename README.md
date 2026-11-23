@@ -278,7 +278,9 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   The bot's private chat is the General chat: `/board`, `/inbox`, `/find`, `/card DESK-12`,
   `/new @Acme fix the login !high`, `/tickets`, `/alerts`, `/ci`, `/digest week`, `/company`, `/usage`, `/drawings`, `/review DESK-12`, `/canvas DESK-12`, `/widget` (the board as a live HTML widget), `/always`,
   `/mirror Acme summary`; anything else goes to the desk Claude, which reads the whole board and
-  makes or messages cards when you ask (never edits files or runs commands). An organization with
+  makes or messages cards when you ask (never edits files or runs commands; `/stop` stops its turn,
+  `/forget` starts it afresh). With topics on for the bot (BotFather), the private chat gets its own
+  Board, Inbox, Digest and Settings topics. An organization with
   servers also gets an Infra topic: its infra sessions and what each terminal runs, its infra
   Claude's replies, approvals with Approve / Deny / Always, what you write going to that Claude,
   and `/screen` for a picture of a terminal (off until Settings allows it). A card's own infra

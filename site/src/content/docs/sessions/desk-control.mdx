@@ -10,7 +10,8 @@ machine. desk still does the work: Telegram is another window on it.
 
 Set it up in [Settings → Telegram](/orgs/settings/#telegram): the bot, then **Log in** with your
 account and **Set up / Repair** (or `/link Acme` in a group you made). Each organization stays off
-until you pick what its group gets.
+until you pick what its group gets. A login that doesn't finish (canceled, or a wrong code or
+2FA password) isn't kept, and one Telegram stops taking later is dropped with a note to log in again.
 
 ## A card's topic
 
@@ -90,7 +91,7 @@ no Rework, as in desk.
 
 Only your own Telegram account, the one paired with the bot, is heard in the groups: anyone else's
 messages and button presses are ignored. Text, pictures, files and voice notes reach Claude from a
-topic, and from the General chat. A voice note goes as its words, prefixed 🎙: Telegram's own
+card's topic, and from the General chat (an Infra topic takes text only). A voice note goes as its words, prefixed 🎙: Telegram's own
 transcription makes them, asked as your logged-in account (it needs Telegram Premium, or the free
 trials Telegram gives). It works in the bot's chat and the groups desk made; a group you linked by
 hand with `/link` can't be named to your account, so there it says so.
@@ -125,7 +126,8 @@ prompt").
   servers file edit shows its diff and has no Always. Whichever side answers first counts; the
   message then says *→ answered*.
 - **Anything you write** there goes to the organization's infra Claude as your message, opening
-  its session if it has none (the window stays where it is); while it works, it's queued.
+  its session if it has none (the window stays where it is); while it works, it's queued. Only
+  text: a picture, file or voice note there is turned away.
 - **/screen** sends a picture of a terminal as it is on screen, in desk's colors: the one running
   something, or the one you name (`/screen web1`). It's off until **Let /screen show a terminal**
   is on in [Settings → Telegram](/orgs/settings/#telegram): a terminal can show more than you mean
@@ -154,6 +156,7 @@ whole board. The commands are in the chat's menu:
 | `/widget` | The board as a live widget: each column's count and the cards waiting on you, kept up to date as the board changes. Tap a card and desk posts it here, as `/card` does. Widgets need a Telegram app that has them (Bot API 10.4). It keeps following the board after desk restarts; delete it in Telegram and desk stops. |
 | `/usage` | Each Claude account's plan limits (as the session view's foot shows them), with the organizations using it. |
 | `/always on`, `/always off` | Whether cards come here even while desk has the focus. |
+| `/help` | What this chat does and its commands. |
 | `/mirror Acme summary` | What an organization's group gets: `full`, `summary`, `notify` or `off`. |
 
 A reply to a card's message can carry a picture or a file too: it goes to that card's Claude as
