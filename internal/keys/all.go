@@ -63,6 +63,7 @@ var All = []Binding{
 	{ID: "pal.move", Scope: "Command palettes", What: "Move, run the item", Fixed: "↑ ↓ ↵"},
 
 	{ID: "settings.save", Scope: "Dialogs", What: "Save the settings", Def: []Chord{ctl("S")}},
+	{ID: "picker.edit", Scope: "Dialogs", What: "Edit the selected server (server picker)", Def: []Chord{ctl("E")}},
 	{ID: "dialog.snooze", Scope: "Dialogs", What: "Snooze an alert 1 h, 4 h, 1 day, 1 week", Fixed: "1 2 3 4"},
 
 	{ID: "term.paste", Scope: "Card terminal", What: "Paste an image as its path (else Claude Code gets Ctrl+V)", Fixed: "Ctrl+V"},

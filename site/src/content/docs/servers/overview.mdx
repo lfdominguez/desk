@@ -54,6 +54,18 @@ if it's already open. A long list shows a scrollbar. A click outside closes the 
 Pick **Globex Claude** for the organization-wide session: a Claude with no terminal yet, which
 connects to the servers you ask it about.
 
+#### Adding and editing a server
+
+The picker's last row, **New server**, opens a form for a new server: name, address, port, user,
+key file, group, description and password (a vault item, as `#@ password` takes it). Type the
+name in the search first and the form starts with it. **Edit** beside the selected server, or
+<kbd>Ctrl</kbd>+<kbd>E</kbd>, opens the same form with that server's own lines; its name can't
+change there. <kbd>Enter</kbd> in any field saves it to the
+[servers file](/servers/servers-file/) and goes back to the picker, <kbd>Esc</kbd> goes back
+without saving. An emptied field removes its line; an edit changes only what you changed, and a
+key file adds `IdentitiesOnly yes`. Other keywords, and a password written in the file, stay for
+the file itself. A server from a `hosts-cmd` can't be edited here.
+
 :::tip
 The palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>) lists every organization's
 servers too, plus each group. See [The palette](/servers/palette/).
