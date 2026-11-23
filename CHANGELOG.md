@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.23] - 2026-11-23
+
 ### Changed
 
 - **Settings, rebuilt**: desk's own pages (General, Search folders, Telegram, Keyboard shortcuts,
@@ -55,10 +57,6 @@ day). A release's section here is its notes on GitHub. The format follows
   cards that need you come to Inbox.
 - **Voice notes in Telegram**: a voice note in a card's topic or the bot's chat reaches Claude as
   its words, transcribed by Telegram itself as your logged-in account (Telegram Premium).
-- **Telegram's rough edges**: the `/widget` keeps following the board after desk restarts,
-  `/screen` sends a terminal as masked text when something on it would be masked (a picture can't
-  be), desk paces its messages over all chats too (Telegram's 30 a second), and it keeps one
-  connection to your account instead of one per action.
 - **Quiet hours and your own masking for Telegram**: Settings → Telegram's **Quiet hours**
   (`22:00-07:00`) send desk's messages without a sound then, and **Also mask** takes a regular
   expression masked like a token in everything that goes to Telegram.
@@ -67,13 +65,14 @@ day). A release's section here is its notes on GitHub. The format follows
   Rework (your next message goes back to that Claude) and Dismiss; `/review` in a card's topic (or
   `/review DESK-12` in the private chat) sends its branch, commits and files with the diff as a
   file, and Merge, Push and Open PR, each asked twice; `/widget` puts the board in the private chat
-  as a live widget (column counts, the cards waiting on you, a tap posts one).
+  as a live widget (column counts, the cards waiting on you, a tap posts one) that keeps following
+  the board after desk restarts.
 - **The Infra topic**: an organization with servers gets an Infra topic in its group, named by its
   infra Claudes' state, its header listing each infra session and what its terminals run. The
   infra Claude's replies follow, a command or change waiting for approval comes with Approve, Deny
   and Always, and what you write there goes to that Claude. A card's own infra session asks in the
   card's topic instead. `/screen` sends a picture of a terminal, once "Let /screen show a
-  terminal" is on in Settings → Telegram.
+  terminal" is on in Settings → Telegram (as masked text when something on it would be masked).
 - **Review & ship**: with `[git] worktrees = true` in an organization's `desk.toml`, each new card
   in a git repository works on its own branch and worktree (`<repo>/.worktrees/desk-n`). Its
   session's new Review button shows the branch's commits and every changed file as a diff, and
@@ -755,7 +754,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.20.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.23...HEAD
+[2026.11.23]: https://github.com/lfdominguez/desk/compare/2026.11.20.1...2026.11.23
 [2026.11.20.1]: https://github.com/lfdominguez/desk/compare/2026.11.20...2026.11.20.1
 [2026.11.20]: https://github.com/lfdominguez/desk/compare/2026.11.19.4...2026.11.20
 [2026.11.19.4]: https://github.com/lfdominguez/desk/compare/2026.11.19.3...2026.11.19.4

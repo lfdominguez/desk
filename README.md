@@ -263,7 +263,7 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   within 10 minutes of starting desk to pair it. While no desk window has the focus (or always, with `always = true`), cards that
   turn to you come there: permission requests with Allow and Deny, a question's options as buttons,
   and the last message, which you answer by replying.
-- **Desk Control** (being built): **Settings → Telegram** also logs in as your own Telegram
+- **Desk Control**: **Settings → Telegram** also logs in as your own Telegram
   account (an app's `api_id`/`api_hash` from my.telegram.org; the code and 2FA password asked in
   desk, the session in `~/.local/state/desk/telegram.session`) to make a "Desk Control" folder and
   a private forum group per organization you turn on (Notify, Summary or Full), with the bot as
