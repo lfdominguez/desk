@@ -163,7 +163,8 @@ func TestFiles(t *testing.T) {
 
 // TestPace: one chat's calls are spaced by Gap, other chats aren't held
 // by it, drafts and calls without a chat aren't paced; a 429 is waited out
-// by its retry_after, and given up after retries.
+// by its retry_after, and given up after retries; every call also waits
+// for the bot-wide slot (All), taken once its chat's comes.
 func TestPace(t *testing.T) {
 	f, b, ctx := fake(t)
 	t0 := time.Unix(1000, 0)
@@ -180,7 +181,7 @@ func TestPace(t *testing.T) {
 	sleptMu.Lock()
 	got := fmt.Sprint(slept)
 	sleptMu.Unlock()
-	if got != "[0s 3s 0s]" {
+	if got != "[0s 3s 33.333333ms 0s 66.666666ms]" { // the bot-wide slot after each chat's
 		t.Fatalf("slept %s", got)
 	}
 	sleptMu.Lock()
@@ -198,7 +199,7 @@ func TestPace(t *testing.T) {
 	sleptMu.Lock()
 	got = fmt.Sprint(slept)
 	sleptMu.Unlock()
-	if got != "[0s 1s 1s 1s 1s 1s]" {
+	if got != "[0s 99.999999ms 1s 1s 1s 1s 1s]" {
 		t.Fatalf("slept %s", got)
 	}
 	cctx, cancel := context.WithCancel(ctx)
@@ -210,7 +211,7 @@ func TestPace(t *testing.T) {
 	if err := b.Answer(cctx, "cb", ""); err == nil {
 		t.Fatal("canceled during a 429 wait")
 	}
-	if Gap(-5) != 3*time.Second || Gap(5) != time.Second {
+	if Gap(-5) != 3*time.Second || Gap(5) != time.Second || All != time.Second/30 {
 		t.Fatal("gaps")
 	}
 }
@@ -290,5 +291,47 @@ func TestWidget(t *testing.T) {
 	us, err := b.Updates(ctx, 0)
 	if err != nil || len(us) != 1 || us[0].Widget == nil || us[0].Widget.Data != "c:DESK-1" || us[0].Widget.From.ID != 42 {
 		t.Fatal(us, err)
+	}
+}
+
+// TestQuiet: inside the quiet hours (past midnight too) what's sent goes
+// without a sound, a file as well; outside them, and with none, it sounds.
+func TestQuiet(t *testing.T) {
+	f, b, ctx := fake(t)
+	at := func(h, m int) { now = func() time.Time { return time.Date(2026, 11, 22, h, m, 0, 0, time.Local) } }
+	t.Cleanup(func() { now = time.Now })
+	silent := func() bool {
+		b.Post(ctx, Out{Chat: 1, Text: "x"})
+		return f.Last("sendMessage")["disable_notification"] == true
+	}
+	at(23, 0)
+	if silent() {
+		t.Fatal("no quiet hours set")
+	}
+	b.Quiet(22*time.Hour, 7*time.Hour)
+	if !silent() {
+		t.Fatal("23:00 sounded")
+	}
+	at(6, 59)
+	if !silent() {
+		t.Fatal("06:59 sounded")
+	}
+	at(7, 0)
+	if silent() {
+		t.Fatal("07:00 was quiet")
+	}
+	b.Quiet(13*time.Hour, 14*time.Hour)
+	at(13, 30)
+	b.SendFile(ctx, 1, 0, "photo", "a.png", []byte("p"), "", nil)
+	if !silent() || f.Last("sendPhoto")["disable_notification"] != "true" {
+		t.Fatal("13:30 sounded")
+	}
+	at(14, 0)
+	if silent() {
+		t.Fatal("14:00 was quiet")
+	}
+	b.Draft(ctx, 1, 0, 1, "x")
+	if f.Last("sendRichMessageDraft")["disable_notification"] != nil {
+		t.Fatal("a draft took it")
 	}
 }

@@ -198,6 +198,11 @@ Desk Control: the Telegram bot that brings cards that need you to your phone (se
   [Infra topic](/sessions/desk-control/#the-infra-topic) sends a picture of a server terminal as it
   is on screen (`screen = true` under `[telegram]`). A picture can't have tokens masked as text
   does: turn it on knowing that.
+- **Quiet hours**: two times like `22:00-07:00` (`quiet` under `[telegram]`). Between them, what
+  desk sends still arrives, without a sound; past midnight works. Empty: never quiet.
+- **Also mask**: a regular expression (Go's syntax, `ACME-\d+|hunter2`; `redact` under
+  `[telegram]`) masked like a token in everything desk sends to Telegram, besides the secrets it
+  already knows. Save refuses one that doesn't read.
 
 ### Your account, for setup
 

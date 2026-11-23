@@ -107,12 +107,11 @@ func (u *ui) gnPostAt(chat, thread int64, md string, rows [][]tgbot.Button, card
 // gnButton is a button that runs f when pressed (on the UI goroutine);
 // what f returns is the press's answer.
 func (u *ui) gnButton(label, style string, f func() string) tgbot.Button {
-	u.phone.next++
-	data := fmt.Sprint("g", u.phone.next)
+	data := u.phoneData("g")
 	if u.phone.runs == nil {
 		u.phone.runs = map[string]func() string{}
 	}
-	u.phone.runs[data] = f // ponytail: never pruned; a few per command while desk runs
+	u.phone.runs[data] = f
 	return tgbot.Button{Text: label, Data: data, Style: style}
 }
 
@@ -144,7 +143,7 @@ func (u *ui) gnText(m *tgbot.Message) {
 		return
 	}
 	if text == "" {
-		u.gnPost(tgfmt.Escape("Text, pictures and files reach desk from here; voice notes don't yet."), nil, "")
+		u.gnPost(tgfmt.Escape("Text, pictures, files and voice notes reach desk from here."), nil, "")
 		return
 	}
 	if !strings.HasPrefix(text, "/") {

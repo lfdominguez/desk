@@ -31,6 +31,7 @@ func TestMain(m *testing.M) {
 	}
 	fakeDir, _ = testtmp.Dir("desk-ui-fakes")
 	tgbot.Gap = func(int64) time.Duration { return 0 } // the fake Telegram takes everything at once
+	tgbot.All = 0
 	// A -cover test binary run without GOCOVERDIR (qa mutate's runs) would
 	// end each prog with a warning on its terminal.
 	var cover string

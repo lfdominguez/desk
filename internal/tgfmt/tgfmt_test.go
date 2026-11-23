@@ -151,3 +151,18 @@ func TestQuote(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// TestRedactAlso: the user's own pattern is masked too, a bad one changes
+// nothing, "" takes it away.
+func TestRedactAlso(t *testing.T) {
+	t.Cleanup(func() { Also("") })
+	if err := Also(`ACME-\d+|hunter2`); err != nil || Redact("ticket ACME-42, pw hunter2") != "ticket "+Masked+", pw "+Masked {
+		t.Fatal(err, Redact("ticket ACME-42, pw hunter2"))
+	}
+	if err := Also("(oops"); err == nil || Redact("ACME-1") != Masked {
+		t.Fatal(err)
+	}
+	if Also(""); Redact("ACME-1") != "ACME-1" {
+		t.Fatal("still masked")
+	}
+}

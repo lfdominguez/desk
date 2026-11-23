@@ -12,6 +12,7 @@ import (
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/tgbot"
+	"github.com/lfdominguez/desk/internal/tgfmt"
 )
 
 // The phone: settings.toml's [phone] Telegram bot brings what wants the
@@ -71,9 +72,36 @@ func (u *ui) startPhone() (stop func()) {
 		u.gnMenu()
 		u.phoneTopics()
 	}
+	u.phoneApply(p)
 	u.startRemote()
 	go u.phonePoll(ctx, u.phone.bot)
 	return stop
+}
+
+// phoneApply takes p's quiet hours and redaction pattern into the bot
+// (checked by Settings before they're saved: one that doesn't read
+// changes nothing).
+func (u *ui) phoneApply(p orgs.Phone) {
+	tgfmt.Also(p.Redact)
+	if u.phone.bot != nil {
+		from, to, _ := quietSpan(p.Quiet)
+		u.phone.bot.Quiet(from, to)
+	}
+}
+
+// quietSpan reads quiet hours "22:00-07:00" as times of day; "" is none.
+func quietSpan(s string) (from, to time.Duration, err error) {
+	if strings.TrimSpace(s) == "" {
+		return 0, 0, nil
+	}
+	a, b, ok := strings.Cut(strings.ReplaceAll(s, " ", ""), "-")
+	t1, err1 := time.Parse("15:04", a)
+	t2, err2 := time.Parse("15:04", b)
+	if !ok || err1 != nil || err2 != nil {
+		return 0, 0, fmt.Errorf("quiet hours are two times like 22:00-07:00")
+	}
+	day := func(t time.Time) time.Duration { return time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute }
+	return day(t1), day(t2), nil
 }
 
 // phoneSettled takes settings.toml's pairing and always into the running
@@ -89,6 +117,7 @@ func (u *ui) phoneSettled() {
 		ph.pairUntil = time.Now().Add(pairFor)
 	}
 	ph.chat, ph.always = p.Chat, p.Always
+	u.phoneApply(p)
 }
 
 // phonePoll hands each update to the UI goroutine until ctx ends; a failed
@@ -256,11 +285,25 @@ func (u *ui) phoneTell(c *kanban.Card, what string) {
 	u.phoneSendIn(u.gtThread("inbox"), text, rows, c.ID)
 }
 
+// phoneKeep is how many buttons desk remembers; an older one's press is
+// "Already answered".
+var phoneKeep = 2000
+
+// phoneData is a new button's data, prefix and its number; the button
+// phoneKeep numbers back is forgotten.
+func (u *ui) phoneData(prefix string) string {
+	ph := u.phone
+	ph.next++
+	old := fmt.Sprint(ph.next - phoneKeep)
+	delete(ph.asks, "p"+old)
+	delete(ph.runs, "g"+old)
+	return fmt.Sprint(prefix, ph.next)
+}
+
 // phoneButton is a button standing for pa.
 func (u *ui) phoneButton(label string, pa phoneAsk) tgbot.Button {
-	u.phone.next++
-	data := fmt.Sprint("p", u.phone.next)
-	u.phone.asks[data] = pa // ponytail: never pruned; a few per request while desk runs
+	data := u.phoneData("p")
+	u.phone.asks[data] = pa
 	return tgbot.Button{Text: label, Data: data}
 }
 

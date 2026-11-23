@@ -16,7 +16,8 @@ func said(f *tgfake.Server) string { return fmt.Sprint(f.Last("sendMessage")["te
 
 // TestRemoteInfraCards: a card's infra session's approval comes to the
 // card's topic (after the card's own request), not the Infra topic, unless
-// the card has no topic; /screen sends a pane's picture.
+// the card has no topic; /screen sends a pane's picture, as masked text
+// when something on it is masked.
 func TestRemoteInfraCards(t *testing.T) {
 	h := newHarness(t)
 	f := remoteOn(t, h, "full")
@@ -46,8 +47,9 @@ func TestRemoteInfraCards(t *testing.T) {
 	if strings.Join(answers, ",") != "20y" {
 		t.Fatalf("answers %v", answers)
 	}
+	shown := "$ "
 	h.u.infraStatus([]infra.TabStatus{{Org: "Acme", Card: key, Name: "Acme · " + key, State: "working",
-		Panes: []infra.PaneStatus{{Name: "ns1", Status: "idle prompt", Picture: func() []byte { return []byte("\x89PNG pic") }}}}})
+		Panes: []infra.PaneStatus{{Name: "ns1", Status: "idle prompt", Screen: func() string { return shown }, Picture: func() []byte { return []byte("\x89PNG pic") }}}}})
 	if top := h.topicOf(c.ID); top.Ask != "" {
 		t.Fatalf("still asking %q", top.Ask)
 	}
@@ -57,6 +59,14 @@ func TestRemoteInfraCards(t *testing.T) {
 	if p := f.Last("sendPhoto"); fmt.Sprint(p["caption"]) != "🖥 ns1 · idle prompt" {
 		t.Fatalf("photo %v", p)
 	}
+	shown = "$ export TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+	n := len(posted(f))
+	h.u.phoneUpdate(groupMsg(42, h.topicOf(rmInfraKey("Acme")).Thread, "/screen"))
+	h.pumpUntil("masked text", func() bool { return len(posted(f)) > n })
+	if got := posted(f)[n]; !strings.Contains(got, "something on it is masked") || strings.Contains(got, "ghp_abc") || len(f.Calls("sendPhoto")) != 1 {
+		t.Fatalf("a secret on screen: %s", got)
+	}
+	shown = "$ "
 	f.Fail("sendPhoto", "Bad Request: no")
 	h.u.phoneUpdate(groupMsg(42, h.topicOf(rmInfraKey("Acme")).Thread, "/screen"))
 	h.pumpUntil("toast", func() bool { return strings.Contains(h.u.toast, "Telegram: ") })

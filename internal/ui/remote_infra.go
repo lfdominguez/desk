@@ -225,7 +225,8 @@ func (u *ui) rmInfraIncoming(org string, m *tgbot.Message) {
 
 // rmScreen is a terminal of org's infra: the pane named host, else the
 // first one running something, else the first. A picture with o.Text its
-// caption, or o alone (a refusal, or a pane without a picture: its text).
+// caption, or o alone (a refusal, or a pane without a picture or with
+// something tgfmt.Redact masks on it: its text, masked).
 func (u *ui) rmScreen(org, host string) (o tgbot.Out, pic []byte) {
 	if !orgs.PhoneSettings().Screen {
 		return tgbot.Out{Text: "/screen is off: turn on \"Let /screen show a terminal\" in desk's Settings → Telegram."}, nil
@@ -246,9 +247,14 @@ func (u *ui) rmScreen(org, host string) (o tgbot.Out, pic []byte) {
 	if pick == nil {
 		return tgbot.Out{Text: "No terminal open in " + org + "'s infra" + map[bool]string{true: "", false: " called " + host}[host == ""] + "."}, nil
 	}
-	if pick.Picture != nil { // ponytail: a picture isn't redacted; the Settings switch is the guard
+	scr := strings.TrimRight(pick.Screen(), "\n ")
+	masked := tgfmt.Redact(scr)
+	if pick.Picture != nil && masked == scr { // a picture can't be masked: only a screen with nothing to mask goes as one
 		return tgbot.Out{Text: "🖥 " + pick.Name + " · " + pick.Status}, pick.Picture()
 	}
-	scr := strings.TrimRight(pick.Screen(), "\n ")
-	return tgbot.Out{Markdown: "🖥 `" + strings.ReplaceAll(pick.Name, "`", "'") + "` · " + tgfmt.Escape(pick.Status) + "\n\n" + tgfmt.Fence("", clipKeep(tgfmt.Redact(scr), 3500))}, nil
+	why := ""
+	if pick.Picture != nil {
+		why = "\n" + tgfmt.Escape("As text: something on it is masked.")
+	}
+	return tgbot.Out{Markdown: "🖥 `" + strings.ReplaceAll(pick.Name, "`", "'") + "` · " + tgfmt.Escape(pick.Status) + why + "\n\n" + tgfmt.Fence("", clipKeep(masked, 3500))}, nil
 }

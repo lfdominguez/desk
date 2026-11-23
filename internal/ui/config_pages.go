@@ -3,6 +3,7 @@ package ui
 import (
 	"cmp"
 	"fmt"
+	"regexp"
 	"image"
 	"image/color"
 	"math"
@@ -60,6 +61,8 @@ var (
 		{key: "token", label: "Bot token", secret: "."},
 		{key: "always", label: "Also while desk has the focus", hint: "off: only while no desk window is in front", toggle: true},
 		{key: "screen", label: "Let /screen show a terminal", hint: "in an Infra topic: a picture of a server terminal, as it is on screen", toggle: true},
+		{key: "quiet", label: "Quiet hours", hint: "22:00-07:00: messages then come without a sound; empty: never"},
+		{key: "redact", label: "Also mask", hint: "a regular expression, ACME-\\d+|hunter2: masked like tokens before anything goes to Telegram"},
 	}}
 	tgAcctKind = cfgKind{"tgacct", "Telegram account", []cfgField{
 		{key: "api_id", label: "App api_id", hint: "from my.telegram.org → API development tools", num: true},
@@ -508,7 +511,7 @@ func (u *ui) cfgTriggers(gtx layout.Context) layout.Dimensions {
 // organization's mirror as "mirror.<org>") and [newrelic] as entries.
 func loadPhone() (phone, acct, diag *cfgEntry) {
 	t, nr := orgs.TelegramSettings(), orgs.Telemetry()
-	raw := map[string]any{"token": t.Token, "token_env": t.TokenEnv, "token_cmd": t.TokenCmd, "always": t.Always, "screen": t.Screen, "chat_id": t.Chat}
+	raw := map[string]any{"token": t.Token, "token_env": t.TokenEnv, "token_cmd": t.TokenCmd, "always": t.Always, "screen": t.Screen, "chat_id": t.Chat, "quiet": t.Quiet, "redact": t.Redact}
 	phone = newEntry(phoneKind.key, raw)
 	ar := map[string]any{"api_hash": map[string]any{"token": t.APIHash.Token, "token_env": t.APIHash.TokenEnv, "token_cmd": t.APIHash.TokenCmd},
 		"phone_number": t.Number, "folder": t.Folder}
@@ -549,7 +552,15 @@ func (d *cfgDialog) savePhone() error {
 			if p.on["unpair"] {
 				chat = 0
 			}
-			t.Phone = orgs.Phone{Secret: secretOf(p, "."), Chat: chat, Always: p.on["always"], Screen: p.on["screen"]}
+			if _, _, err := quietSpan(p.text("quiet")); err != nil {
+				d.errAt = "telegram"
+				return err
+			}
+			if _, err := regexp.Compile(p.text("redact")); err != nil {
+				d.errAt = "telegram"
+				return fmt.Errorf("Also mask isn't a regular expression: %v", err)
+			}
+			t.Phone = orgs.Phone{Secret: secretOf(p, "."), Chat: chat, Always: p.on["always"], Screen: p.on["screen"], Quiet: p.text("quiet"), Redact: p.text("redact")}
 		}
 		if a != nil {
 			id, err := strconv.Atoi(cmp.Or(a.text("api_id"), "0"))

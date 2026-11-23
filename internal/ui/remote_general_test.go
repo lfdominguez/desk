@@ -156,7 +156,7 @@ func TestGeneralCommands(t *testing.T) {
 	if got := h.ask(f, "/help"); !strings.Contains(got, "/board") || !strings.Contains(got, "desk Claude") {
 		t.Fatalf("help: %s", got)
 	}
-	if got := h.ask(f, ""); !strings.Contains(got, "voice notes don") {
+	if got := h.ask(f, ""); !strings.Contains(got, "voice notes reach") {
 		t.Fatalf("empty: %s", got)
 	}
 }
@@ -552,5 +552,27 @@ func TestDeskTool(t *testing.T) {
 	}
 	if s, ok := call("card_message", `{"key":"`+a.Key()+`","text":"use the new API"}`); !ok || s != "Sent to "+a.Key()+"." || !strings.HasSuffix(fake.prompts[len(fake.prompts)-1], "use the new API") {
 		t.Fatalf("message: %s %v", s, fake.prompts)
+	}
+}
+
+// TestPhoneKeep: desk remembers the last phoneKeep buttons of both kinds;
+// an older one is forgotten.
+func TestPhoneKeep(t *testing.T) {
+	h := newHarness(t)
+	remoteOn(t, h, "full")
+	replace(t, &phoneKeep, 3)
+	a := h.u.phoneButton("Allow", phoneAsk{card: "x"}).Data
+	g := h.u.gnButton("Go", "", func() string { return "" }).Data
+	h.u.phoneButton("Deny", phoneAsk{})
+	if _, ok := h.u.phone.asks[a]; !ok || h.u.phone.runs[g] == nil {
+		t.Fatal("forgotten too soon")
+	}
+	h.u.phoneButton("Deny", phoneAsk{})
+	if _, ok := h.u.phone.asks[a]; ok || h.u.phone.runs[g] == nil {
+		t.Fatal("the oldest kept")
+	}
+	h.u.gnButton("Go", "", func() string { return "" })
+	if h.u.phone.runs[g] != nil {
+		t.Fatal("an old run kept")
 	}
 }

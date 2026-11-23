@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,10 +18,8 @@ import (
 // board (tgWidgetSync after each save) and a card tapped in it asks desk
 // to post that card, as /card does.
 
-// tgWidget is the widget message the board's data goes to.
-// ponytail: kept in memory only, so after desk restarts the old widget
-// stays as it was until /widget sends a new one; keep it in telegram.json
-// if that bites.
+// tgWidget is the widget message the board's data goes to, kept over
+// restarts in tgWidgetFile.
 type tgWidget struct {
 	thread int64
 	msg    int64  // 0: being sent
@@ -103,6 +103,40 @@ func (u *ui) tgWidgetData() string {
 	}
 }
 
+// tgWidgetSaved is the widget as tgWidgetFile keeps it.
+type tgWidgetSaved struct {
+	Thread int64  `json:"thread"`
+	Msg    int64  `json:"msg"`
+	Data   string `json:"data"`
+}
+
+// tgWidgetFile is where the widget's message is kept, beside the board.
+func (u *ui) tgWidgetFile() string {
+	return filepath.Join(filepath.Dir(u.path), "telegram-widget.json")
+}
+
+// tgWidgetKeep writes the widget down, or removes the file without one.
+func (u *ui) tgWidgetKeep() {
+	w := u.phone.widget
+	if w == nil || w.msg == 0 {
+		os.Remove(u.tgWidgetFile())
+		return
+	}
+	b, _ := json.Marshal(tgWidgetSaved{w.thread, w.msg, w.data})
+	writeAtomic(u.tgWidgetFile(), string(b), 0o600)
+}
+
+// tgWidgetLoad takes the widget desk last sent back (startRemote) and
+// brings it up to the board.
+func (u *ui) tgWidgetLoad() {
+	var s tgWidgetSaved
+	if b, err := os.ReadFile(u.tgWidgetFile()); err != nil || json.Unmarshal(b, &s) != nil || s.Msg == 0 {
+		return
+	}
+	u.phone.widget = &tgWidget{thread: s.Thread, msg: s.Msg, data: s.Data}
+	u.tgWidgetSync()
+}
+
 // tgWidgetSend sends the board widget to the private chat's thread.
 func (u *ui) tgWidgetSend(thread int64) {
 	ph := u.phone
@@ -117,11 +151,15 @@ func (u *ui) tgWidgetSend(thread int64) {
 			if err != nil {
 				if ph.widget == w {
 					ph.widget = nil
+					u.tgWidgetKeep()
 				}
 				u.gnPostAt(chat, thread, tgfmt.Escape("Couldn't send the widget: "+firstLine(err.Error())+" (Telegram's apps show widgets from Bot API 10.4 on)."), nil, "")
 				return
 			}
 			w.msg = id
+			if ph.widget == w {
+				u.tgWidgetKeep()
+			}
 			u.tgWidgetSync()
 		})
 	}()
@@ -153,6 +191,7 @@ func (u *ui) tgWidgetSync() {
 			w.busy = false
 			if err != nil && strings.Contains(err.Error(), "not found") && ph.widget == w { // deleted in Telegram: stop following
 				ph.widget = nil
+				u.tgWidgetKeep()
 				return
 			}
 			if w.again {

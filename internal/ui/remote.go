@@ -74,6 +74,9 @@ func (u *ui) startRemote() {
 	if b, err := os.ReadFile(u.rmFile()); err == nil {
 		json.Unmarshal(b, &u.rm.topics)
 	}
+	if u.phone != nil {
+		u.tgWidgetLoad()
+	}
 	u.rmConfig()
 }
 
@@ -524,7 +527,7 @@ func (u *ui) rmIncoming(id string, m *tgbot.Message) {
 	switch {
 	case took:
 	case text == "":
-		reply("Text, pictures and files reach the card's Claude from here; voice notes don't yet.")
+		reply("Text, pictures, files and voice notes reach the card's Claude from here.")
 	case strings.HasPrefix(text, "/stop"):
 		u.stop(id)
 		reply("Stopping its turn.")

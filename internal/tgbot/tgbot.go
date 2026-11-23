@@ -15,6 +15,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -30,8 +31,31 @@ type Bot struct {
 	Token  string
 	Client *http.Client // nil: one that outlasts a poll
 
-	mu   sync.Mutex
-	next map[int64]time.Time // a chat's next free slot (pace)
+	mu         sync.Mutex
+	next       map[int64]time.Time // a chat's next free slot (pace)
+	all        time.Time           // the bot's next free slot over every chat
+	qFrom, qTo time.Duration       // quiet hours, as times of day (Quiet)
+}
+
+// Quiet makes what's sent between from and to (times of day, local; to
+// before from runs past midnight) arrive without a sound; from == to: never.
+func (b *Bot) Quiet(from, to time.Duration) {
+	b.mu.Lock()
+	b.qFrom, b.qTo = from, to
+	b.mu.Unlock()
+}
+
+// quiet reports being inside the quiet hours now.
+func (b *Bot) quiet() bool {
+	b.mu.Lock()
+	from, to := b.qFrom, b.qTo
+	b.mu.Unlock()
+	t := now()
+	d := t.Sub(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()))
+	if from < to {
+		return d >= from && d < to
+	}
+	return from != to && (d >= from || d < to)
 }
 
 // Chat is where a message is.
@@ -62,6 +86,7 @@ type Message struct {
 	ID       int64    `json:"message_id"`
 	Thread   int64    `json:"message_thread_id"` // its forum topic
 	IsTopic  bool     `json:"is_topic_message"`
+	Date     int64    `json:"date"` // Unix seconds
 	Chat     Chat     `json:"chat"`
 	From     User     `json:"from"`
 	Text     string   `json:"text"`
@@ -133,8 +158,6 @@ func NotModified(err error) bool {
 
 // Gap is how often one chat takes a message: Telegram allows about one a
 // second in a private chat and twenty a minute in a group.
-// ponytail: per chat only; Telegram's global 30/s doesn't bind one user's
-// handful of chats.
 var Gap = func(chat int64) time.Duration {
 	if chat < 0 {
 		return 3 * time.Second
@@ -159,7 +182,12 @@ var sleep = func(ctx context.Context, d time.Duration) error {
 
 var now = time.Now
 
-// pace waits for chat's next slot and takes it.
+// All is the least time between any two of the bot's messages: Telegram
+// takes about thirty a second over all its chats.
+var All = time.Second / 30
+
+// pace waits for chat's next slot and takes it, then for the bot's own
+// (taken once the chat's comes, so a busy group doesn't hold the others).
 func (b *Bot) pace(ctx context.Context, chat int64) error {
 	b.mu.Lock()
 	if b.next == nil {
@@ -172,7 +200,21 @@ func (b *Bot) pace(ctx context.Context, chat int64) error {
 	}
 	b.next[chat] = at.Add(Gap(chat))
 	b.mu.Unlock()
-	return sleep(ctx, at.Sub(t))
+	if err := sleep(ctx, at.Sub(t)); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	t = now()
+	at = b.all
+	if at.Before(t) {
+		at = t
+	}
+	b.all = at.Add(All)
+	b.mu.Unlock()
+	if at.After(t) {
+		return sleep(ctx, at.Sub(t))
+	}
+	return nil
 }
 
 // retries is how many 429s one call waits out before giving up.
@@ -185,6 +227,9 @@ func (b *Bot) call(ctx context.Context, method string, params map[string]any, v 
 		if err := b.pace(ctx, chat); err != nil {
 			return err
 		}
+	}
+	if strings.HasPrefix(method, "send") && !strings.HasSuffix(method, "Draft") && b.quiet() {
+		params["disable_notification"] = true
 	}
 	body, _ := json.Marshal(params)
 	for try := 0; ; try++ {
@@ -433,6 +478,9 @@ func (b *Bot) SendFile(ctx context.Context, chat, thread int64, kind, name strin
 	}
 	if caption != "" {
 		w.WriteField("caption", caption)
+	}
+	if b.quiet() {
+		w.WriteField("disable_notification", "true")
 	}
 	if len(rows) > 0 {
 		k, _ := json.Marshal(map[string]any{"inline_keyboard": rows})

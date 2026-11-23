@@ -51,6 +51,15 @@ day). A release's section here is its notes on GitHub. The format follows
   ask, and keeps its conversation over restarts. With topics on for the bot in BotFather, the chat
   gets Board, Inbox, Digest and Settings topics, each with a pinned message that follows the board;
   cards that need you come to Inbox.
+- **Voice notes in Telegram**: a voice note in a card's topic or the bot's chat reaches Claude as
+  its words, transcribed by Telegram itself as your logged-in account (Telegram Premium).
+- **Telegram's rough edges**: the `/widget` keeps following the board after desk restarts,
+  `/screen` sends a terminal as masked text when something on it would be masked (a picture can't
+  be), desk paces its messages over all chats too (Telegram's 30 a second), and it keeps one
+  connection to your account instead of one per action.
+- **Quiet hours and your own masking for Telegram**: Settings → Telegram's **Quiet hours**
+  (`22:00-07:00`) send desk's messages without a sound then, and **Also mask** takes a regular
+  expression masked like a token in everything that goes to Telegram.
 - **Pictures and reviews in Telegram**: `/drawings` sends drawings as pictures and `/canvas` a
   card's canvas; a Claude's drawing suggestion comes as the drawing it would make, with Approve,
   Rework (your next message goes back to that Claude) and Dismiss; `/review` in a card's topic (or

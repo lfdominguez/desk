@@ -9,6 +9,7 @@ package tgfmt
 import (
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"unicode/utf16"
 	"unicode/utf8"
 )
@@ -127,8 +128,31 @@ var secrets = []*regexp.Regexp{
 // Masked replaces what Redact hides.
 const Masked = "‹redacted›"
 
-// Redact masks what looks like a secret in s.
+// also is the user's own pattern Redact masks too (settings.toml's
+// [telegram] redact), nil none.
+var also atomic.Pointer[regexp.Regexp]
+
+// Also makes Redact mask what pattern (Go's regexp syntax) matches as
+// well; "" masks nothing more. A pattern that doesn't compile changes
+// nothing.
+func Also(pattern string) error {
+	if pattern == "" {
+		also.Store(nil)
+		return nil
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
+	also.Store(re)
+	return nil
+}
+
+// Redact masks what looks like a secret in s, and what Also adds.
 func Redact(s string) string {
+	if re := also.Load(); re != nil {
+		s = re.ReplaceAllLiteralString(s, Masked)
+	}
 	for i, re := range secrets {
 		if i == len(secrets)-1 {
 			s = re.ReplaceAllString(s, "${1}"+Masked) // keep the key's name

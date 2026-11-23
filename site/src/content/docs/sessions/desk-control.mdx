@@ -49,7 +49,9 @@ That depends on what the organization's group gets:
 Replies arrive as Claude finishes each one, in Telegram's rich text: headings, lists, tables, code
 blocks. Messages that come together go as one, cut where a message would get too long, without
 cutting a code block. Anything that looks like a token or a private key is masked
-(`‹redacted›`) before it leaves your machine.
+(`‹redacted›`) before it leaves your machine, and so is what your own pattern matches
+([**Also mask**](/orgs/settings/#telegram)). During your **Quiet hours** messages arrive without a
+sound.
 
 Telegram takes about one message every 3 seconds in a group, so a busy card catches up a few
 seconds behind desk.
@@ -87,8 +89,11 @@ next suggestion replaces this one (a command instead cancels). The infra Claude'
 no Rework, as in desk.
 
 Only your own Telegram account, the one paired with the bot, is heard in the groups: anyone else's
-messages and button presses are ignored. Text, pictures and files reach Claude from a topic; voice
-notes don't, for now.
+messages and button presses are ignored. Text, pictures, files and voice notes reach Claude from a
+topic, and from the General chat. A voice note goes as its words, prefixed 🎙: Telegram's own
+transcription makes them, asked as your logged-in account (it needs Telegram Premium, or the free
+trials Telegram gives). It works in the bot's chat and the groups desk made; a group you linked by
+hand with `/link` can't be named to your account, so there it says so.
 
 ## When the card moves
 
@@ -124,7 +129,8 @@ prompt").
 - **/screen** sends a picture of a terminal as it is on screen, in desk's colors: the one running
   something, or the one you name (`/screen web1`). It's off until **Let /screen show a terminal**
   is on in [Settings → Telegram](/orgs/settings/#telegram): a terminal can show more than you mean
-  to send, and a picture's tokens aren't masked.
+  to send. A picture can't be masked, so when something on the screen would be (a token, a
+  password, your own **Also mask** pattern), it comes as text instead, masked.
 
 ## The General chat
 
@@ -145,7 +151,7 @@ whole board. The commands are in the chat's menu:
 | `/drawings`, `/drawings Acme` | The drawings as buttons; the one you press comes as a picture. |
 | `/review DESK-12` | A card's Review, as `/review` in its topic: its branch, the diff as a file, Merge, Push and Open PR, each asked twice. |
 | `/canvas DESK-12` | A card's canvas as a picture, as `/canvas` in its topic. |
-| `/widget` | The board as a live widget: each column's count and the cards waiting on you, kept up to date as the board changes. Tap a card and desk posts it here, as `/card` does. Widgets need a Telegram app that has them (Bot API 10.4); after desk restarts, send `/widget` again for one that follows the board. |
+| `/widget` | The board as a live widget: each column's count and the cards waiting on you, kept up to date as the board changes. Tap a card and desk posts it here, as `/card` does. Widgets need a Telegram app that has them (Bot API 10.4). It keeps following the board after desk restarts; delete it in Telegram and desk stops. |
 | `/usage` | Each Claude account's plan limits (as the session view's foot shows them), with the organizations using it. |
 | `/always on`, `/always off` | Whether cards come here even while desk has the focus. |
 | `/mirror Acme summary` | What an organization's group gets: `full`, `summary`, `notify` or `off`. |

@@ -55,6 +55,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Setenv("DESK_ROOT", root)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // not the user's folders to search
+	t.Setenv("XDG_STATE_HOME", t.TempDir())  // not the user's Telegram session
 	if home, _ := os.UserHomeDir(); strings.HasPrefix(root, home+string(filepath.Separator)) {
 		// a temp folder inside home (Windows' always, a CI runner's TMPDIR): root would read as ~/…
 		t.Setenv(map[bool]string{true: "USERPROFILE", false: "HOME"}[onWindows], t.TempDir())

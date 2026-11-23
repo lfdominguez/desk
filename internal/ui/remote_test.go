@@ -191,7 +191,7 @@ func TestRemoteTopic(t *testing.T) {
 	h.u.phoneUpdate(groupMsg(42, th, "/help"))
 	h.pumpUntil("help", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "/stop stops") })
 	h.u.phoneUpdate(groupMsg(42, th, ""))
-	h.pumpUntil("text only", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "voice notes don") })
+	h.pumpUntil("text only", func() bool { p := f.Last("sendMessage"); return p != nil && strings.Contains(p["text"].(string), "voice notes reach") })
 
 	f.Files = map[string][]byte{"big": []byte("\x89PNG\r\n\x1a\n....")}
 	pic := groupMsg(42, th, "")

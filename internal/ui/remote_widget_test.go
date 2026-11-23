@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,7 +12,9 @@ import (
 
 // TestRemoteWidget: /widget sends the board as a widget with its data; a
 // board change edits the data (once per change, nothing when it's the
-// same); a tap on a card posts it; a refused send says so.
+// same) and after a restart, from telegram-widget.json; a tap on a card
+// posts it; a refused send says so, and a widget deleted in Telegram is
+// forgotten.
 func TestRemoteWidget(t *testing.T) {
 	h := newHarness(t)
 	f := remoteOn(t, h, "")
@@ -40,13 +43,24 @@ func TestRemoteWidget(t *testing.T) {
 		t.Fatal("sent the same data again")
 	}
 
+	m0 := h.u.phone.widget.msg
+	h.u.phone.widget = nil // desk restarts: the widget comes back from its file
+	h.u.b.Card(id).Title = "Fix the login"
+	h.u.startRemote()
+	h.pumpUntil("edited after a restart", func() bool {
+		return len(f.Calls("editMessageWidgetData")) > n && !h.u.phone.widget.busy
+	})
+	if w := h.u.phone.widget; w.msg != m0 || !strings.Contains(f.Last("editMessageWidgetData")["chat_data"].(string), "Fix the login") {
+		t.Fatalf("after a restart %+v", w)
+	}
+
 	np := len(posted(f))
 	h.u.phoneUpdate(tgbot.Update{Widget: &tgbot.WidgetQuery{ID: "q", From: tgbot.User{ID: 42}, Data: "c:" + key}})
 	h.pumpUntil("answered", func() bool { return f.Last("answerWidgetQuery") != nil })
 	if f.Last("answerWidgetQuery")["data"] != "Sent "+key+" to the chat" {
 		t.Fatal(f.Last("answerWidgetQuery"))
 	}
-	h.pumpUntil("posted", func() bool { return len(posted(f)) > np && strings.Contains(posted(f)[np], "Fix login") })
+	h.pumpUntil("posted", func() bool { return len(posted(f)) > np && strings.Contains(posted(f)[np], "Fix the login") })
 	for data, want := range map[string]string{"c:NOPE-9": "That card is gone", "x": "desk doesn't know that"} {
 		h.u.phoneUpdate(tgbot.Update{Widget: &tgbot.WidgetQuery{ID: data, From: tgbot.User{ID: 42}, Data: data}})
 		h.pumpUntil(data, func() bool { return f.Last("answerWidgetQuery")["widget_query_id"] == data })
@@ -65,6 +79,9 @@ func TestRemoteWidget(t *testing.T) {
 	h.u.b.Card(id).Status = kanban.StatusBlocked
 	h.u.save()
 	h.pumpUntil("dropped", func() bool { return h.u.phone.widget == nil })
+	if _, err := os.Stat(h.u.tgWidgetFile()); err == nil {
+		t.Fatal("a dropped widget still kept")
+	}
 
 	f.Fail("sendWidget", "Bad Request: method not found")
 	h.u.phoneUpdate(dm("/widget"))
@@ -97,3 +114,4 @@ func TestRemoteWidgetData(t *testing.T) {
 		t.Fatal("not queued")
 	}
 }
+

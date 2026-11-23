@@ -2,17 +2,21 @@
 // (MTProto, through gotd), which a bot can't: log in, make an
 // organization's forum supergroup with the bot as an admin that manages
 // topics, and keep the "Desk Control" folder holding the bot's chat and
-// those groups. Only setup goes through here; desk's messages are the
-// bot's (internal/tgbot). The session file is the account's key: 0600.
+// those groups, and transcribe the voice notes the user sends desk
+// (Telegram's own transcription, a Premium feature). Desk's messages are
+// the bot's (internal/tgbot). The session file is the account's key: 0600.
 package tgsetup
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gotd/td/session"
@@ -29,14 +33,115 @@ type Account struct {
 	Session string
 }
 
-// run connects as a, calls f, and disconnects; tests replace it.
-// ponytail: one connection per action; setup is rare, so no kept client.
+// run calls f on a's kept connection (keep); tests replace it.
 var run = func(ctx context.Context, a Account, f func(context.Context, *tg.Client) error) error {
 	if err := os.MkdirAll(filepath.Dir(a.Session), 0o700); err != nil {
 		return err
 	}
-	c := telegram.NewClient(a.ID, a.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: a.Session}, NoUpdates: true})
+	k, err := keep(ctx, a)
+	if err != nil {
+		return err
+	}
+	defer k.release()
+	return f(ctx, k.api)
+}
+
+// connect connects as a until ctx ends, handing Telegram's updates to up
+// and calling f once connected; tests replace it.
+var connect = func(ctx context.Context, a Account, up telegram.UpdateHandler, f func(context.Context, *tg.Client) error) error {
+	c := telegram.NewClient(a.ID, a.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: a.Session}, UpdateHandler: up})
 	return c.Run(ctx, func(ctx context.Context) error { return f(ctx, c.API()) })
+}
+
+// conn is an account's connection, kept between actions (connecting takes
+// about a second, and a transcription's end comes on it as an update)
+// until connIdle passes unused.
+type conn struct {
+	api   *tg.Client
+	ready chan struct{} // closed once connected
+	done  chan struct{} // closed once it ended, err why
+	err   error
+	stop  context.CancelFunc
+	users int
+	idle  *time.Timer
+}
+
+var (
+	connMu   sync.Mutex
+	conns    = map[string]*conn{} // by account and session file
+	connIdle = 5 * time.Minute
+)
+
+// keep is a's connection, made when there's none; release it after use.
+func keep(ctx context.Context, a Account) (*conn, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	key := fmt.Sprint(a.ID, "\x00", a.Hash, "\x00", a.Session)
+	connMu.Lock()
+	k := conns[key]
+	if k == nil {
+		k = &conn{ready: make(chan struct{}), done: make(chan struct{})}
+		var cctx context.Context
+		cctx, k.stop = context.WithCancel(context.Background())
+		conns[key] = k
+		go func() {
+			err := connect(cctx, a, telegram.UpdateHandlerFunc(heard), func(ctx context.Context, api *tg.Client) error {
+				k.api = api
+				close(k.ready)
+				<-ctx.Done()
+				return nil
+			})
+			connMu.Lock()
+			if conns[key] == k {
+				delete(conns, key)
+			}
+			k.err = cmp.Or(err, errors.New("the connection to Telegram ended"))
+			connMu.Unlock()
+			close(k.done)
+		}()
+	}
+	k.users++
+	if k.idle != nil {
+		k.idle.Stop()
+	}
+	connMu.Unlock()
+	select {
+	case <-k.ready:
+		return k, nil
+	case <-k.done:
+		k.release()
+		return nil, k.err
+	case <-ctx.Done():
+		k.release()
+		return nil, ctx.Err()
+	}
+}
+
+// release ends a use of k; the last one starts its idle wait.
+func (k *conn) release() {
+	connMu.Lock()
+	defer connMu.Unlock()
+	if k.users--; k.users == 0 {
+		k.idle = time.AfterFunc(connIdle, func() {
+			connMu.Lock()
+			defer connMu.Unlock()
+			if k.users == 0 {
+				k.stop()
+			}
+		})
+	}
+}
+
+// forget ends a's connection, if one is kept (after logging out).
+func forget(a Account) {
+	key := fmt.Sprint(a.ID, "\x00", a.Hash, "\x00", a.Session)
+	connMu.Lock()
+	defer connMu.Unlock()
+	if k := conns[key]; k != nil {
+		delete(conns, key)
+		k.stop()
+	}
 }
 
 // Asker asks the user what a login needs, in desk's own dialog: the code
@@ -68,6 +173,7 @@ func (a Account) Logout(ctx context.Context) error {
 		_, err := api.AuthLogOut(ctx)
 		return err
 	})
+	forget(a)
 	if rm := os.Remove(a.Session); err == nil && !errors.Is(rm, os.ErrNotExist) {
 		err = rm
 	}
@@ -228,4 +334,136 @@ func randID() int64 {
 		n = n<<8 | int64(x)
 	}
 	return n
+}
+
+// Voice is a voice note the user sent desk, named as the account sees
+// it: in the bot's chat (Bot, its username; the account counts that
+// chat's messages apart from the bot, so it's found by Date among the
+// account's own voice notes) or in a group desk made (Chat, whose message
+// ids everyone shares).
+type Voice struct {
+	Bot  string
+	Chat Chat
+	Msg  int64
+	Date int64
+}
+
+// transcribeEvery is how often a transcription under way is asked again,
+// should its update not come.
+var transcribeEvery = 15 * time.Second
+
+// Transcriptions Telegram finished, by id, as its updates said; each
+// change closes heardNew.
+var (
+	heardMu  sync.Mutex
+	finished = map[int64]string{}
+	heardNew = make(chan struct{})
+)
+
+// heard takes the finished transcriptions out of Telegram's updates.
+func heard(_ context.Context, u tg.UpdatesClass) error {
+	var ups []tg.UpdateClass
+	switch v := u.(type) {
+	case *tg.Updates:
+		ups = v.Updates
+	case *tg.UpdatesCombined:
+		ups = v.Updates
+	case *tg.UpdateShort:
+		ups = []tg.UpdateClass{v.Update}
+	}
+	heardMu.Lock()
+	defer heardMu.Unlock()
+	for _, up := range ups {
+		if t, ok := up.(*tg.UpdateTranscribedAudio); ok && !t.Pending {
+			if len(finished) >= 100 { // others' never claimed (the account's own apps transcribe too)
+				clear(finished)
+			}
+			finished[t.TranscriptionID] = t.Text
+			close(heardNew)
+			heardNew = make(chan struct{})
+		}
+	}
+	return nil
+}
+
+// await is transcription id's text once heard, or "" and false once
+// transcribeEvery passes.
+func await(ctx context.Context, id int64) (string, bool, error) {
+	timer := time.NewTimer(transcribeEvery)
+	defer timer.Stop()
+	for {
+		heardMu.Lock()
+		text, ok := finished[id]
+		delete(finished, id)
+		news := heardNew
+		heardMu.Unlock()
+		if ok {
+			return text, true, nil
+		}
+		select {
+		case <-ctx.Done():
+			return "", false, fmt.Errorf("transcribe: %w", ctx.Err())
+		case <-timer.C:
+			return "", false, nil
+		case <-news:
+		}
+	}
+}
+
+// Transcribe is the text Telegram's transcription makes of v (the
+// account needs Premium, or the free trials left), once done.
+func (a Account) Transcribe(ctx context.Context, v Voice) (text string, err error) {
+	err = run(ctx, a, func(ctx context.Context, api *tg.Client) error {
+		text, err = transcribe(ctx, api, v)
+		return err
+	})
+	return text, err
+}
+
+func transcribe(ctx context.Context, api *tg.Client, v Voice) (string, error) {
+	var peer tg.InputPeerClass = &tg.InputPeerChannel{ChannelID: v.Chat.Channel, AccessHash: v.Chat.Access}
+	msg := int(v.Msg)
+	if v.Chat.Channel == 0 {
+		b, err := botUser(ctx, api, v.Bot)
+		if err != nil {
+			return "", err
+		}
+		peer = &tg.InputPeerUser{UserID: b.UserID, AccessHash: b.AccessHash}
+		if msg, err = mine(ctx, api, peer, v.Date); err != nil {
+			return "", err
+		}
+	}
+	for {
+		res, err := api.MessagesTranscribeAudio(ctx, &tg.MessagesTranscribeAudioRequest{Peer: peer, MsgID: msg})
+		if err != nil {
+			return "", fmt.Errorf("transcribe: %w", err)
+		}
+		if !res.Pending {
+			return res.Text, nil
+		}
+		text, ok, err := await(ctx, res.TranscriptionID)
+		if ok || err != nil {
+			return text, err
+		}
+	}
+}
+
+// mine is the account's id for its own voice note sent at date in peer.
+func mine(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, date int64) (int, error) {
+	res, err := api.MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{Peer: peer, Limit: 20})
+	if err != nil {
+		return 0, fmt.Errorf("find the voice note: %w", err)
+	}
+	if m, ok := res.AsModified(); ok {
+		for _, c := range m.GetMessages() {
+			m, ok := c.(*tg.Message)
+			if !ok || !m.Out || int64(m.Date) != date {
+				continue
+			}
+			if d, ok := m.Media.(*tg.MessageMediaDocument); ok && d.Voice {
+				return m.ID, nil
+			}
+		}
+	}
+	return 0, errors.New("find the voice note: it isn't among the chat's last messages")
 }

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/tgbot"
+	"github.com/lfdominguez/desk/internal/tgfmt"
 )
 
 // navTitles is the nav's rows as their titles.
@@ -322,5 +324,36 @@ func TestConfigReviewFixes(t *testing.T) {
 	h.u.saveConfig()
 	if b, _ := os.ReadFile(orgs.File(h.u.root, "Acme")); !strings.Contains(string(b), "kept") {
 		t.Fatalf("saved\n%s", b)
+	}
+}
+
+// TestConfigQuietRedact: quiet hours and Also mask are checked before
+// they're saved, then reach the running bot and the masking.
+func TestConfigQuietRedact(t *testing.T) {
+	h := newHarness(t)
+	t.Cleanup(func() { tgfmt.Also("") })
+	h.u.phone = &phoneState{bot: &tgbot.Bot{}}
+	for _, bad := range [][2]string{{"22-7", ""}, {"", "(oops"}} {
+		h.u.openConfig(cfgFolders)
+		h.u.cfg.phone.ed("quiet").SetText(bad[0])
+		h.u.cfg.phone.ed("redact").SetText(bad[1])
+		h.u.saveConfig()
+		if p := orgs.PhoneSettings(); p.Quiet != "" || p.Redact != "" || h.u.cfg == nil {
+			t.Fatalf("saved %q: %+v", bad, p)
+		}
+		h.u.cfg = nil
+	}
+	h.u.openConfig(cfgFolders)
+	h.u.cfg.phone.ed("quiet").SetText("22:00 - 07:30")
+	h.u.cfg.phone.ed("redact").SetText(`ACME-\d+`)
+	h.u.saveConfig()
+	if p := orgs.PhoneSettings(); p.Quiet != "22:00 - 07:30" || p.Redact != `ACME-\d+` {
+		t.Fatalf("%+v", p)
+	}
+	if tgfmt.Redact("ACME-12") != tgfmt.Masked {
+		t.Fatal("not masked")
+	}
+	if from, to, err := quietSpan("22:00 - 07:30"); err != nil || from != 22*time.Hour || to != 7*time.Hour+30*time.Minute {
+		t.Fatal(from, to, err)
 	}
 }

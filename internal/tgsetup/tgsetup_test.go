@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gotd/td/bin"
+	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
 	"github.com/gotd/td/tgerr"
 )
@@ -234,7 +236,7 @@ func TestLogin(t *testing.T) {
 }
 
 // TestRun: the real run makes the session's folder first, and gives up
-// on a canceled context without reaching Telegram.
+// on a canceled context without reaching Telegram (nor does connect).
 // ponytail: connecting for real is a live check, left to the spike.
 func TestRun(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "state", "desk")
@@ -252,5 +254,142 @@ func TestRun(t *testing.T) {
 	os.WriteFile(file, nil, 0o600)
 	if err := run(ctx, Account{Session: filepath.Join(file, "x", "s")}, nil); err == nil {
 		t.Fatal("a session under a file")
+	}
+	err = connect(ctx, Account{ID: 1, Hash: "h", Session: filepath.Join(dir, "telegram.session")}, nil, func(context.Context, *tg.Client) error { called = true; return nil })
+	if called {
+		t.Fatalf("connected on a canceled context: %v", err)
+	}
+}
+
+// TestKeep: actions share one connection while it's used, it ends after
+// connIdle unused (the next action connects again) and on logout; one
+// that never connects, or a caller that gives up, says why.
+func TestKeep(t *testing.T) {
+	f := &fake{answer: func(bin.Encoder) (bin.Encoder, error) { return &tg.AuthLoggedOut{}, nil }}
+	dials, fail := 0, error(nil)
+	ended := make(chan struct{}, 10)
+	old, oldIdle := connect, connIdle
+	t.Cleanup(func() { connect, connIdle = old, oldIdle })
+	connect = func(ctx context.Context, a Account, up telegram.UpdateHandler, fn func(context.Context, *tg.Client) error) error {
+		dials++
+		defer func() { ended <- struct{}{} }()
+		if fail != nil {
+			return fail
+		}
+		return fn(ctx, tg.NewClient(f))
+	}
+	connIdle = time.Hour
+	a := Account{ID: 1, Hash: "h", Session: filepath.Join(t.TempDir(), "s.json")}
+	ctx := context.Background()
+	var apis []*tg.Client
+	for range 2 {
+		run(ctx, a, func(_ context.Context, api *tg.Client) error { apis = append(apis, api); return nil })
+	}
+	if dials != 1 || apis[0] != apis[1] {
+		t.Fatalf("not kept: %d dials", dials)
+	}
+	if err := a.Logout(ctx); err != nil {
+		t.Fatal(err)
+	}
+	<-ended
+	connIdle = 0
+	run(ctx, a, func(context.Context, *tg.Client) error { return nil })
+	<-ended // idle: ended by itself
+	if dials != 2 {
+		t.Fatalf("dials %d", dials)
+	}
+	fail = errors.New("no network")
+	if err := run(ctx, a, func(context.Context, *tg.Client) error { return nil }); err == nil || err.Error() != "no network" {
+		t.Fatalf("never connected: %v", err)
+	}
+	<-ended
+	fail = nil
+	gone, cancel := context.WithCancel(ctx)
+	connect = func(ctx context.Context, a Account, up telegram.UpdateHandler, fn func(context.Context, *tg.Client) error) error {
+		defer func() { ended <- struct{}{} }()
+		cancel()     // the caller gives up while it dials
+		<-ctx.Done() // never connects
+		return nil
+	}
+	if err := run(gone, a, func(context.Context, *tg.Client) error { return nil }); !errors.Is(err, context.Canceled) {
+		t.Fatalf("given up: %v", err)
+	}
+	forget(a)
+	<-ended
+}
+
+// TestTranscribe: in a group the message's id is asked for, again while
+// pending; in the bot's chat the account's own voice note sent then is
+// found first; each failing step says which.
+func TestTranscribe(t *testing.T) {
+	transcribeEvery = 0
+	t.Cleanup(func() { transcribeEvery = 15 * time.Second })
+	var asked []*tg.MessagesTranscribeAudioRequest
+	pending, fail, update := 1, "", false
+	voice := func(id, date int, out, isVoice bool) tg.MessageClass {
+		return &tg.Message{ID: id, Date: date, Out: out, PeerID: &tg.PeerUser{UserID: 7}, Media: &tg.MessageMediaDocument{Voice: isVoice}}
+	}
+	f := &fake{}
+	f.answer = func(req bin.Encoder) (bin.Encoder, error) {
+		if fail != "" && strings.Contains(typeName(req), fail) {
+			return nil, tgerr.New(400, "PREMIUM_ACCOUNT_REQUIRED")
+		}
+		switch r := req.(type) {
+		case *tg.ContactsResolveUsernameRequest:
+			return theBot, nil
+		case *tg.MessagesGetHistoryRequest:
+			return &tg.MessagesMessages{Messages: []tg.MessageClass{
+				&tg.MessageEmpty{ID: 1}, voice(2, 100, false, true), voice(3, 100, true, false), voice(4, 99, true, true), voice(5, 100, true, true),
+			}}, nil
+		case *tg.MessagesTranscribeAudioRequest:
+			asked = append(asked, r)
+			p := pending > 0
+			pending--
+			if p && update {
+				heard(context.Background(), &tg.Updates{Updates: []tg.UpdateClass{&tg.UpdateTranscribedAudio{TranscriptionID: 8, Pending: true}}})
+				heard(context.Background(), &tg.UpdatesCombined{})
+				go heard(context.Background(), &tg.UpdateShort{Update: &tg.UpdateTranscribedAudio{TranscriptionID: 8, Text: "deploy it"}})
+			}
+			return &tg.MessagesTranscribedAudio{Pending: p, TranscriptionID: 8, Text: "fix the login"}, nil
+		}
+		return nil, errors.New("unexpected " + typeName(req))
+	}
+	a := use(t, f)
+	ctx := context.Background()
+	got, err := a.Transcribe(ctx, Voice{Chat: Chat{ID: -1000000000055, Channel: 55, Access: 550}, Msg: 9})
+	if p, _ := asked[0].Peer.(*tg.InputPeerChannel); err != nil || got != "fix the login" || len(asked) != 2 || asked[1].MsgID != 9 || p == nil || p.ChannelID != 55 || p.AccessHash != 550 {
+		t.Fatalf("group: %q %v %+v", got, err, asked)
+	}
+	asked = nil
+	got, err = a.Transcribe(ctx, Voice{Bot: "desk_test_bot", Msg: 77, Date: 100})
+	if p, _ := asked[0].Peer.(*tg.InputPeerUser); err != nil || got != "fix the login" || asked[0].MsgID != 5 || p == nil || p.UserID != 7 {
+		t.Fatalf("bot's chat: %q %v %+v", got, err, asked)
+	}
+	if _, err := a.Transcribe(ctx, Voice{Bot: "desk_test_bot", Date: 50}); err == nil || !strings.Contains(err.Error(), "last messages") {
+		t.Fatalf("not there: %v", err)
+	}
+	for _, step := range []string{"contacts.resolveUsername", "messages.getHistory", "messages.transcribeAudio"} {
+		fail = step
+		if _, err := a.Transcribe(ctx, Voice{Bot: "desk_test_bot", Date: 100}); err == nil {
+			t.Fatalf("%s failing: no error", step)
+		}
+	}
+	fail, pending, update, transcribeEvery = "", 1, true, time.Hour
+	asked = nil
+	if got, err := a.Transcribe(ctx, Voice{Chat: Chat{Channel: 55}, Msg: 9}); err != nil || got != "deploy it" || len(asked) != 1 {
+		t.Fatalf("finished by its update: %q %v %d", got, err, len(asked))
+	}
+	for i := range 101 {
+		heard(ctx, &tg.UpdateShort{Update: &tg.UpdateTranscribedAudio{TranscriptionID: int64(1000 + i)}})
+	}
+	if len(finished) > 100 {
+		t.Fatalf("unclaimed kept: %d", len(finished))
+	}
+	pending, update = 1, false
+	gone, cancel := context.WithCancel(ctx)
+	cancel()
+	transcribeEvery = time.Hour
+	if _, err := transcribe(gone, tg.NewClient(f), Voice{Chat: Chat{Channel: 55}, Msg: 9}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled while pending: %v", err)
 	}
 }

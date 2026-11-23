@@ -460,7 +460,9 @@ type Phone struct {
 	Secret
 	Chat   int64 `toml:"chat_id,omitempty"`
 	Always bool  `toml:"always,omitempty"` // also while a desk window has the focus
-	Screen bool  `toml:"screen,omitempty"` // /screen in an Infra topic shows a terminal's text
+	Screen bool   `toml:"screen,omitempty"` // /screen in an Infra topic shows a terminal's text
+	Quiet  string `toml:"quiet,omitempty"`  // "22:00-07:00": messages then arrive without a sound
+	Redact string `toml:"redact,omitempty"` // a regexp masked, besides the secrets desk knows, before anything leaves
 }
 
 // PhoneSettings is the bot of settings.toml's [telegram].
