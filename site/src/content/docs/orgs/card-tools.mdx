@@ -29,7 +29,9 @@ board's `card_create` and `ticket_create`. The ones that change the organization
 | `ci_log` | `url`, `job`, `bytes` (optional) | the end of a CI job's log (the job id from `ci`), to see why it failed: 20,000 bytes unless `bytes` says otherwise, at most 200,000 |
 
 A card's Claude also has `ask_lead`, to brief one of the organization's department leads: see
-[The company](/orgs/company/#department-leads).
+[The company](/orgs/company/#department-leads). It comes only when the organization has desk's
+roles, and the servers file's tools below only when it has servers: a tool's description goes with
+every turn, so a card gets only the ones it can use.
 
 `url` takes anything desk reads as a link: a GitHub, GitLab or Bitbucket URL, a Jira or Linear URL, or a
 bare key of one of the organization's Jira projects or Linear teams.

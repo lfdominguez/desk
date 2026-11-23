@@ -233,7 +233,7 @@ func TestBuildPromptA(t *testing.T) {
 	}
 	big := Block{N: 12, Cmd: "journalctl", Output: strings.Join(lines, "\n"), Exit: 3, ByClaude: true}
 	blocks[11] = big
-	p := buildPrompt("why?", "web1", blocks, []Block{big}, &Screen{Text: "htop here", Alt: true, Running: "htop"})
+	p := buildPrompt("why?", "web1", blocks, []Block{big}, &Screen{Text: "htop here", Alt: true, Running: "htop"}, nil)
 	for _, want := range []string{
 		"<terminal host=\"web1\">\nrecent:\n#3 ",
 		"#12 exit=3 by=claude $ journalctl  (output below)",
@@ -2308,5 +2308,30 @@ func TestPeerTellWakes(t *testing.T) {
 	tab.claude, tab.session = nil, "sess-1"
 	if !tab.talking() {
 		t.Error("a session to resume is a conversation too")
+	}
+}
+
+// TestCardToolsOff: a card whose organization has no servers or company
+// roles gets neither their tools nor their allowance, in the config and in
+// what desk mcp lists; the card is still named by its id.
+func TestCardToolsOff(t *testing.T) {
+	cfg, allow := CardMCP("/run/x.sock", "DESK-2", "servers", "lead")
+	if !strings.Contains(cfg, `"card=DESK-2,-servers,-lead"`) {
+		t.Errorf("config: %s", cfg)
+	}
+	for _, a := range allow {
+		if a == "mcp__desk__ask_lead" || a == "mcp__desk__servers" {
+			t.Errorf("allowed %s", a)
+		}
+	}
+	var out strings.Builder
+	mcpServe("", "card=DESK-2,-servers,-lead", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`+"\n"), &out)
+	for _, n := range []string{`"ask_lead"`, `"servers"`, `"add_server"`} {
+		if strings.Contains(out.String(), n) {
+			t.Errorf("listed %s", n)
+		}
+	}
+	if !strings.Contains(out.String(), `"card_read"`) || !strings.Contains(out.String(), `"ticket_status"`) {
+		t.Errorf("the rest: %s", out.String())
 	}
 }

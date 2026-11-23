@@ -83,22 +83,23 @@ type Tab struct {
 	chat                     []*chatEntry
 	busy                     bool
 	suggest                  string
-	pinned                   map[int]bool    // picked with space, sent with the next question
-	lastCtx                  map[int]bool    // sent with the last question
-	pinScreen                bool            // ^s: send a screen snapshot with the next question
-	pending                  []*approval     // commands waiting for the user, oldest first
-	orgCfg                   *orgConfig      // the org's infra config (vaults, nagios, metrics)
-	peerCtx                  []string        // context from peers, sent with the next prompt
-	queue                    []*peerTask     // peer tasks waiting for Claude to be free
-	asked                    []string        // the user's questions typed while Claude was busy
-	session                  string          // Claude Code's session id, to resume after a restart
-	broadcast                bool            // what the user types goes to every pane of the tab
-	notesSent                map[string]bool // servers whose notes this Claude process has (guarded by mu)
-	opened                   time.Time       // when the tab opened (report.go reads the audit log from here)
-	model                    string          // claude --model for this tab ("" the account's default)
-	health                   bool            // the running turn is the daily health check: notify when done
-	ctxTokens, ctxWindow     int             // Claude's context: tokens in it now, the model's window (0: not known yet)
-	compacting               bool            // a /compact runs (busy is set too)
+	pinned                   map[int]bool         // picked with space, sent with the next question
+	lastCtx                  map[int]bool         // sent with the last question
+	pinScreen                bool                 // ^s: send a screen snapshot with the next question
+	pending                  []*approval          // commands waiting for the user, oldest first
+	orgCfg                   *orgConfig           // the org's infra config (vaults, nagios, metrics)
+	peerCtx                  []string             // context from peers, sent with the next prompt
+	queue                    []*peerTask          // peer tasks waiting for Claude to be free
+	asked                    []string             // the user's questions typed while Claude was busy
+	session                  string               // Claude Code's session id, to resume after a restart
+	broadcast                bool                 // what the user types goes to every pane of the tab
+	notesSent                map[string]bool      // servers whose notes this Claude process has (guarded by mu)
+	blocksSent               map[int]map[int]bool // by pane id, the blocks whose output this Claude process has (unseen)
+	opened                   time.Time            // when the tab opened (report.go reads the audit log from here)
+	model                    string               // claude --model for this tab ("" the account's default)
+	health                   bool                 // the running turn is the daily health check: notify when done
+	ctxTokens, ctxWindow     int                  // Claude's context: tokens in it now, the model's window (0: not known yet)
+	compacting               bool                 // a /compact runs (busy is set too)
 
 	fileSeen map[string]string // host:path → sha256 of what file_read gave Claude (remotefs.go; guarded by mu)
 	staged   []stagedFile      // files cards' Claudes wrote for its servers, #1 first (guarded by mu)
@@ -1427,18 +1428,25 @@ func (m *model) send(t *Tab, q string, e *chatEntry) error {
 		t.mu.Lock()
 		t.notesSent = nil // a new process knows nothing yet
 		t.mu.Unlock()
+		t.blocksSent = nil
 	}
 	var blocks, ctx []Block
 	var scr *Screen
 	prompt := q
 	if p := t.focused(); p != nil {
 		blocks = t.term.Blocks()
-		ctx = referenced(q, blocks, t.pinned)
+		if t.blocksSent == nil {
+			t.blocksSent = map[int]map[int]bool{}
+		}
+		if t.blocksSent[p.id] == nil {
+			t.blocksSent[p.id] = map[int]bool{}
+		}
+		ctx = unseen(q, referenced(q, blocks, t.pinned), t.pinned, t.blocksSent[p.id])
 		if t.pinScreen || t.term.Live() || refScreen.MatchString(q) {
 			s := t.term.Screen()
 			scr = &s
 		}
-		prompt = buildPrompt(q, p.name, blocks, ctx, scr)
+		prompt = buildPrompt(q, p.name, blocks, ctx, scr, t.blocksSent[p.id])
 	}
 	if len(t.panes) > 1 || t.orgOnly {
 		t.mu.Lock()

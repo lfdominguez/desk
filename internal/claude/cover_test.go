@@ -239,8 +239,8 @@ func TestDirectivesMore(t *testing.T) {
 	if s := Workspace("DESK-7", "Fix it"); !strings.Contains(s, `workspace Claude of card DESK-7 ("Fix it")`) || !strings.Contains(s, "suggest_to_card") || !strings.HasSuffix(s, DrawingTools) {
 		t.Fatalf("%s", s)
 	}
-	if !strings.HasSuffix(CardTools, DrawingTools) {
-		t.Fatal("a card's Claude draws too")
+	if !strings.HasSuffix(CardTools(false), DrawingTools) || strings.Contains(CardTools(false), "add_server") || !strings.Contains(CardTools(true), "add_server") {
+		t.Fatal("a card's Claude draws too; the servers file's tools only with servers")
 	}
 	if s := Drawing("Flow", "Acme", "", []string{"/a"}); !strings.Contains(s, `drawing "Flow" (of organization Acme)`) || !strings.HasSuffix(s, DrawingTools) {
 		t.Fatalf("%s", s)

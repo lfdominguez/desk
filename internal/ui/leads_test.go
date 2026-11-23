@@ -40,7 +40,7 @@ func TestAskLead(t *testing.T) {
 	}
 	f, org := ls[0], filepath.Join(h.u.root, "Acme")
 	args := strings.Join(f.opts.Args, " ")
-	if f.opts.Dir != org || !strings.Contains(args, "--disallowedTools=Edit,Write,NotebookEdit,Bash") || f.opts.New == "" || company.Sessions(org)["security"] != f.opts.New {
+	if f.opts.Dir != org || !strings.Contains(args, "--tools Read,Glob,Grep,Skill") || !f.opts.Strict || f.opts.Artifact || f.opts.New == "" || company.Sessions(org)["security"] != f.opts.New {
 		t.Fatalf("options %+v", f.opts)
 	}
 	brief := "Brief from " + c.Key() + "'s Claude\nObjective: May we store the token in .env?\nWhere to look: api/config.go\nDone when: yes or no"

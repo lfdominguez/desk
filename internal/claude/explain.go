@@ -86,12 +86,13 @@ func tick(s string) string {
 // (ProviderEnv).
 func Explain(ctx context.Context, home, account, dir, cmd string, env ...string) (string, error) {
 	c, err := Command(home, account, "-p", "--model", "haiku", "--output-format", "json", "--json-schema", explainSchema,
-		"--no-session-persistence", "--permission-mode", "dontAsk", explainBrief+cmd)
+		"--no-session-persistence", "--permission-mode", "dontAsk", "--tools", "", "--strict-mcp-config", explainBrief+cmd)
 	if err != nil {
 		return "", err
 	}
 	cc := exec.CommandContext(ctx, c.Path, c.Args[1:]...) // the same, ended by ctx
-	cc.Dir, cc.Env = dir, append(c.Env, env...)
+	// a command's words need no project's instructions (CLAUDE.md)
+	cc.Dir, cc.Env = dir, append(append(c.Env, env...), "CLAUDE_CODE_DISABLE_CLAUDE_MDS=1")
 	out, err := cc.Output()
 	if e, perr := parseExplanation(out); perr == nil {
 		return e.Markdown(), nil

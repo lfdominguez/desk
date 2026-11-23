@@ -329,8 +329,14 @@ func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
 		tools = append(tools, orgTools[g]...)
 	}
 	card, isCard := strings.CutPrefix(groups, "card=")
-	if isCard {
-		tools = append(slices.Clone(cardTools), drawingTools...)
+	if isCard { // card=<id>[,-servers][,-lead]
+		var rest string
+		card, rest, _ = strings.Cut(card, ",")
+		var off []string
+		for _, o := range strings.Split(rest, ",") {
+			off = append(off, strings.TrimPrefix(o, "-"))
+		}
+		tools = cardToolset(off)
 	}
 	if id, ok := strings.CutPrefix(groups, "pilot="); ok { // an autopilot card's Claude: reads, and runs its cards
 		tools, card = append(slices.Clone(cardTools[:5]), pilotTools...), id
@@ -571,9 +577,25 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 // tools through sock (ServeCards'), and the tools to allow without asking:
 // all but ServerTools, which change the servers file and so ask the user.
 // "" without a socket.
-func CardMCP(sock, id string) (string, []string) {
-	mcp, allow := toolsMCP(sock, "card="+id, append(slices.Clone(cardTools), drawingTools...))
+// off names the tools the card's organization can't use (cardToolset).
+func CardMCP(sock, id string, off ...string) (string, []string) {
+	group := "card=" + id
+	for _, o := range off {
+		group += ",-" + o
+	}
+	mcp, allow := toolsMCP(sock, group, cardToolset(off))
 	return mcp, slices.DeleteFunc(allow, func(t string) bool { return slices.Contains(ServerTools, strings.TrimPrefix(t, "mcp__desk__")) })
+}
+
+// cardToolset is a card's tools without those off names, whose schemas
+// would otherwise ride along on every turn: "servers" (servers and
+// ServerTools, for an organization without servers) and "lead" (ask_lead,
+// without company roles).
+func cardToolset(off []string) []map[string]any {
+	return slices.DeleteFunc(append(slices.Clone(cardTools), drawingTools...), func(t map[string]any) bool {
+		n := t["name"].(string)
+		return slices.Contains(off, "servers") && (n == "servers" || slices.Contains(ServerTools, n)) || slices.Contains(off, "lead") && n == "ask_lead"
+	})
 }
 
 // PilotMCP is CardMCP for autopilot card id's session: the card tools that

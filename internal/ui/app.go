@@ -41,6 +41,7 @@ import (
 )
 
 type ui struct {
+	ciTold map[string]int // ci_failed tells per card and day (ciTell)
 	*pane    // the window being laid out's own state: mainPane, or a detached session's (detach.go)
 	mainPane pane
 	detached map[string]*detached        // cards whose session has its own window, by card

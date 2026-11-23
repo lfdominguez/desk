@@ -357,6 +357,13 @@ type Options struct {
 	System string   // appended to Claude's system prompt
 	Args   []string // more flags: AgentArgs
 	Env    []string // more environment: ProviderEnv
+	// Strict loads only the MCP servers Args' --mcp-config names, not the
+	// user's own (each one's tools ride along on every turn).
+	Strict bool
+	// Artifact turns on Claude Code's Artifact tools, for the Claudes that
+	// publish (a card's, a drawing's Share): its schema is thousands of
+	// tokens on every turn of those that don't.
+	Artifact bool
 }
 
 // Proc is a running session.
@@ -382,6 +389,9 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 	args = append(args, "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
 		"--permission-mode", "auto", "--permission-prompt-tool", "stdio", "--append-system-prompt", o.System)
 	args = append(append(args, o.Args...), addRoot(o.Dir, o.Root)...)
+	if o.Strict {
+		args = append(args, "--strict-mcp-config")
+	}
 	cmd, err := Command(o.Home, o.Org, args...)
 	if err != nil {
 		return nil, err
@@ -390,7 +400,10 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 	cmd = Jail(cmd, o.Home, o.Dir)
 	// CLAUDE_CODE_ARTIFACT: stream-json makes Claude Code an SDK session
 	// (entrypoint sdk-cli), whose claude.ai Artifact tools are off unless asked for.
-	cmd.Env = append(append(cmd.Env, o.Env...), "CLAUDE_CODE_ARTIFACT=1")
+	cmd.Env = append(cmd.Env, o.Env...)
+	if o.Artifact {
+		cmd.Env = append(cmd.Env, "CLAUDE_CODE_ARTIFACT=1")
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

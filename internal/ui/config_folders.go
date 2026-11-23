@@ -42,6 +42,7 @@ func (u *ui) loadFolders(d *cfgDialog) {
 	d.langs.ed("chat").SetText(chat)
 	d.langs.eds["me"] = &widget.Editor{} // several lines
 	d.langs.ed("me").SetText(orgs.Me())
+	d.langs.on["user_mcp"] = orgs.UserMCP()
 	d.langs.old, d.langs.base = true, d.langs.snap()
 	d.phone, d.tgacct, d.diag = loadPhone()
 	for _, f := range orgs.Folders(u.root) {
@@ -98,6 +99,9 @@ func (u *ui) saveFolders(d *cfgDialog) bool {
 	}
 	if err == nil && d.langs.edited() {
 		err = orgs.SaveMe(d.langs.text("me"))
+	}
+	if err == nil && d.langs.edited() {
+		err = orgs.SaveUserMCP(d.langs.on["user_mcp"])
 	}
 	if err == nil {
 		err = d.savePhone()
@@ -209,6 +213,12 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 					}))
 			})
 		},
+		func(gtx layout.Context) layout.Dimensions { // a card's Claude without the user's own MCP servers carries less on every turn
+			return layout.Inset{Bottom: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return u.cfgToggle(gtx, "cfgUserMCP", d.langs, "user_mcp", "Cards use my MCP servers",
+					"Off, a card's Claude has only desk's tools: each MCP server's tools are sent with every turn. New sessions take the change.")
+			})
+		},
 		k.Lbl("Search folders · where desk finds organizations, top to bottom: when two folders give the same name, the higher one wins", 12, kit.CText2, kit.Sans),
 		layout.Spacer{Height: 10}.Layout,
 		func(gtx layout.Context) layout.Dimensions {
@@ -248,10 +258,10 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 		},
 		u.cfgPreview,
 	}
-	if d.page() == "general" { // who, languages, text size; the rest is Search folders
-		items = items[:3]
+	if d.page() == "general" { // who, languages, text size, MCP servers; the rest is Search folders
+		items = items[:4]
 	} else {
-		items = items[3:]
+		items = items[4:]
 	}
 	return d.list.Layout(gtx, len(items), func(gtx layout.Context, i int) layout.Dimensions { return items[i](gtx) })
 }

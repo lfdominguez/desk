@@ -194,7 +194,7 @@ func TestReferenced(t *testing.T) {
 		t.Errorf("suggestion: %q", s)
 	}
 	bs2 := []Block{{N: 1, Cmd: "ls", Output: "a"}, {N: 2, Cmd: "df"}}
-	if p := buildPrompt("#1", "h", bs2, bs2[:1], nil); !strings.Contains(p, "<block n=1 exit=0 by=you>\n$ ls\na\n</block>") ||
+	if p := buildPrompt("#1", "h", bs2, bs2[:1], nil, nil); !strings.Contains(p, "<block n=1 exit=0 by=you>\n$ ls\na\n</block>") ||
 		!strings.Contains(p, "#2 exit=0 by=you $ df  (output omitted") || strings.Contains(p, "<block n=2") {
 		t.Errorf("prompt: %s", p)
 	}
@@ -217,7 +217,7 @@ func TestScreenSnapshot(t *testing.T) {
 	if rows, _, _, _ := term.Rows(5, func(int) color.Color { return nil }); rows[0].Running {
 		t.Error("alt screen must not get block decoration")
 	}
-	p := buildPrompt("what is using cpu?", "h", nil, nil, &s)
+	p := buildPrompt("what is using cpu?", "h", nil, nil, &s, nil)
 	if !strings.Contains(p, "<screen alt=true running=\"htop\">\n  PID USER  CPU%") {
 		t.Errorf("prompt: %s", p)
 	}
@@ -2079,5 +2079,27 @@ func TestClaudeCmdInstalled(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if c, err := claudeCmd(t.TempDir(), "-p"); err != nil || c.Path != bin {
 		t.Errorf("claudeCmd = %v, %v; want %s", c, err, bin)
+	}
+}
+
+// TestUnseen: a block whose output went in an earlier turn isn't sent again,
+// unless the question names it or it's pinned; the index says it was sent.
+func TestUnseen(t *testing.T) {
+	bs := []Block{{N: 1, Cmd: "ls", Output: "a"}, {N: 2, Cmd: "df", Output: "b"}}
+	seen := map[int]bool{}
+	if got := unseen("why?", bs, nil, seen); len(got) != 2 || !seen[1] || !seen[2] {
+		t.Fatalf("first turn: %v %v", got, seen)
+	}
+	if got := unseen("and now?", bs, nil, seen); len(got) != 0 {
+		t.Fatalf("again: %v", got)
+	}
+	if got := unseen("look at #1 again", bs[:1], nil, seen); len(got) != 1 {
+		t.Fatalf("named: %v", got)
+	}
+	if got := unseen("and now?", bs, map[int]bool{2: true}, seen); len(got) != 1 || got[0].N != 2 {
+		t.Fatalf("pinned: %v", got)
+	}
+	if p := buildPrompt("and now?", "h", bs, nil, nil, seen); !strings.Contains(p, "#1 exit=0 by=you $ ls  (output sent earlier)") {
+		t.Fatalf("index: %s", p)
 	}
 }

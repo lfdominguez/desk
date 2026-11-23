@@ -76,7 +76,7 @@ func TestStart(t *testing.T) {
 	t.Setenv("FAKE_ERR", "boom")
 	t.Setenv("FAKE_EXIT", "3")
 	got := make(chan Event, 10)
-	p, err := Start(Options{Home: t.TempDir(), Dir: t.TempDir(), System: "sys"}, func(e Event) { got <- e })
+	p, err := Start(Options{Home: t.TempDir(), Dir: t.TempDir(), System: "sys", Artifact: true, Strict: true}, func(e Event) { got <- e })
 	if err != nil || p == nil {
 		t.Fatalf("%v %v", p, err)
 	}
@@ -86,6 +86,14 @@ func TestStart(t *testing.T) {
 	if !slices.Contains(p.cmd.Env, "CLAUDE_CODE_ARTIFACT=1") {
 		t.Fatal("a card's session should have the Artifact tools")
 	}
+	if !slices.Contains(p.cmd.Args, "--strict-mcp-config") {
+		t.Fatal("Strict: only desk's MCP servers")
+	}
+	lean, err := Start(Options{Home: t.TempDir(), Dir: t.TempDir()}, func(Event) {})
+	if err != nil || slices.Contains(lean.cmd.Env, "CLAUDE_CODE_ARTIFACT=1") || slices.Contains(lean.cmd.Args, "--strict-mcp-config") {
+		t.Fatalf("without Artifact or Strict: %v %v %v", err, lean.cmd.Env, lean.cmd.Args)
+	}
+	lean.Close()
 	if e := <-got; e.Kind != KindInit || e.Session != "s1" {
 		t.Fatalf("%+v", e)
 	}
@@ -448,11 +456,18 @@ func TestOptimize(t *testing.T) {
 	if b, _ := os.ReadFile(args); !strings.Contains(string(b), "\nIts folders: ") || strings.Contains(string(b), "--add-dir") {
 		t.Fatalf("no folder picked: %s", b)
 	}
+	if b, _ := os.ReadFile(args); !strings.Contains(string(b), "--strict-mcp-config") {
+		t.Fatalf("cards without the user's MCP servers: neither does Improve: %s", b)
+	}
 	root := t.TempDir()
 	a2 := a
 	a2.Root, a2.Dir, a2.Folder, a2.Folders = root, filepath.Join(root, "car_platform"), "car_platform", nil
 	os.Mkdir(a2.Dir, 0o755)
+	a2.UserMCP = true
 	Optimize(context.Background(), a2, nil)
+	if b, _ := os.ReadFile(args); strings.Contains(string(b), "--strict-mcp-config") {
+		t.Fatalf("cards with the user's MCP servers: Improve sees them: %s", b)
+	}
 	if b, _ := os.ReadFile(args); !strings.Contains(string(b), "Folder: car_platform (picked by the user") || strings.Contains(string(b), "\nIts folders:") ||
 		!strings.Contains(string(b), "--add-dir="+root+" ") {
 		t.Fatalf("a folder picked: %s", b)

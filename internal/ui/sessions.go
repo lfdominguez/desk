@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -362,8 +363,9 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 			o.System += claude.ServerWork(c.Key(), c.Org) // desk peer is allowed in agentArgs
 		}
 		if u.cardSock != "" {
-			o.System += claude.CardTools
+			o.System += claude.CardTools(u.infraOrg(c.Org) != nil)
 		}
+		o.Env, o.Strict, o.Artifact = append(o.Env, compactWindow()...), !orgs.UserMCP(), true
 		if exists {
 			o.Resume = c.Session.ID
 		} else {
@@ -739,4 +741,18 @@ func (u *ui) checkLinks(ids []string) {
 			u.save()
 		})
 	}
+}
+
+// cardCompact is where a card's Claude compacts its conversation: with a
+// 1M window it otherwise grows to hundreds of thousands of tokens, each
+// read back on every call and written to the cache again after an idle
+// hour. The user's own CLAUDE_CODE_AUTO_COMPACT_WINDOW wins.
+const cardCompact = "200k"
+
+// compactWindow is the environment that sets cardCompact.
+func compactWindow() []string {
+	if os.Getenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW") != "" {
+		return nil
+	}
+	return []string{"CLAUDE_CODE_AUTO_COMPACT_WINDOW=" + cardCompact}
 }

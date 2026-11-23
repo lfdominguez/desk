@@ -43,7 +43,7 @@ func Learn(ctx context.Context, s Study) (Lesson, error) {
 	in := "Columns: " + strings.Join(s.Columns, ", ") + "\n\nThe trackers' statuses (project: status (category), …):\n" +
 		cmp.Or(s.Statuses, "(none read: no Jira project or Linear team in desk.toml)\n") + "\nThe user's instructions:\n" + s.Instructions
 	args := append([]string{"-p", "--model", "haiku", "--output-format", "json", "--json-schema", schema,
-		"--permission-mode", "dontAsk", "--allowedTools", "Read,Glob,Grep", "--no-session-persistence",
+		"--permission-mode", "dontAsk", "--tools", "Read,Glob,Grep", "--allowedTools", "Read,Glob,Grep", "--strict-mcp-config", "--no-session-persistence",
 		"--append-system-prompt", learner}, addRoot(s.Dir, s.Root)...)
 	c, err := Command(s.Home, s.Account, append(args, in)...)
 	if err != nil {

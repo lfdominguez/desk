@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -71,6 +72,43 @@ func TestTriggerCI(t *testing.T) {
 	h.u.runTriggers()
 	if len(fk.prompts) != 1 || !strings.Contains(fk.prompts[0], "CI failed on PR #7: test") {
 		t.Fatalf("prompts %q", fk.prompts)
+	}
+}
+
+// TestTriggerCICap: a round's failures of one link come as one message, a
+// card is told at most ciDay times a day, and a tell isn't the user's
+// go-ahead past a budget.
+func TestTriggerCICap(t *testing.T) {
+	h := newHarness(t)
+	h.orgToml("Acme", "[[trigger]]\nname = \"ci\"\non = \"ci_failed\"\n")
+	c := h.u.b.Add(h.u.b.Column("Review"), kanban.Card{Title: "x", Org: "Acme"})
+	h.u.b.Card(c.ID).Allowed = 1.5
+	fk := &fakeClaude{}
+	h.u.procs[c.ID] = fk
+	l := kanban.Link{URL: "https://github.com/acme/web/pull/7", Ref: "PR #7"}
+	fail := func(ids ...int64) []links.Run {
+		var rs []links.Run
+		for _, id := range ids {
+			rs = append(rs, links.Run{ID: id, Name: fmt.Sprint("job", id), Status: links.CIFailed, URL: "https://ci.example.com/1"})
+		}
+		return rs
+	}
+	h.u.ci["Acme"] = []ciItem{{id: c.ID, link: l}}
+	h.u.runTriggers() // the first look only notes
+	h.u.ci["Acme"] = []ciItem{{id: c.ID, link: l, runs: fail(1, 2)}}
+	h.u.runTriggers()
+	if len(fk.prompts) != 1 || !strings.Contains(fk.prompts[0], "job1") || !strings.Contains(fk.prompts[0], "job2") {
+		t.Fatalf("one message for both: %q", fk.prompts)
+	}
+	if h.u.b.Card(c.ID).Allowed != 1.5 {
+		t.Fatal("a trigger's tell reset the budget")
+	}
+	for id := int64(3); id <= 6; id++ {
+		h.u.ci["Acme"] = []ciItem{{id: c.ID, link: l, runs: fail(id)}}
+		h.u.runTriggers()
+	}
+	if len(fk.prompts) != ciDay || !strings.Contains(h.u.toast, "not again") {
+		t.Fatalf("capped at %d: %d prompts, toast %q", ciDay, len(fk.prompts), h.u.toast)
 	}
 }
 
@@ -150,5 +188,18 @@ func TestTriggerOdd(t *testing.T) {
 	h.u.runTriggers()
 	if h.cardTitled("daily") == nil {
 		t.Fatal("no card named after its trigger")
+	}
+}
+
+// TestCompactWindow: a card compacts at cardCompact unless the user's own
+// environment says where.
+func TestCompactWindow(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "")
+	if w := compactWindow(); len(w) != 1 || w[0] != "CLAUDE_CODE_AUTO_COMPACT_WINDOW="+cardCompact {
+		t.Fatalf("%v", w)
+	}
+	t.Setenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "500k")
+	if w := compactWindow(); w != nil {
+		t.Fatalf("the user's own: %v", w)
 	}
 }

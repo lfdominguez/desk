@@ -83,7 +83,7 @@ func (u *ui) leadAsk(id string, d company.Department, b company.Brief) error {
 func (u *ui) leadStart(st *leadState, key string) (session, error) {
 	dir, acct := orgs.Dir(u.root, st.org, ""), orgs.Account(u.root, st.org)
 	o := claude.Options{Home: u.home, Org: acct, Dir: dir, System: company.LeadPrompt(st.org, st.dept) + u.aboutMe(st.org),
-		Args: []string{"--allowedTools=Read,Glob,Grep,Skill", "--disallowedTools=Edit,Write,NotebookEdit,Bash"}}
+		Args: []string{"--allowedTools=Read,Glob,Grep,Skill", "--tools", "Read,Glob,Grep,Skill"}, Strict: true} // only what it uses: each tool's schema goes with every turn
 	sid := company.Sessions(dir)[st.dept.Name]
 	if sid == "" {
 		sid = claude.NewSessionID()

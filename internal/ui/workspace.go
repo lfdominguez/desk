@@ -220,8 +220,9 @@ func (u *ui) wsStart(id string) (session, error) {
 	if mcp != "" {
 		o.Args = append(o.Args, "--mcp-config", mcp)
 	}
-	o.Args = append(o.Args, "--allowedTools="+strings.Join(append([]string{"Read", "Glob", "Grep", "Skill"}, allow...), ","),
-		"--disallowedTools=Edit,Write,NotebookEdit,Bash")
+	// --tools: only the built-in tools it uses, whose schemas go with every turn; Strict: only desk's MCP server
+	o.Args, o.Strict = append(o.Args, "--allowedTools="+strings.Join(append([]string{"Read", "Glob", "Grep", "Skill"}, allow...), ","),
+		"--tools", "Read,Glob,Grep,Skill"), true
 	if c.WSSession == "" {
 		c.WSSession = claude.NewSessionID()
 		u.save()

@@ -1138,8 +1138,11 @@ func TestDeliverPaths(t *testing.T) {
 	if len(fake.prompts) != 1 || !strings.HasPrefix(fake.prompts[0], "The user ran these commands directly in the card's folder, not through you:\n<bash-input>ls</bash-input>\n") || h.u.shellOut[id] != "" {
 		t.Fatalf("prompt %q", fake.prompts)
 	}
-	if !strings.Contains(fake.opts.System, claude.AlertSnooze) || !strings.Contains(fake.opts.System, claude.CardTools) {
+	if !strings.Contains(fake.opts.System, claude.AlertSnooze) || !strings.Contains(fake.opts.System, claude.CardTools(false)) {
 		t.Fatalf("system %q", fake.opts.System)
+	}
+	if !fake.opts.Strict || !fake.opts.Artifact || !slices.Contains(fake.opts.Env, "CLAUDE_CODE_AUTO_COMPACT_WINDOW=200k") {
+		t.Fatalf("a card's session: only desk's MCP, Artifact, compacting at 200k: %+v", fake.opts)
 	}
 	if col, _ := h.u.b.Find(id); col != h.u.b.Column("In progress") || card().Status != kanban.StatusWorking || card().Last != "hi" {
 		t.Fatalf("after send %+v", card())
@@ -1322,7 +1325,7 @@ func TestTerminalLife(t *testing.T) {
 	h.u.cardSock = "/run/desk/cards.sock"
 	h.u.terminal(id)
 	j := strings.Join(args, " ")
-	if h.u.procs[id] != nil || !strings.Contains(j, strings.TrimSpace(claude.CardTools)) || !strings.Contains(j, strings.TrimSpace(claude.AlertSnooze)) {
+	if h.u.procs[id] != nil || !strings.Contains(j, strings.TrimSpace(claude.CardTools(false))) || !strings.Contains(j, strings.TrimSpace(claude.AlertSnooze)) {
 		t.Fatalf("procs %v, args %q", h.u.procs[id], j)
 	}
 	tt := h.u.terms[id]

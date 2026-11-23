@@ -540,12 +540,29 @@ func referenced(q string, blocks []Block, pinned map[int]bool) []Block {
 	return out
 }
 
+// unseen drops from ctx the blocks this Claude process already had in an
+// earlier turn, their output being in its conversation, unless the question
+// names them (#12, last 3) or they're pinned; it marks the rest in seen.
+func unseen(q string, ctx []Block, pinned, seen map[int]bool) []Block {
+	asked := refHash.MatchString(q) || refLast.MatchString(q)
+	var keep []Block
+	for _, b := range ctx {
+		if seen[b.N] && !asked && !pinned[b.N] {
+			continue
+		}
+		seen[b.N] = true
+		keep = append(keep, b)
+	}
+	return keep
+}
+
 // refScreen asks for the current screen explicitly.
 var refScreen = regexp.MustCompile(`(?i)(?:^|\W)(screen|pantalla|snapshot|snapshoot|htop|top)(?:\W|$)`)
 
 // buildPrompt gives Claude an index of recent blocks, the full ctx ones, and
-// the screen snapshot when scr is set.
-func buildPrompt(q, host string, blocks, ctx []Block, scr *Screen) string {
+// the screen snapshot when scr is set; seen are those whose output it had
+// in an earlier turn.
+func buildPrompt(q, host string, blocks, ctx []Block, scr *Screen, seen map[int]bool) string {
 	var s strings.Builder
 	in := map[int]bool{}
 	for _, b := range ctx {
@@ -556,6 +573,8 @@ func buildPrompt(q, host string, blocks, ctx []Block, scr *Screen) string {
 		note := "output omitted, ask the user to cite #" + strconv.Itoa(b.N)
 		if in[b.N] {
 			note = "output below"
+		} else if seen[b.N] {
+			note = "output sent earlier"
 		}
 		fmt.Fprintf(&s, "#%d exit=%d by=%s $ %s  (%s)\n", b.N, b.Exit, by(b), b.Cmd, note)
 	}

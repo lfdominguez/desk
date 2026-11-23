@@ -151,7 +151,7 @@ func TestAskWorkspace(t *testing.T) {
 	o := f.opts
 	args := strings.Join(o.Args, " ")
 	if o.Dir != own || !strings.Contains(args, "--add-dir="+extra) || !strings.Contains(args, "--allowedTools=Read,Glob,Grep,Skill") ||
-		!strings.Contains(args, "--disallowedTools=Edit,Write,NotebookEdit,Bash") || o.New == "" || o.New != h.u.b.Card(c.ID).WSSession {
+		!strings.Contains(args, "--tools Read,Glob,Grep,Skill") || !o.Strict || o.Artifact || o.New == "" || o.New != h.u.b.Card(c.ID).WSSession {
 		t.Fatalf("options %+v", o)
 	}
 	if !slices.Equal(f.prompts, []string{"The card's main Claude asks:\nWhat is open?"}) {

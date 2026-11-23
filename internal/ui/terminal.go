@@ -73,7 +73,10 @@ func (u *ui) terminal(id string) {
 	}
 	system := claude.System(c.Key(), c.Title, c.Org) + cardLang(c) + u.companyPrompt(c) + u.workflowPrompt(c) + u.aboutMe(c.Org)
 	if u.cardSock != "" {
-		system += claude.CardTools
+		system += claude.CardTools(u.infraOrg(c.Org) != nil)
+	}
+	if !orgs.UserMCP() {
+		extra = append(extra, "--strict-mcp-config")
 	}
 	if c.Alert != "" {
 		system += claude.AlertSnooze
@@ -86,7 +89,7 @@ func (u *ui) terminal(id string) {
 		cmd, err = claude.Interactive(u.home, orgs.Account(u.root, c.Org), u.cardDir(c), orgs.Dir(u.root, c.Org, ""), c.Session.ID, system, extra...)
 	}
 	if err == nil {
-		cmd.Env = append(cmd.Env, env...)
+		cmd.Env = append(append(cmd.Env, env...), compactWindow()...)
 		var t *term.Term
 		var started atomic.Pointer[term.Term]
 		if t, err = startTerm(cmd, 120, 40, func() { u.termNotify(id, started.Load()) }); err == nil {

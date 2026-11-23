@@ -35,7 +35,7 @@ type cfgPart struct {
 // deskParts are settings.toml's parts (cfgFolders' page), in the nav's
 // order around Keyboard shortcuts (cfgKeys, its own page).
 var deskParts = []cfgPart{
-	{"general", "General", "Who you are, the languages new cards start with, and the text size.", "who am i me languages card chat text size zoom"},
+	{"general", "General", "Who you are, the languages new cards start with, the text size, and whether cards use your MCP servers.", "who am i me languages card chat text size zoom mcp servers tools"},
 	{"folders", "Search folders", "The folders desk searches for organizations.", "folders depth only toml root organizations scan"},
 	{"telegram", "Telegram", "Desk Control: a bot for the cards that need you, and a group per organization with a topic per card.", "telegram phone bot token pair chat always notify account api folder group forum topic mirror desk control"},
 	{"diag", "Diagnostics", "Where desk reports its own crashes.", "diagnostics new relic license crash telemetry"},

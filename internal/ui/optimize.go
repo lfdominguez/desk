@@ -46,7 +46,7 @@ func (u *ui) optAsk(org, dir, req, lang string) claude.Ask {
 		}
 	}
 	return claude.Ask{Home: u.home, Account: orgs.Account(u.root, org), Org: org, Dir: orgs.Dir(u.root, org, dir), Root: orgs.Dir(u.root, org, ""), Folder: dir, Request: req,
-		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: lang, About: orgs.AboutMe(u.root, org)}
+		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: lang, About: orgs.AboutMe(u.root, org), UserMCP: orgs.UserMCP()}
 }
 
 // optimizeCard runs Prompt Optimization on the new card's request (its

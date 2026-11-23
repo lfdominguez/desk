@@ -6,6 +6,22 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Claudes that cost less per turn**: a card's Claude compacts its conversation at about 200K
+  tokens instead of near its 1M window (your own `CLAUDE_CODE_AUTO_COMPACT_WINDOW` wins), and
+  loads only desk's tools, not your own MCP servers, unless Settings → General's **Cards use my
+  MCP servers** is on. It gets the server and lead tools only when its organization has servers
+  or desk's roles. The workspace, lead and Telegram Claudes carry only the tools they use,
+  Explain and Learn skip your MCP servers (Explain also the project's `CLAUDE.md`), Improve sees
+  them only when cards will, and
+  the infra Claude no longer gets a terminal block's output again once it has seen it.
+
+### Fixed
+
+- A `ci_failed` trigger no longer loops: a round's failures of one link come as one message, a
+  card is told at most 3 times a day, and a tell no longer counts as your go-ahead past a budget.
+
 ## [2026.11.23] - 2026-11-23
 
 ### Changed

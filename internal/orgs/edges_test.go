@@ -173,3 +173,19 @@ func TestXDGDir(t *testing.T) {
 		t.Errorf("no home: %q %v", d, err)
 	}
 }
+
+// TestUserMCP: off until set, kept with the rest of the settings.
+func TestUserMCP(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("DESK_ROOT", t.TempDir())
+	if UserMCP() {
+		t.Fatal("on by default")
+	}
+	SaveLangs("Spanish", "")
+	if err := SaveUserMCP(true); err != nil || !UserMCP() {
+		t.Fatalf("saved: %v %v", err, UserMCP())
+	}
+	if c, _ := Langs(); c != "Spanish" {
+		t.Fatalf("the languages went: %q", c)
+	}
+}

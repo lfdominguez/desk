@@ -790,7 +790,8 @@ func (u *ui) gnLaunch() (session, error) {
 	if mcp != "" {
 		o.Args = append(o.Args, "--mcp-config", mcp)
 	}
-	o.Args = append(o.Args, "--allowedTools="+strings.Join(allow, ","), "--disallowedTools=Edit,Write,NotebookEdit,Bash")
+	// no built-in tools and only desk's MCP server: each tool's schema goes with every turn
+	o.Args, o.Strict = append(o.Args, "--allowedTools="+strings.Join(allow, ","), "--tools", ""), true
 	if ph.gnSid == "" { // the last run's, kept beside the board
 		b, _ := os.ReadFile(u.gnSidFile())
 		ph.gnSid = strings.TrimSpace(string(b))

@@ -447,6 +447,7 @@ type settings struct {
 	Editor   Editor            `toml:"editor,omitempty"`    // the workspace's panes and editor (editor.go)
 	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
 	Me       string            `toml:"me,omitempty"`        // who the user is, told to every Claude desk starts (AboutMe)
+	UserMCP  bool              `toml:"user_mcp,omitempty"`  // cards load the user's own MCP servers too (UserMCP)
 	NewRelic NewRelic          `toml:"newrelic,omitempty"`  // where desk reports its own crashes and performance (internal/telemetry)
 	Phone    Phone             `toml:"phone,omitempty"`     // an older settings.toml's bot, moved to Telegram's by migrateTelegram
 	Telegram Telegram          `toml:"telegram,omitempty"`  // Desk Control (telegram.go)
@@ -542,6 +543,17 @@ func Langs() (card, chat string) {
 func SaveLangs(card, chat string) error {
 	s := loadSettings()
 	s.CardLang, s.ChatLang = card, chat
+	return saveSettings(s)
+}
+
+// UserMCP is whether card sessions load the user's own MCP servers besides
+// desk's: off, only desk's, since each server's tools ride along on every turn.
+func UserMCP() bool { return loadSettings().UserMCP }
+
+// SaveUserMCP keeps UserMCP, the rest as it is.
+func SaveUserMCP(on bool) error {
+	s := loadSettings()
+	s.UserMCP = on
 	return saveSettings(s)
 }
 

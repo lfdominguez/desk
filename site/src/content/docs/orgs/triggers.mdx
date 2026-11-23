@@ -48,7 +48,7 @@ minutes** that isn't a whole number.
 | `on` | When | What it does |
 |---|---|---|
 | `ticket` | a ticket assigned to you shows up in the organization's [Tickets](/orgs/tickets/) with no card yet (of `project`, with `match` in its title, when given) | a card for it in To do, titled with its key and title, the ticket linked; `start` starts its Claude |
-| `ci_failed` | a pull request or commit linked on a card that isn't in Done fails a CI run (what the [CI](/orgs/ci/) view shows) | tells the card's Claude which run failed, to read it with `ci` and `ci_log` and fix it |
+| `ci_failed` | a pull request or commit linked on a card that isn't in Done fails a CI run (what the [CI](/orgs/ci/) view shows) | tells the card's Claude which runs failed (a round's failures of one link in one message), to read them with `ci` and `ci_log` and fix it; at most 3 times a day per card, so a fix that fails again doesn't loop, and like another Claude's message it doesn't count as your go-ahead past a [budget](/orgs/company/) |
 | `alert` | a monitoring [alert](/orgs/alerts/) nobody acknowledged or snoozed: an error (and warnings with `warnings`), that has lasted `after` minutes, its host or service matching `match` | an investigation card in progress, as **Investigate** makes, its Claude started on it |
 | `schedule` | the time `at` (local), on `days` (every day without them) | a card with `title` and `notes`; `start` starts its Claude |
 | `digest` | the time `at`, on `days`, as `schedule` | sends the organization's [digest](/board/digest/) since yesterday to [your phone](/sessions/phone/); without a paired phone, a toast says so |

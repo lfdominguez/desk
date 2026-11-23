@@ -84,6 +84,10 @@ When you ask Claude something, desk sends the blocks you point at:
 - "last N" in your question ("look at the last 2").
 - With none of those, the last 3 blocks.
 
+A block whose output Claude already had in an earlier answer isn't sent again (it's in its
+conversation), unless you name it with `#n` or "last N", or pin it: the list of recent blocks marks
+it *output sent earlier*. A new infra Claude session starts from nothing, so it gets them again.
+
 It also sends a snapshot of the screen when you turned **screen** on, when a full-screen program
 is running, or when your question mentions the screen, a snapshot, `top` or `htop`.
 

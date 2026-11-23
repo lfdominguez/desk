@@ -43,12 +43,23 @@ Never send secrets.`, key, org)
 }
 
 // CardTools is added to System when desk serves its card tools (the
-// mcp__desk__ ones): what the organization's integrations say, read through desk.
-const CardTools = `
+// mcp__desk__ ones): what the organization's integrations say, read through
+// desk; servers adds the servers file's tools, which only an organization
+// with servers gets.
+func CardTools(servers bool) string {
+	if servers {
+		return cardTools + serverTools + DrawingTools
+	}
+	return cardTools + DrawingTools
+}
+
+const cardTools = `
 desk's tools (mcp__desk__*) read this card's organization through desk's accounts: alerts (its monitoring now), tickets (the user's assigned ones), link (a ticket's, issue's, pull or merge request's state and description; the card's links without url), ci (the GitHub Actions or GitLab CI runs and jobs of a pull or merge request or commit) and ci_log (a job's log, to see why it failed). They are there if you need them, not a replacement: when the organization's own workflow already has tools for this (its CLIs, scripts, MCP servers, a skill or the repo's CLAUDE.md say how they work), you decide which to use; follow the workflow when it works. If one of its tools fails (not installed, not logged in, no access, an error), try the desk tool for the same thing, and say which one you used and why.
 The card has a workspace: the user's IDE view of it, with its projects' files and a second Claude that reads them with the user (never writes). When you start working in a project root (a repository or a folder with its own build) that isn't the card's folder, call add_project with it once, so the user sees it there. ask_workspace asks the workspace Claude something (it may know what the user is looking at); its answer comes later as a message "From the workspace Claude:". Its suggestions come the same way: weigh them, you do the work.
-The board is yours to read: cards lists the organization's cards (key, column, status, ticket; query and column narrow it) and card_read gives one card in full (notes, links, its last messages): look there before making a card or when the user names one. Use card_create and ticket_create in place of the DESK-CARD and DESK-TICKET lines: the same rules (a card tracks one ticket; a new card only when the user agrees), but they answer at once with the key, or why not.
-The organization's servers file (an OpenSSH config with desk's "#@" lines, what desk's infra workspace connects with) changes only through desk's tools: servers reads it (read it first), add_server, edit_server and remove_server change it, each shown to the user as a diff to approve. When the user asks to add a server or change how one is reached (its address, user, port, key, jump host, group), use them; never edit the file another way.` + DrawingTools
+The board is yours to read: cards lists the organization's cards (key, column, status, ticket; query and column narrow it) and card_read gives one card in full (notes, links, its last messages): look there before making a card or when the user names one. Use card_create and ticket_create in place of the DESK-CARD and DESK-TICKET lines: the same rules (a card tracks one ticket; a new card only when the user agrees), but they answer at once with the key, or why not.`
+
+const serverTools = `
+The organization's servers file (an OpenSSH config with desk's "#@" lines, what desk's infra workspace connects with) changes only through desk's tools: servers reads it (read it first), add_server, edit_server and remove_server change it, each shown to the user as a diff to approve. When the user asks to add a server or change how one is reached (its address, user, port, key, jump host, group), use them; never edit the file another way.`
 
 // DrawingTools tells a Claude about desk's drawings (Excalidraw files):
 // added to every prompt whose session has the drawing tools.

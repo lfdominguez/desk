@@ -72,7 +72,7 @@ func TestDrawChatSends(t *testing.T) {
 	o := f.opts
 	j := strings.Join(o.Args, " ")
 	if !strings.Contains(o.System, `drawing "D" (of organization Acme)`) || o.Dir != filepath.Join(h.u.root, "Acme") || o.New == "" || o.Resume != "" ||
-		!strings.Contains(j, "draw="+st.path) || !strings.Contains(j, "mcp__desk__drawing_edit") || !strings.Contains(j, "--disallowedTools=Edit,Write,NotebookEdit,Bash") {
+		!strings.Contains(j, "draw="+st.path) || !strings.Contains(j, "mcp__desk__drawing_edit") || !strings.Contains(j, "--disallowedTools=Edit,Write,NotebookEdit,Bash") || !o.Artifact || o.Strict {
 		t.Errorf("options %+v", o)
 	}
 	if loadSide(st.path).Session != o.New {

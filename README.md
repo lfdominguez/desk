@@ -257,7 +257,8 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
 - **Triggers**: `[[trigger]]` tables in an org's `desk.toml` (`on = "ticket"`, `"ci_failed"`,
   `"alert"` or `"schedule"`, with `project`, `match`, `after`, `at`/`days`, `title`/`notes`,
   `column`, `start`) run after every check of links, tickets, CI and alerts. Each remembers what it
-  handled in `.desk/triggers.json`, and its first run only notes what's already there.
+  handled in `.desk/triggers.json`, and its first run only notes what's already there. A failed
+  CI tells a card's Claude at most 3 times a day.
 - **Your phone**: put a Telegram bot's token under `[telegram]` in `~/.config/desk/settings.toml`
   (`token_env`, `token_cmd` or `token`; an older `[phone]` moves there) and send the bot `/start`
   within 10 minutes of starting desk to pair it. While no desk window has the focus (or always, with `always = true`), cards that
@@ -292,7 +293,10 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   `card_create` and `ticket_create` add a card or the card's ticket, answering with its key.
   `servers`, `add_server`, `edit_server` and
   `remove_server` read and change the org's servers file (a server's address, user, port, key,
-  group, any ssh option), each change shown to you as a diff to allow first.
+  group, any ssh option), each change shown to you as a diff to allow first; they come only to
+  orgs with servers, as `ask_lead` only with desk's roles. A card loads desk's tools alone, not
+  your own MCP servers, unless **Cards use my MCP servers** is on (Settings → General), and
+  compacts its conversation at about 200K tokens.
 - **Right-click a card** for its menu: open its session, its full window or a window of its own, its terminal, its workspace, turn its
   Remote Control on or off, edit it, copy its key, move it to another column, archive it.
 - **Desktop notifications** when a card turns to your turn, blocked, failed or ready for review, unless you're

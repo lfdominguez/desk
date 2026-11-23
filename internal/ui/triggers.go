@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -104,15 +105,19 @@ func (u *ui) runTrigger(org string, t orgs.Trigger, s *trigSeen, first bool) boo
 		}
 	case "ci_failed":
 		for _, it := range u.ci[org] {
+			c := u.b.Card(it.id)
+			if c == nil || u.isDone(it.id) {
+				continue
+			}
+			var failed []string // this round's new failures of the link: one message for them all
 			for _, r := range it.runs {
-				c := u.b.Card(it.id)
-				if r.Status != links.CIFailed || c == nil || u.isDone(it.id) {
-					continue
+				if r.Status == links.CIFailed {
+					changed = fire(fmt.Sprint(it.link.URL, "#", r.ID), func() { failed = append(failed, r.Name+" ("+r.URL+")") }) || changed
 				}
-				changed = fire(fmt.Sprint(it.link.URL, "#", r.ID), func() {
-					u.send(it.id, fmt.Sprintf("(desk) CI failed on %s: %s (%s). Read it with the ci and ci_log tools, find why and fix it. %s",
-						it.link.Ref, r.Name, r.URL, why))
-				}) || changed
+			}
+			if len(failed) > 0 {
+				u.ciTell(c, fmt.Sprintf("(desk) CI failed on %s: %s. Read it with the ci and ci_log tools, find why and fix it. %s",
+					it.link.Ref, strings.Join(failed, ", "), why))
 			}
 		}
 	case "alert":
@@ -175,4 +180,27 @@ func (u *ui) trigCard(org string, t orgs.Trigger, title, notes string, ls []kanb
 	if t.Start {
 		u.send(c.ID, startWork)
 	}
+}
+
+// ciDay is how many times a day a ci_failed trigger tells one card's
+// Claude: a fix that fails CI again would otherwise loop, fix, push, fail.
+const ciDay = 3
+
+// ciTell tells c's Claude its CI failed, at most ciDay times a day, as
+// another Claude's message: it doesn't count as the user's go-ahead past a
+// budget, and over one it waits for the user.
+func (u *ui) ciTell(c *kanban.Card, text string) {
+	key := c.ID + "|" + trigNow().Format(time.DateOnly)
+	if u.ciTold[key] >= ciDay {
+		u.showToast(c.Key()+": CI failed again; its Claude was told "+strconv.Itoa(ciDay)+" times today, so not again", false)
+		return
+	}
+	if u.ciTold == nil {
+		u.ciTold = map[string]int{}
+	}
+	u.ciTold[key]++
+	if u.overBudget(c) == "" && u.shellStop[c.ID] == nil && u.terms[c.ID] == nil { // shown as sent when deliver sends it now
+		u.say(c.ID, "you", text)
+	}
+	u.deliver(c.ID, text, true)
 }

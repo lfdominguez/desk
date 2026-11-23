@@ -50,7 +50,8 @@ long-running Claudes that keep the department's decisions from card to card.
 A card's Claude briefs one with its `ask_lead` tool: the department, the objective, and if it can,
 where to look, the limits, when the answer is complete and the decision it needs. The lead starts
 the first time it's briefed, in the organization's folder under its account, and only reads (it
-never edits or runs anything). Its answer comes into the card's conversation as a message from
+never edits or runs anything: Read, Glob, Grep and skills are its only tools, without your MCP
+servers). Its answer comes into the card's conversation as a message from
 it, ending in a verdict line, and the card's Claude goes on with it.
 
 A lead is one Claude Code session per organization and department, resumed every time

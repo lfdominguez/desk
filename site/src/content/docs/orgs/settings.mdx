@@ -85,7 +85,7 @@ comments in the file are not. If you keep a commented `desk.toml` by hand, edit 
 
 ## General
 
-![The General page: Who am I?, the two language fields and the text size](../../../assets/shots/orgs-settings-general.png)
+![The General page: Who am I?, the two language fields, the text size and Cards use my MCP servers](../../../assets/shots/orgs-settings-general.png)
 
 ### Who am I
 
@@ -134,6 +134,14 @@ session panel is, from 50% to 300%. **−** and **+** change it by 10% and it co
 **Save**. Anywhere in desk, <kbd>Ctrl</kbd>+<kbd>=</kbd>, <kbd>Ctrl</kbd>+<kbd>-</kbd> and
 <kbd>Ctrl</kbd>+<kbd>0</kbd> (back to 100%) do the same. A terminal's columns and rows follow the
 text, so a bigger text gives its program fewer of them.
+
+### Cards use my MCP servers
+
+Off unless you turn it on (`user_mcp` in `settings.toml`). Off, a card's Claude (its session and
+its terminal) has desk's own tools and none of the MCP servers you set up for Claude Code: each
+server's tools are sent with every turn, whether the card uses them or not. Turn it on when your
+cards rely on one of yours. Sessions started after **Save** take the change; a running one keeps
+what it started with.
 
 ## Search folders
 

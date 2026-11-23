@@ -34,7 +34,15 @@ func (u *ui) agentArgs(c *kanban.Card) ([]string, error) {
 	if strings.Contains(c.Notes, u.imagesDir()) { // outside where it works: Claude may read them
 		args = []string{"--add-dir=" + u.imagesDir()} // = form: one value, never the prompt after it
 	}
-	mcp, allow := infra.CardMCP(u.cardSock, c.ID)
+	roster, rerr := u.roster(c)
+	var off []string // card tools its organization can't use: their schemas would ride along on every turn
+	if u.infraOrg(c.Org) == nil {
+		off = append(off, "servers")
+	}
+	if !company.HasRoles(roster) {
+		off = append(off, "lead")
+	}
+	mcp, allow := infra.CardMCP(u.cardSock, c.ID, off...)
 	if c.Pilot != nil { // an autopilot runs its cards: it reads, never writes
 		mcp, allow = infra.PilotMCP(u.cardSock, c.ID)
 		args = append(args, "--disallowedTools=Edit,Write,NotebookEdit")
@@ -50,9 +58,8 @@ func (u *ui) agentArgs(c *kanban.Card) ([]string, error) {
 	if len(allow) > 0 {
 		args = append(args, "--allowedTools", strings.Join(allow, ","))
 	}
-	roster, err := u.roster(c)
-	if err != nil && c.Agent != "" { // its agent's file is unreadable; without one, desk's roles still come
-		return nil, err
+	if rerr != nil && c.Agent != "" { // its agent's file is unreadable; without one, desk's roles still come
+		return nil, rerr
 	}
 	a, err := claude.AgentArgs(roster, c.Agent)
 	return append(args, a...), err

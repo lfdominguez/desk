@@ -56,6 +56,7 @@ func (u *ui) drawStart(st *drawState) (session, error) {
 	// the drawing's page (whichever of the two the account has).
 	o.Args = append(o.Args, "--allowedTools="+strings.Join(append([]string{"Read", "Glob", "Grep", "Artifact", "mcp__claude-artifacts"}, allow...), ","),
 		"--disallowedTools=Edit,Write,NotebookEdit,Bash")
+	o.Artifact = true // not Strict either: mcp__claude-artifacts is the user's own server
 	if st.side.Session == "" {
 		st.side.Session = claude.NewSessionID()
 		u.drawKeepSide(st)

@@ -431,7 +431,7 @@ func TestGeneralClaude(t *testing.T) {
 	h.u.cardSock = "/run/x.sock"
 	h.u.phoneUpdate(dm("what's blocked?"))
 	if len(fakes) != 1 || fakes[0].prompts[0] != "what's blocked?" || fakes[0].opts.New == "" || fakes[0].opts.Dir != h.u.root ||
-		!strings.Contains(strings.Join(fakes[0].opts.Args, " "), `"desk"]`) {
+		!strings.Contains(strings.Join(fakes[0].opts.Args, " "), `"desk"]`) || !strings.Contains(strings.Join(fakes[0].opts.Args, "|"), "--tools|") || !fakes[0].opts.Strict {
 		t.Fatalf("started %+v", fakes)
 	}
 	h.pumpUntil("seen", func() bool { return f.Last("setMessageReaction") != nil })
