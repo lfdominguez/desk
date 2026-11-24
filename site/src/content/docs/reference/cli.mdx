@@ -103,5 +103,12 @@ It reports on stderr the hosts it skipped (`skipped …`) and how many it added 
 
 desk runs itself for these. You don't need them, but you may see them in a process list.
 
-- **`desk mcp <socket> <groups>`**: the MCP server of an infra tab's Claude. `<groups>` are the tool groups the organization's `desk.toml` enables (`secrets`, `nagios`, `metrics`). With `card=<id>` in place of the groups, it serves a card session's desk tools (alerts, tickets, link, ci, ci_log, add_project, ask_workspace); with `ws=<id>`, its workspace Claude's (the read-only ones and suggest_to_card). desk writes these into the sessions' `--mcp-config` itself.
+- **`desk mcp <socket> <groups>`**: the MCP server of an infra tab's Claude. `<groups>` are the tool groups the organization's `desk.toml` enables (`secrets`, `nagios`, `metrics`). In place of the groups:
+  - `card=<id>`: a card session's [desk tools](/orgs/card-tools/) (alerts, tickets, link, ci, ci_log, add_project, ask_workspace, ticket_status, the board and drawing tools, ask_lead and the server tools). `,-servers` and `,-lead` after the id leave out the server tools (an organization without servers) and ask_lead (one without company roles).
+  - `ws=<id>`: a card's workspace Claude (the read-only ones, the drawing tools that don't draw, and suggest_to_card).
+  - `pilot=<id>`: an [autopilot](/orgs/autopilot/)'s Claude (the card tools that read, plus pilot_cards, pilot_tell, pilot_answer, pilot_add).
+  - `draw=<path>`: a drawing's own Claude (the drawing tools).
+  - `desk`: [Desk Control](/sessions/desk-control/)'s desk Claude (cards, card_read, card_create, card_message, digest).
+
+  desk writes these into the sessions' `--mcp-config` itself.
 - **`desk demo-infra <socket>`**: the demo's scripted infra Claude, started by the demo's infra workspace.

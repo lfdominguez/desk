@@ -178,10 +178,17 @@ go.mod, flake.nix, LICENSE, docs and `cmd/` / `internal/` / `third_party/` / `pl
 
 ## Conventions
 
-- **Every change checks the docs and the README.** Before a change is done, find the pages in
-  `site/src/content/docs/` and the parts of `README.md` that describe what it touches (behavior,
-  UI text, keys, files, config) and update them in the same change, along with the screenshot
-  scene when the UI shows it. A change no page or README section covers needs none, but check.
+- **Every change checks the docs and the README; the docs are never left out of date.** Before a
+  change (feature, fix, rename, removal) is done, find the pages in `site/src/content/docs/` and
+  the parts of `README.md` that describe what it touches (behavior, UI text, keys, files, config,
+  tools, commands, environment variables) and add, edit or remove text there in the same change:
+  a new feature gets documented, a changed one rewritten, a removed one deleted. Check the
+  exhaustive reference pages too (`reference/keys.mdx`, `cli.mdx`, `files.mdx`, `desk-toml.mdx`,
+  `orgs/settings.mdx`, `orgs/card-tools.mdx`, `sessions/desk-control.mdx`, `orgs/triggers.mdx`).
+  Screenshots the same way: a new view or dialog gets a docshots scene and its shot on the page, a
+  changed UI gets its scene, cuts and alt text updated (cut from laid-out widgets, not fixed `dp`
+  boxes, so later fields don't clip), and a shot no page uses any more is removed. A change no
+  page or README section covers needs none, but check.
 - Short comments that start with the identifier and say *why*.
 - Mark deliberate shortcuts with `ponytail:` comments naming the limit and the upgrade path.
 - UI text in English.

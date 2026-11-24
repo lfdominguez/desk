@@ -116,10 +116,18 @@ func init() {
 			a.ed("phone_number").SetText("+1 555 0100")
 			a.ed("mirror.Acme").SetText(orgs.MirrorFull)
 			a.ed("mirror.Globex").SetText(orgs.MirrorNotify)
+			// the parts are cut around Log in and Set up, so fields added above them move the cuts along
+			page := dp(466, 100, 1388, 0)
+			rows := func(y0, y1 int) image.Rectangle { return image.Rect(page.Min.X, y0, page.Max.X, y1) }
+			login := s.at("tgLogin")
 			orgsAway(s)
-			s.shot("orgs-settings-telegram", cut{"bot", dp(466, 100, 1388, 360), false}, cut{"account", dp(466, 375, 1388, 760), false})
-			s.u.cfg.list.Position.Offset = 1050 // down to the organizations
-			s.shot("orgs-settings-telegram-more", cut{"orgs", dp(466, 650, 1388, 868), false})
+			s.shot("orgs-settings-telegram",
+				cut{"bot", rows(page.Min.Y, login.Min.Y-int(50*shotScale)), false},
+				cut{"account", rows(login.Min.Y-int(32*shotScale), login.Min.Y+int(354*shotScale)), false})
+			s.u.cfg.list.Position.Offset = 5000 // down to the organizations, at the end
+			setup := s.at("tgSetup")
+			orgsAway(s)
+			s.shot("orgs-settings-telegram-more", cut{"orgs", rows(setup.Min.Y-int(190*shotScale), setup.Max.Y+int(6*shotScale)), false})
 			s.click("cfgSub" + cfgFolders + "/diag")
 			orgsAway(s)
 			s.shot("orgs-settings-diag", cut{"page", dp(466, 48, 1388, 260), false})
@@ -168,7 +176,7 @@ func init() {
 		scene{"orgs-settings-keys", func(s *shooter) {
 			s.click("sideOrgCfg")
 			s.click("cfgOrg" + cfgKeys)
-			s.shot("orgs-settings-keys", cut{"nav", dp(202, 40, 450, 322), true})
+			s.shot("orgs-settings-keys", cut{"", dp(202, 40, 450, 322), true})
 			s.click("keyChangeboard.new")
 			page := dp(466, 0, 1388, 0)
 			r := s.at("keyChangeboard.new")
@@ -180,7 +188,7 @@ func init() {
 		scene{"orgs-settings-org", func(s *shooter) {
 			s.click("sideOrgCfg")
 			orgsOpen(s, "Acme")
-			add := around(union(s.at("cfgAddvault"), s.at("cfgAddnagios")), 8)
+			add := around(union(s.at("cfgAddvault"), s.at("cfgAddprovider")), 8)
 			orgsAway(s)
 			s.shot("orgs-settings-org", cut{"add", add, true}, cut{"bar", dp(450, 868, 1400, 916), false})
 			id := orgsEntryID(s, 1) // the Jira account
@@ -303,6 +311,62 @@ func init() {
 			s.u.openSession(id)
 			s.settle()
 			s.shot("orgs-cardtools", cut{"calls", dp(240, 596, 1596, 780), true})
+		}},
+		scene{"orgs-models", func(s *shooter) {
+			s.click("sideOrgCfg")
+			orgsOpen(s, "Acme")
+			s.click("cfgAddprovider")
+			p := s.u.cfg.entries[len(s.u.cfg.entries)-1]
+			p.ed("name").SetText("openrouter")
+			p.ed("base_url").SetText("https://openrouter.ai/api")
+			p.src["."] = srcEnv
+			p.ed("..token_env").SetText("OPENROUTER_API_KEY")
+			p.ed("opus").SetText("openai/gpt-6.1-sol")
+			p.ed("sonnet").SetText("z-ai/glm-5.3")
+			p.ed("haiku").SetText("deepseek/deepseek-v4.1-flash")
+			orgsAway(s)
+			s.shot("orgs-models-provider", cut{"card", dp(466, 48, 1388, 862), false})
+			s.click("cfgSubAcme/models")
+			s.u.cfg.models.ed("task.improve").SetText("openrouter")
+			s.u.cfg.models.ed("task.explain").SetText("openrouter")
+			orgsAway(s)
+			s.shot("orgs-models", cut{"page", dp(466, 48, 1388, 836), false})
+		}},
+		scene{"orgs-workflow", func(s *shooter) {
+			s.click("sideOrgCfg")
+			orgsOpen(s, "Acme")
+			s.click("cfgSubAcme/workflow")
+			w := s.u.cfg.wf
+			for k, v := range map[string]string{
+				"instructions":       `Read ./docs/process. "Test" means deployed to the testing environment; only QA moves a ticket to Done.`,
+				"summary":            "Test means deployed to testing; QA moves tickets from Test to Done. Unclear: who moves one back on a bug.",
+				"learned":            "2026-11-17",
+				"status.In progress": "In Progress",
+				"status.Review":      "Code Review",
+				"follow":             "Deployed → Done\nTest → Review",
+				"rules":              "Move a ticket to Test after you deploy it to the testing environment. Never move one to Done: QA does.",
+			} {
+				w.ed(k).SetText(v)
+			}
+			s.u.cfg.list.Position.Offset = 5000 // to its end: the rules' field whole, the intro under the title
+			orgsAway(s)
+			s.shot("orgs-workflow", cut{"page", dp(466, 48, 1388, 868), false})
+		}},
+		scene{"orgs-autopilot", func(s *shooter) {
+			orgsFetch(s)
+			s.click("sidetk:Acme")
+			for _, k := range []string{"ABC-123", "ABC-140"} {
+				s.click("tkSel" + "https://acme.atlassian.net/browse/" + k)
+			}
+			list := dp(500, 50, 1334, 0) // the view's column, from the bar to the last ticket
+			list.Max.Y = s.at("tkhttps://acme.atlassian.net/browse/ABC-140").Max.Y + int(10*shotScale)
+			orgsAway(s)
+			s.shot("orgs-autopilot-tickets", cut{"list", list, false})
+			s.click("tkPilot")
+			s.u.pilotDlg.grants.SetText("push to feature branches; the staging server can be changed freely")
+			dlg := s.modal(560, "apStart")
+			orgsAway(s)
+			s.shot("orgs-autopilot-dialog", cut{"dialog", dlg, false})
 		}},
 	)
 }

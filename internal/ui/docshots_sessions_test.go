@@ -135,7 +135,7 @@ func sessReview(s *shooter) {
 	s.u.openReview(id)
 	s.wait("the branch", 10*time.Second, func() bool { return !s.u.rvOf(id).loading })
 	orgsAway(s)
-	s.shot("sess-review", cut{"head", dp(412, 52, 1420, 150), true})
+	s.shot("sess-review", cut{"", dp(412, 52, 1420, 150), true})
 	s.click("rvMerge" + id)
 	orgsAway(s)
 	s.shot("sess-review-merge", cut{"head", dp(412, 52, 1420, 150), true})
@@ -176,7 +176,7 @@ func sessPanel(s *shooter) {
 		cut{"icons", around(icons, 4), true},
 		cut{"tools", sessRows(sessPanelX, explain.Min.Y-scaled(image.Pt(0, 40)).Y, explain.Max.Y+scaled(image.Pt(0, 30)).Y), false},
 		cut{"reply", sessRows(sessPanelX, copyBtn.Min.Y-scaled(image.Pt(0, 8)).Y, copyBtn.Max.Y+scaled(image.Pt(0, 120)).Y), false},
-		cut{"copy", around(copyBtn, 3), true},
+		cut{"", around(copyBtn, 3), true},
 		cut{"composer", sessRows(sessPanelX, send.Min.Y-scaled(image.Pt(0, 92)).Y, send.Max.Y+scaled(image.Pt(0, 12)).Y), false},
 	)
 	// a drag over the reply selects its words
@@ -199,8 +199,7 @@ func sessFlow(s *shooter) {
 	s.u.openPanel(id)
 	s.settle()
 	start := s.at("pnStart" + id)
-	s.shot("sess-start", cut{"start", around(start, 6), true},
-		cut{"empty", sessRows(sessPanelX, start.Min.Y-scaled(image.Pt(0, 24)).Y, start.Max.Y+scaled(image.Pt(0, 70)).Y), false})
+	s.shot("sess-start", cut{"empty", sessRows(sessPanelX, start.Min.Y-scaled(image.Pt(0, 24)).Y, start.Max.Y+scaled(image.Pt(0, 70)).Y), false})
 	pace := demoPace // slower: the subagent runs long enough to be caught running
 	s.t.Cleanup(func() { demoPace = pace })
 	demoPace = 6 * time.Millisecond
@@ -216,11 +215,9 @@ func sessFlow(s *shooter) {
 	s.click("taskBar" + id) // the full window, the rail open
 	t := s.u.tasks[id][0]
 	card := s.at("taskCard" + t.key())
-	bar = s.at("taskBar" + id)
 	s.move(sessPt(10, 10))
 	s.shot("sess-rail",
-		cut{"bar", around(bar, 0), false},
-		cut{"rail", image.Rect(scaled(image.Pt(shotSize.X-int(railW), 0)).X, sessTop, scaled(shotSize).X, scaled(shotSize).Y), true},
+		cut{"", image.Rect(scaled(image.Pt(shotSize.X-int(railW), 0)).X, sessTop, scaled(shotSize).X, scaled(shotSize).Y), true},
 		cut{"card", around(card, 6), false})
 	s.click("taskCard" + t.key())
 	back := s.at("subBack")
@@ -238,9 +235,7 @@ func sessFlow(s *shooter) {
 	cmd := "go test ./internal/auth/..."
 	ex := s.at("explain" + id + cmd)
 	s.move(sessPt(10, 10))
-	s.shot("sess-tool",
-		cut{"line", sessRows(main, ex.Min.Y-scaled(image.Pt(0, 8)).Y, ex.Max.Y+scaled(image.Pt(0, 30)).Y), false},
-		cut{"btn", around(ex, 3), true})
+	s.shot("sess-tool", cut{"line", sessRows(main, ex.Min.Y-scaled(image.Pt(0, 8)).Y, ex.Max.Y+scaled(image.Pt(0, 30)).Y), false})
 	s.click("explain" + id + cmd)
 	s.wait("Haiku", 5*time.Second, func() bool {
 		e := s.u.explains[cmd]
@@ -262,10 +257,7 @@ func sessFlow(s *shooter) {
 	box := sessRows(sessPanelX, allow.Min.Y-scaled(image.Pt(0, 110)).Y, allow.Max.Y+scaled(image.Pt(0, 14)).Y)
 	s.shot("sess-permission",
 		cut{"box", box, false},
-		cut{"buttons", around(union(allow, deny, s.at("askMore"+id)), 4), true})
-	s.u.view, s.u.panel = "", ""
-	s.settle()
-	s.shot("sess-permission-card", cut{"card", around(sessCardRect(s, id), 6), true})
+		cut{"", around(union(allow, deny, s.at("askMore"+id)), 4), true})
 	s.u.openPanel(id)
 	s.settle()
 	s.click("askMore" + id)
@@ -315,9 +307,8 @@ func sessQuestion(s *shooter) {
 	s.move(sessPt(10, 10))
 	s.shot("sess-question", cut{"box", box, false})
 	s.click(fmt.Sprintf("ask%s-0-0", id))
-	opt := s.at(fmt.Sprintf("ask%s-0-0", id))
 	s.move(sessPt(10, 10))
-	s.shot("sess-question-picked", cut{"box", box, false}, cut{"option", around(opt, 3), true})
+	s.shot("sess-question-picked", cut{"box", box, false})
 	s.click("askSend" + id)
 	s.click(fmt.Sprintf("ask%s-1-0", id))
 	s.click(fmt.Sprintf("ask%s-1-1", id))
@@ -364,9 +355,7 @@ func sessShell(s *shooter) {
 	})
 	stop := s.at("pnShellStop")
 	s.move(sessPt(10, 10))
-	s.shot("sess-shell-running",
-		cut{"end", sessRows(sessPanelX, stop.Max.Y-scaled(image.Pt(0, 330)).Y, stop.Max.Y+scaled(image.Pt(0, 12)).Y), false},
-		cut{"stop", around(stop, 4), true})
+	s.shot("sess-shell-running", cut{"end", sessRows(sessPanelX, stop.Max.Y-scaled(image.Pt(0, 330)).Y, stop.Max.Y+scaled(image.Pt(0, 12)).Y), false})
 	close(release)
 	s.wait("Claude's turn", 10*time.Second, func() bool {
 		c := s.u.b.Card(id)
@@ -408,13 +397,9 @@ func sessHeld(s *shooter) {
 	s.u.openSession(id)
 	s.u.rail = true
 	s.settle()
-	bar := s.at("taskBar" + id)
-	railX := scaled(image.Pt(shotSize.X-int(railW), 0)).X
 	r1, r2, r4 := s.at("taskCard"+limits.key()), s.at("taskCard"+integ.key()), s.at("taskCard"+notes.key())
 	s.move(sessPt(10, 10))
 	s.shot("sess-held",
-		cut{"bar", bar, false},
-		cut{"rail", image.Rect(railX, sessTop, scaled(shotSize).X, scaled(shotSize).Y), false},
 		cut{"running", around(r1, 4), false},
 		cut{"waiting", around(r2, 4), false},
 		cut{"idle", around(r4, 4), false})
@@ -550,9 +535,9 @@ func sessTerminal(s *shooter) {
 	id := sessID(s, sessBilling)
 	s.settle()
 	s.clickAt(center(sessCardRect(s, id)), pointer.ButtonSecondary)
-	item := s.at("cardMenuClaude Code terminal")
+	s.at("cardMenuClaude Code terminal") // the menu is open
 	s.move(sessPt(10, 10))
-	s.shot("sess-menu", cut{"menu", around(s.u.menu.r, 6), false}, cut{"item", around(item, 2), true})
+	s.shot("sess-menu", cut{"menu", around(s.u.menu.r, 6), false})
 	s.u.menu = nil
 	s.u.openPanel(id)
 	s.settle()

@@ -49,7 +49,8 @@ type scene struct {
 var scenes []scene
 
 // cut is a part of a shot saved on its own as <shot>-<name>.png, r in px;
-// ring outlines it on the full shot too.
+// ring outlines it on the full shot too. A cut without a name is only the
+// ring: what the full shot points at, with no page using it on its own.
 type cut struct {
 	name string
 	r    image.Rectangle
@@ -255,6 +256,15 @@ func around(r image.Rectangle, pad int) image.Rectangle {
 	return r.Inset(-p).Intersect(image.Rectangle{Max: scaled(shotSize)})
 }
 
+// modal is a kit.Modal dialog width dp wide, 90 dp down, to its footer's
+// button foot (a Click id), with a little of the scrim around it.
+func (s *shooter) modal(width int, foot string) image.Rectangle {
+	s.t.Helper()
+	f := s.at(foot)
+	x0 := int(float64(shotSize.X-width)/2*shotScale) - int(8*shotScale)
+	return image.Rect(x0, int(82*shotScale), x0+int(float64(width+16)*shotScale), f.Max.Y+int(26*shotScale))
+}
+
 // union is the smallest rectangle holding all of rs.
 func union(rs ...image.Rectangle) image.Rectangle {
 	u := rs[0]
@@ -282,9 +292,11 @@ func (s *shooter) shot(name string, cuts ...cut) {
 		if r.Empty() {
 			s.t.Fatalf("cut %s-%s is off the window: %v", name, c.name, c.r)
 		}
-		part := image.NewRGBA(image.Rectangle{Max: r.Size()})
-		draw.Draw(part, part.Bounds(), img, r.Min, draw.Src)
-		s.save(name+"-"+c.name, part)
+		if c.name != "" {
+			part := image.NewRGBA(image.Rectangle{Max: r.Size()})
+			draw.Draw(part, part.Bounds(), img, r.Min, draw.Src)
+			s.save(name+"-"+c.name, part)
+		}
 		if c.ring {
 			ring(full, r, 4)
 		}

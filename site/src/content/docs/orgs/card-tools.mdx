@@ -27,6 +27,7 @@ board's `card_create` and `ticket_create`. The ones that change the organization
 | `link` | `url` (optional) | a ticket's, issue's, pull or merge request's or commit's state now (review, CI) and, for Jira, Linear and GitHub, its title and description (Linear's with its priority and labels). Without `url`, every link on the card |
 | `ci` | `url` (optional) | the CI of a pull or merge request or commit: GitHub Actions workflow runs or GitLab pipelines, with every job's status and id. Without `url`, the ones linked on the card |
 | `ci_log` | `url`, `job`, `bytes` (optional) | the end of a CI job's log (the job id from `ci`), to see why it failed: 20,000 bytes unless `bytes` says otherwise, at most 200,000 |
+| `ticket_status` | `status`, `url` (optional) | moves one of the card's tickets to a status by its name, when the organization's [ticket workflow](/orgs/workflow/) says so; desk moves the card to that status's column. Only with a workflow, only your own tickets, through an account that syncs. Without `url`, the card's one ticket. A card an autopilot runs asks first |
 
 A card's Claude also has `ask_lead`, to brief one of the organization's department leads: see
 [The company](/orgs/company/#department-leads). It comes only when the organization has desk's
@@ -119,6 +120,32 @@ Every card's Claude can also read and draw in the organization's and the card's
 [drawings](/drawings/overview/): `drawings`, `drawing_read`, `drawing_edit` and
 `drawing_suggest`. The workspace Claude gets the ones that don't draw. See
 [The drawing tools](/drawings/claude/#the-drawing-tools).
+
+## An autopilot's tools
+
+An [autopilot](/orgs/autopilot/)'s Claude runs cards and never works itself: it gets the card
+tools that read (`alerts`, `tickets`, `link`, `ci`, `ci_log`, `cards`, `card_read`) and these, never
+Edit or Write.
+
+| Tool | Takes | What it gives Claude |
+|---|---|---|
+| `pilot_cards` | none | the cards it runs: key, title, status and its note, whether one waits on it (an open question or permission), links, last message, and how many may work at once |
+| `pilot_tell` | `card`, `text` | a message to one of its cards: the first starts it (refused while as many as allowed already work), later ones steer it |
+| `pilot_answer` | `card`, and `allow`, `user`, `grant` or `message` | answers a card's open request: allows or refuses a permission, or leaves it to you; answers a question. Allowing what changes anything outside the cards' folders needs `grant`, your own words that allow it, else it goes to you |
+| `pilot_add` | `title`, `notes` (optional) | a new card among those it runs, for work found along the way (no ticket); it starts when told |
+
+## The desk Claude's tools
+
+[Desk Control](/sessions/desk-control/#the-desk-claude)'s desk Claude, the one you talk to in the
+bot's private chat, works across every organization with these tools only:
+
+| Tool | Takes | What it gives Claude |
+|---|---|---|
+| `cards` | `query`, `column` (both optional) | the cards of every organization |
+| `card_read` | `key` | one card in full |
+| `card_create` | `title`, `notes`, and where | a new card, when you ask for one; it waits in To do unless told to start |
+| `card_message` | `key`, `text` | a message to a card's Claude as your own, when you ask to tell a card something |
+| `digest` | `since` (`today`, `yesterday`, `week`) | what was done and what is in flight, as the [Digest](/board/digest/) reads |
 
 ## Locked vaults
 

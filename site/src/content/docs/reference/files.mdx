@@ -24,8 +24,10 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 | `telegram.json` | [Desk Control](/sessions/desk-control/)'s topics: for each card, its group, topic, pinned header and how much of its conversation went there. 0600. |
 | `chats/ws-<card>.jsonl` | Its [workspace](/sessions/workspace/) Claude's conversation. |
 | `images/` | Images you pasted: a card's notes reference them as `![image](path)`, a message as `[Image n]`. |
+| `unsaved.json` | [Workspace](/sessions/workspace/) tabs with changes you hadn't saved when desk quit, put back when the card's workspace opens. 0600. |
 | `snoozed.json` | Snoozed alerts and until when. |
 | `crash.log` | If desk crashes, the trace goes here. desk runs detached, with no terminal to print it on. A window the display dropped is noted here too, with why, before desk opens it again, and each start, with desk's version. |
+| `stall.log` | Every goroutine's stack when a window stayed away from its events for more than 3 seconds ([not responding](/reference/troubleshooting/#the-compositor-says-desk-is-not-responding)). |
 | `crash.log.reported` | How far into `crash.log` desk has sent crashes to [New Relic](/reference/troubleshooting/#report-to-new-relic), with a license key set. |
 
 The folder and everything in it are readable by you alone (folders `700`, files `600`): conversations
@@ -59,6 +61,7 @@ Older versions of desk kept `desk.toml` and `ssh_config` in the organization's f
 | `<Org>/.desk/company/log.jsonl` | The [company log](/orgs/company/#the-company-log): one JSON line per brief, result or message between the organization's Claudes. |
 | `<Org>/.desk/company/spend.json` | What the organization's sessions cost per day, in US dollars, for its `day_budget`. |
 | `<Org>/.desk/company/leads.json` | The department leads' Claude Code sessions, by department, so each resumes its memory. Delete a line to start that lead afresh. |
+| `<Org>/.desk/triggers.json` | What each of the organization's [triggers](/orgs/triggers/) has already handled, so nothing is done twice. |
 | `<Org>/.claude/agents/` | The Claude Code agents cards can run as (or the folder `agents` names in `desk.toml`). |
 
 ## Claude profiles: `~/Secure/Claudes/`
@@ -86,6 +89,7 @@ Your Telegram account's session after **Log in** on [Settings → Telegram](/org
 | `recordings/<org>/<time>-<server>.cast` | Recordings of the panes, as asciicasts (`asciinema play <file>`). `record = false` in `desk.toml` turns them off. |
 | `notes/<org>/<server>.md` | The infra Claude's notes about each server. |
 | `reports/<org>-<time>.md` | Incident reports. |
+| `backups/<org>/<host>/` | A file's old content, kept before the infra Claude's `file_write` or `file_edit` changes it, named by time and path. Kept until you clear them. |
 | `always/<org>.json` | The commands you answered **always** to. Edit it to take one back. |
 | `health/<org>.last` | When the daily health check (`[schedule] health`) last ran. |
 
@@ -102,7 +106,7 @@ Made by a running desk, readable by you only. Without `XDG_RUNTIME_DIR`, they go
 
 | Path | What it's for |
 |---|---|
-| `cards-<pid>.sock` | Card sessions' desk tools (alerts, tickets, link, ci). |
+| `cards-<pid>.sock` | The desk tools of the Claudes desk starts: card sessions, workspaces, autopilots, drawings and the desk Claude (see [`desk mcp`](/reference/cli/#internal-commands)). |
 | `infra-<pid>-<tab>.sock` | One per infra tab: its Claude's tools. |
 | `peer/<pid>.sock` | `desk peer`. It talks to the newest one. |
 
@@ -117,4 +121,6 @@ the last pane closes): there are no `ControlMaster` sockets.
 | `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `XDG_RUNTIME_DIR` | Move the folders above. |
 | `ASBRU_CFG` | Where Ásbrú's `asbru.yml` is, for the import. |
 | `SHELL` | Handed to everything desk runs. If it names a shell that isn't there, desk fixes it at start. |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | When set, card sessions compact at your value instead of desk's 200K ([compaction](/sessions/panel/)). |
+| `NEW_RELIC_LICENSE_KEY` | The license key for [reporting desk's crashes](/reference/troubleshooting/#report-to-new-relic), in place of `[newrelic] license_key`. |
 | `DESK_INFRA_DEBUG` | A file to append the infra Claude's raw stream to, for debugging. |

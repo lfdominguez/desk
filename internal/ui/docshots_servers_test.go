@@ -191,7 +191,31 @@ func init() {
 			s.u.serversClicked("Globex", time.Now())
 			s.u.serversClicked("Globex", time.Now())
 			s.settle()
-			s.shot("srv-picker", cut{"box", dp(518, 106, 1082, 425), true})
+			box := func() image.Rectangle { // the picker is as tall as its rows, New server last
+				return image.Rect(int(516*shotScale), int(106*shotScale), int(1084*shotScale), s.at("pick+new").Max.Y+int(16*shotScale))
+			}
+			b := box()
+			orgsAway(s)
+			s.shot("srv-picker", cut{"box", b, true})
+			s.key(key.NameDownArrow, 0) // web-01: Edit beside it
+			row := around(union(s.at("pickweb/web-01"), s.at("pickEdit")), 4)
+			orgsAway(s)
+			s.shot("srv-picker-edit", cut{"row", row, true})
+			s.click("pickEdit")
+			form := s.modal(520, "sfSave")
+			orgsAway(s)
+			s.shot("srv-form-edit", cut{"dialog", form, false})
+			s.click("sfCancel")
+			s.u.pickQ.SetText("cache-01") // the form starts with the name searched for
+			s.settle()
+			s.click("pick+new")
+			f := s.u.srvForm
+			for i, v := range map[int]string{sfAddr: "192.0.2.31", sfUser: "deploy", sfGroup: "cache", sfDesc: "Redis for the web servers"} {
+				f.ed[i].SetText(v)
+			}
+			form = s.modal(520, "sfSave")
+			orgsAway(s)
+			s.shot("srv-form-new", cut{"dialog", form, false})
 		}},
 		scene{"srv-split", func(s *shooter) {
 			srvStart(s)
@@ -209,7 +233,7 @@ func init() {
 			srvOpen(s, "web", "web-01")
 			srvOpen(s, "web", "web-02")
 			s.key("G", srvMod)
-			s.shot("srv-group", cut{"cards", dp(233, 75, 912, 125), true}, cut{"ask", dp(233, 898, 1600, 950), true})
+			s.shot("srv-group", cut{"", dp(233, 75, 912, 125), true}, cut{"", dp(233, 898, 1600, 950), true})
 		}},
 		scene{"srv-conn", func(s *shooter) {
 			srvClaude()
@@ -277,7 +301,7 @@ func init() {
 			s.click("cfgAsbru")
 			s.shot("srv-asbru-pick", cut{"servers", part, true})
 			s.click("cfgAsbru:Prod")
-			s.shot("srv-asbru-done", cut{"servers", part, false}, cut{"toast", dp(520, 889, 1078, 929), true})
+			s.shot("srv-asbru-done", cut{"toast", dp(520, 889, 1078, 929), true})
 		}},
 	)
 	// The palette, empty and with a query each: the box is as tall as what it lists.

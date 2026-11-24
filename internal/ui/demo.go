@@ -182,7 +182,7 @@ func demoBoard() []demoCard {
 		{col: "To do", card: kanban.Card{Title: "Dark mode for the dashboard", Org: "Globex", Labels: []string{"web"}, Due: day(5)}},
 		{col: "In progress", card: kanban.Card{Title: "Migrate the billing exports to S3", Org: "Globex", Dir: "billing", Labels: []string{"billing"}, Priority: 2,
 			Status: kanban.StatusWaiting, Note: "Which bucket region should the exports use?", Last: "The exporter now streams to S3. Which bucket region should the exports use: eu-west-1 like the rest of billing, or us-east-1?",
-			Session: kanban.Session{ID: "demo-billing", Turns: 6, Tokens: 182000, Cost: 1.84, Context: 71000, Window: 200000}, Updated: ago(4),
+			Session: kanban.Session{ID: "demo-billing", Turns: 6, Tokens: 182000, Cost: 1.84, Context: 71000, Window: 200000, Work: 5100}, Updated: ago(4),
 			Links: []kanban.Link{demoPR("globex-org/billing", 88, "open · CI passing", links.ToneGood)}},
 			chat: []kanban.ChatMsg{
 				{Who: "you", Text: "Move the nightly billing exports from the local disk to S3.", At: ago(31)},
@@ -191,12 +191,12 @@ func demoBoard() []demoCard {
 				{Who: "claude", Text: "The exporter now streams to S3 through a multipart upload, and the tests pass.\n\nWhich bucket region should the exports use: **eu-west-1** like the rest of billing, or **us-east-1**?", At: ago(4)},
 			}},
 		{col: "In progress", card: kanban.Card{Title: "Fix the flaky checkout e2e test", Org: "Acme", Dir: "web", Labels: []string{"tests"}, Priority: 1,
-			Status: kanban.StatusWaiting, Note: "CI failed on e2e (checkout): let's look", Session: kanban.Session{ID: "demo-e2e", Turns: 3, Tokens: 64000, Cost: 0.71, Context: 38000, Window: 200000}, Updated: ago(12),
+			Status: kanban.StatusWaiting, Note: "CI failed on e2e (checkout): let's look", Session: kanban.Session{ID: "demo-e2e", Turns: 3, Tokens: 64000, Cost: 0.71, Context: 38000, Window: 200000, Work: 1800}, Updated: ago(12),
 			Links: []kanban.Link{pr("acme-corp/web", 604, "open · CI failed", links.ToneBad)}}},
 		{col: "Blocked", card: kanban.Card{Title: "SSO for the admin panel", Org: "Initech", Dir: "portal", Labels: []string{"auth"}, Priority: 2,
-			Status: kanban.StatusBlocked, Note: "Waiting on the IdP metadata from IT", Session: kanban.Session{ID: "demo-sso", Turns: 4, Cost: 0.93}}},
-		{col: "Done", card: kanban.Card{Title: "Upgrade Go to 1.26", Org: "Acme", Dir: "api", Labels: []string{"deps"},
-			Status: kanban.StatusDone, Session: kanban.Session{ID: "demo-go", Turns: 5, Cost: 1.12},
+			Status: kanban.StatusBlocked, Note: "Waiting on the IdP metadata from IT", Session: kanban.Session{ID: "demo-sso", Turns: 4, Cost: 0.93, Work: 2400}}},
+		{col: "Done", card: kanban.Card{Title: "Upgrade Go to 1.26", Org: "Acme", Dir: "api", Labels: []string{"deps"}, Logged: 4320, // already on its ticket
+			Status: kanban.StatusDone, Session: kanban.Session{ID: "demo-go", Turns: 5, Cost: 1.12, Work: 4320},
 			Links: []kanban.Link{pr("acme-corp/api", 597, "merged", links.ToneDone)}}},
 	}
 }
@@ -230,10 +230,10 @@ func demoArchived() []struct {
 		{kanban.Card{Title: "Move the billing cron to the queue", Org: "Globex", Dir: "billing", Labels: []string{"billing", "infra"}, Status: kanban.StatusDone,
 			Session: kanban.Session{Turns: 12, Cost: 3.05}, Links: []kanban.Link{demoPR("globex-org/billing", 212, "merged", links.ToneDone)}}, 19, nil},
 		{kanban.Card{Title: "Fix the flaky checkout test", Org: "Globex", Dir: "shop", Labels: []string{"tests"}, Status: kanban.StatusDone,
-			Session: kanban.Session{Turns: 4, Cost: 0.58}, Links: []kanban.Link{demoPR("globex-org/shop", 431, "merged", links.ToneDone)}}, 3, nil},
+			Session: kanban.Session{Turns: 4, Cost: 0.58, Work: 2700}, Logged: 2700, Links: []kanban.Link{demoPR("globex-org/shop", 431, "merged", links.ToneDone)}}, 3, nil},
 		{kanban.Card{Title: "Rotate the API keys", Org: "Acme", Dir: "api", Labels: []string{"security"}, Status: kanban.StatusDone,
 			Notes:   "Rotate the **staging** and **production** API keys before the old ones expire.\n\n- update the vault items\n- restart the API pods\n- revoke the old keys",
-			Session: kanban.Session{Turns: 3, Tokens: 41000, Cost: 0.64}}, 1, []kanban.ChatMsg{
+			Session: kanban.Session{Turns: 3, Tokens: 41000, Cost: 0.64, Work: 1500}, Logged: 1500}, 1, []kanban.ChatMsg{
 			{Who: "you", Text: "Rotate the staging and production API keys; the old ones expire Friday."},
 			{Who: "claude", Text: "New keys are in the vault for both environments, and the API pods restarted on them. Staging's health check passes."},
 			{Who: "you", Text: "Production too?"},

@@ -59,7 +59,6 @@ func init() {
 			s.move(boardAway)
 			s.settle()
 			s.shot("board-sidebar",
-				cut{"top", dp(0, 45, 233, 950), false},
 				cut{"all", boardSideSection(s, "side", "side"), false},
 				cut{"agents", image.Rect(0, s.at("side").Max.Y+6, scaled(image.Pt(233, 0)).X, s.at("sidesess:"+boardCard(s, "SSO for the admin panel").ID).Max.Y+6), false},
 				cut{"status", boardSideSection(s, "sidest:"+kanban.StatusWorking, "sidest:"+kanban.StatusFailed), false},
@@ -68,7 +67,6 @@ func init() {
 			)
 			boardSideEnd(s) // the rest of the sidebar
 			s.shot("board-sidebar-end",
-				cut{"bottom", dp(0, 45, 233, 950), false},
 				cut{"labels", boardSideSection(s, "sidelab:api", "sidelab:web"), false},
 				cut{"links", boardSideSection(s, "sideln:review", "sideln:tickets"), false},
 				cut{"due", boardSideSection(s, "sidedue:over", "sidedue:week"), false},
@@ -90,10 +88,7 @@ func init() {
 			s.click("sidest:" + kanban.StatusWaiting)
 			s.move(boardAway)
 			s.settle()
-			s.shot("board-view",
-				cut{"row", around(s.at("sidest:"+kanban.StatusWaiting), 2), true},
-				cut{"header", dp(2, 2, 264, 44), false},
-			)
+			s.shot("board-view", cut{"row", around(s.at("sidest:"+kanban.StatusWaiting), 2), true})
 		}},
 		scene{"board-archive", func(s *shooter) {
 			id := boardCard(s, "Fix the flaky checkout e2e test").ID // the card moves to the archive: keep its id, not a pointer
@@ -112,7 +107,7 @@ func init() {
 			s.click("archChk" + id)
 			s.move(boardAway)
 			s.settle()
-			s.shot("board-archive-bulk", cut{"bar", around(s.at("archBulkDelete"), 6), true})
+			s.shot("board-archive-bulk", cut{"", around(s.at("archBulkDelete"), 6), true})
 			s.click("archBulkClear")
 			s.click("arch" + archivedID(s, "Rotate the API keys")) // the demo's card with notes and a chat
 			s.move(boardAway)
@@ -121,7 +116,7 @@ func init() {
 		}},
 		scene{"board-palette", func(s *shooter) {
 			s.key("K", key.ModShortcut)
-			s.shot("board-palette", cut{"box", dp(444, 78, 1156, 656), false})
+			s.shot("board-palette")
 			s.typ("acme")
 			s.shot("board-palette-search", cut{"box", dp(444, 78, 1156, 494), false})
 			s.key(key.NameTab, 0)
@@ -152,30 +147,25 @@ func init() {
 		scene{"cards-new", func(s *shooter) {
 			s.key("N", key.ModShortcut)
 			s.shot("cards-new",
-				cut{"dialog", cardsDialog(s), false},
 				cut{"box", cardsWhatBox(s), false},
 				cut{"org", cardsRow(s, union(s.at("pillorg"), s.at("orgInitech")), 6), true},
 				cut{"head", around(union(dp(460, 64, 1140, 80), s.at("shClose")), 6), false},
 				cut{"foot", around(union(s.at("shOpt"), s.at("shSave")), 8), false},
 			)
 			s.typ("Renew the TLS certificate on the @Acme api servers before friday, ABC-123 !high #infra")
-			s.shot("cards-new-tokens",
-				cut{"dialog", cardsDialog(s), false},
-				cut{"pills", around(union(s.at("pillorg"), s.at("pillmore")), 6), true},
-			)
+			s.shot("cards-new-tokens", cut{"pills", around(union(s.at("pillorg"), s.at("pillmore")), 6), true})
 			s.click("orgAcme")
 			s.click("pillmore")
 			s.move(boardAway)
 			s.settle()
 			s.shot("cards-new-more",
-				cut{"dialog", cardsDialog(s), false},
 				cut{"place", around(union(s.at("orgChange"), s.at("dirapi")), 8), false},
 				cut{"ticket", cardsRow(s, union(s.at("ticket0"), s.at("ticket1")).Union(s.at("ticket0").Sub(image.Pt(0, int(24*shotScale)))), 6), true},
 			)
 			s.send(pointer.Event{Kind: pointer.Scroll, Source: pointer.Mouse, Position: f32.Pt(1200, 1000), Scroll: f32.Pt(0, 2000)})
 			s.move(boardAway)
 			s.settle()
-			s.shot("cards-new-more-end", cut{"dialog", cardsDialog(s), false})
+			s.shot("cards-new-more-end")
 		}},
 		scene{"cards-optimize", func(s *shooter) {
 			s.key("N", key.ModShortcut)
@@ -191,7 +181,6 @@ func init() {
 			s.move(boardAway)
 			s.settle()
 			s.shot("cards-optimize",
-				cut{"dialog", cardsDialog(s), false},
 				cut{"banner", cardsRow(s, s.at("shAccept"), 10), false},
 				cut{"mine", around(union(s.at("shMineTitle"), s.at("shMineNotes")), 6).Union(cardsRow(s, s.at("shMineTitle"), 6)), false},
 				cut{"foot", around(union(s.at("shDiscard"), s.at("shSave")), 8), true},

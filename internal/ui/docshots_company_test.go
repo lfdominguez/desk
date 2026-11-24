@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"time"
 
 	"github.com/lfdominguez/desk/internal/claude"
@@ -15,6 +16,13 @@ import (
 func init() {
 	scenes = append(scenes, scene{"orgs-company", func(s *shooter) {
 		s.infra() // Globex's servers: its Infra lead
+		// an autopilot on two of Acme's tickets: tethered to its cards in the sky
+		todo := s.u.b.Column("To do")
+		pilot := s.u.b.Add(todo, kanban.Card{Title: "Autopilot: ABC-123, ABC-140", Org: "Acme", Labels: []string{"autopilot"},
+			Pilot: &kanban.Pilot{Level: kanban.PilotAuto, Max: 2}}).ID
+		for _, t := range []string{"ABC-123 Login retry fails after the token expires", "ABC-140 Export the audit log as CSV"} {
+			s.u.b.Add(todo, kanban.Card{Title: t, Org: "Acme", Parent: pilot})
+		}
 		states := []string{kanban.StatusWorking, kanban.StatusWaiting, kanban.StatusWorking, kanban.StatusBlocked, kanban.StatusReview}
 		keys := map[string]string{}
 		n, done := 0, s.u.b.Column("Done")
@@ -26,6 +34,13 @@ func init() {
 				}
 				if c.Session.ID == "" {
 					c.Session.ID = claude.NewSessionID()
+				}
+				if c.Pilot != nil || c.Parent != "" { // the autopilot's: at work, one card ready
+					c.Status = kanban.StatusWorking
+					if strings.HasPrefix(c.Title, "ABC-140") {
+						c.Status = kanban.StatusReview
+					}
+					continue
 				}
 				c.Status, c.Note = states[n%len(states)], ""
 				if n == 1 {
@@ -43,6 +58,7 @@ func init() {
 		company.Log(acme, company.Entry{At: now, Kind: "brief", From: keys["Acme"], To: "Security lead", Text: "May the token live in .env?"})
 		company.Log(acme, company.Entry{At: now, Kind: "brief", From: keys["Acme"], To: "desk-cto", Text: "Split the API?"})
 		company.Log(globex, company.Entry{At: now, Kind: "brief", From: keys["Globex"], To: "Infra lead", Text: "Restart nginx on web-1"})
+		s.u.save()
 		s.u.view = viewCompany
 		s.settle()
 		s.shot("orgs-company")

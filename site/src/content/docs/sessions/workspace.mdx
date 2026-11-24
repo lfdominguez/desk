@@ -57,6 +57,13 @@ adds it with desk's `add_project` tool. desk takes the repository's root above t
   opens the file. The folders the tree leaves out are left out here too.
 - The **×** on an added project's row takes it out of the workspace (not its files).
 
+<figure class="cut">
+
+![The palette over the workspace on its Files tab, searching "go": go.mod as the top result, then login.go and refresh.go with their folders, and go.mod's path on the right](../../../assets/shots/sess-workspace-files-box.png)
+
+<figcaption>Quick open: the workspace's files, matched as you type.</figcaption>
+</figure>
+
 The projects are saved on the card (`projects` in the board file).
 
 ## The editor
@@ -100,6 +107,13 @@ In the editor, a bar opens over the file:
   start.
 
 <kbd>Esc</kbd> or the **×** closes the bar and gives the editor the keys back.
+
+<figure class="cut">
+
+![The find bar over login.go: "token" found, 2 of 3, with ↑, ↓ and ×; Replace with "accessToken", Replace and All; the matches marked in the file below](../../../assets/shots/sess-workspace-find-bar.png)
+
+<figcaption>Find and replace (<kbd>Ctrl</kbd>+<kbd>H</kbd>): a query without capitals finds any case.</figcaption>
+</figure>
 
 - <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions (a file opened
   through a symlink is written where the link points; the link stays). A tab with

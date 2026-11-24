@@ -41,7 +41,7 @@ with the organization's own Claude first.
 
 <figure class="cut">
 
-![The picker: "Globex · servers", a search field "Find a server: name, group, address", Globex Claude, then web-01 and web-02 under web, db-01 and db-02 under db, each with its address](../../../assets/shots/srv-picker-box.png)
+![The picker: "Globex · servers", a search field "Find a server: name, group, address", Globex Claude, then web-01 and web-02 under web, db-01 and db-02 under db, each with its address, and New server last](../../../assets/shots/srv-picker-box.png)
 
 <figcaption>Type to filter by name, group or address. Enter opens the selected match, the first one at the start.</figcaption>
 </figure>
@@ -58,9 +58,33 @@ connects to the servers you ask it about.
 
 The picker's last row, **New server**, opens a form for a new server: name, address, port, user,
 key file, group, description and password (a vault item, as `#@ password` takes it). Type the
-name in the search first and the form starts with it. **Edit** beside the selected server, or
-<kbd>Ctrl</kbd>+<kbd>E</kbd>, opens the same form with that server's own lines; its name can't
-change there. <kbd>Enter</kbd> in any field saves it to the
+name in the search first and the form starts with it.
+
+<figure class="cut">
+
+![The New server form for Globex: Name cache-01, Group cache, Address 192.0.2.31, Port, User deploy, Key file, Description "Redis for the web servers" and Password, with Cancel and Save](../../../assets/shots/srv-form-new-dialog.png)
+
+<figcaption>A new server, named from the search.</figcaption>
+</figure>
+
+**Edit** beside the selected server, or <kbd>Ctrl</kbd>+<kbd>E</kbd>, opens the same form with
+that server's own lines; its name can't change there.
+
+<figure class="cut">
+
+![The picker's web-01 row selected, with Edit and Ctrl+E beside it](../../../assets/shots/srv-picker-edit-row.png)
+
+<figcaption>Edit shows on the selected server only.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![The Edit web-01 form: Name web-01, Group web, Address 192.0.2.11, User deploy, Description "public proxy and billing API"](../../../assets/shots/srv-form-edit-dialog.png)
+
+<figcaption>web-01's lines in the servers file, to change.</figcaption>
+</figure>
+
+<kbd>Enter</kbd> in any field saves it to the
 [servers file](/servers/servers-file/) and goes back to the picker, <kbd>Esc</kbd> goes back
 without saving. An emptied field removes its line; an edit changes only what you changed, and a
 key file adds `IdentitiesOnly yes`. Other keywords, and a password written in the file, stay for

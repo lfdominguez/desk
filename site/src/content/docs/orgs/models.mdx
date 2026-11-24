@@ -46,6 +46,13 @@ what it may get wrong; Custom says it louder, since desk knows nothing of it. An
 may name the suggested models differently: the card says so when the base URL isn't
 OpenRouter's.
 
+<figure class="cut">
+
+![Acme's Accounts page with a new Model provider card open: Name openrouter, Base URL https://openrouter.ai/api, the API key from Environment variable OPENROUTER_API_KEY, then In place of Opus (GPT-6.1 Sol picked), In place of Sonnet (GLM 5.3) and In place of Haiku (DeepSeek V4.1 Flash), each saying what that Claude is for and what the pick may get wrong](../../../assets/shots/orgs-models-provider-card.png)
+
+<figcaption>OpenRouter in place of Claude's three models.</figcaption>
+</figure>
+
 Save refuses a provider without a name or a base URL, and two with the same name.
 
 ## Which Claude runs where
@@ -63,6 +70,13 @@ The organization's **Models** page in Settings has a row per Claude desk starts,
 | **Drawings** | A [drawing's Claude](/drawings/claude/). |
 | **Infra** | The [infra Claude](/servers/infra-claude/) in the servers' terminals. |
 | **Learn workflow** | Learn, in an organization's [ticket workflow](/orgs/workflow/). |
+
+<figure class="cut">
+
+![Acme's Models page: a row per Claude, Card sessions, Improve with Claude, Explain, Workspace, Department leads, Drawings, Infra and Learn workflow, each with Claude subscription and openrouter; Improve with Claude and Explain on openrouter](../../../assets/shots/orgs-models-page.png)
+
+<figcaption>Improve with Claude and Explain on OpenRouter, the rest on the subscription.</figcaption>
+</figure>
 
 A change counts from the next time that Claude starts. A running card session keeps its provider
 until it ends; the session's foot shows **Model via \<provider\>** in place of the plan's limits,
