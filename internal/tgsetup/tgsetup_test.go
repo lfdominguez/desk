@@ -3,6 +3,7 @@ package tgsetup
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -169,6 +170,35 @@ func TestFolder(t *testing.T) {
 	}
 	if randID() == randID() {
 		t.Fatal("randID repeats")
+	}
+}
+
+// TestPinTopics: each topic is pinned in the forum's list, in order; a
+// refusal names the topic.
+func TestPinTopics(t *testing.T) {
+	var pinned []int
+	f := &fake{}
+	f.answer = func(req bin.Encoder) (bin.Encoder, error) {
+		r, ok := req.(*tg.MessagesUpdatePinnedForumTopicRequest)
+		if !ok {
+			return nil, errors.New("unexpected " + typeName(req))
+		}
+		if p := r.Peer.(*tg.InputPeerChannel); p.ChannelID != 55 || p.AccessHash != 550 || !r.Pinned {
+			t.Errorf("%+v", r)
+		}
+		if r.TopicID == 9 {
+			return nil, tgerr.New(400, "PINNED_TOO_MUCH")
+		}
+		pinned = append(pinned, r.TopicID)
+		return &tg.Updates{}, nil
+	}
+	a := use(t, f)
+	c := Chat{ID: -1000000000055, Channel: 55, Access: 550}
+	if err := a.PinTopics(context.Background(), c, 1, 7); err != nil || fmt.Sprint(pinned) != "[1 7]" {
+		t.Fatalf("%v %v", pinned, err)
+	}
+	if err := a.PinTopics(context.Background(), c, 9); err == nil || !strings.Contains(err.Error(), "topic 9") {
+		t.Fatalf("%v", err)
 	}
 }
 

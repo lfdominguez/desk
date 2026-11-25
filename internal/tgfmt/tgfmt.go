@@ -17,6 +17,16 @@ import (
 // Max is a message's limit: Telegram counts UTF-16 code units.
 const Max = 4096
 
+// RichMax is what desk puts in one rich message (Telegram takes 32768
+// characters): long enough that a reply reads as one message on a phone.
+const RichMax = 16000
+
+// Details is body folded under summary, closed until tapped (a rich
+// message's <details>; Markdown is read inside).
+func Details(summary, body string) string {
+	return "<details><summary>" + summary + "</summary>\n\n" + strings.TrimSpace(body) + "\n\n</details>"
+}
+
 // Len is s's length as Telegram counts it.
 func Len(s string) int {
 	n := 0

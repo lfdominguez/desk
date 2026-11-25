@@ -269,12 +269,12 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   desk, the session in `~/.local/state/desk/telegram.session`) to make a "Desk Control" folder and
   a private forum group per organization you turn on (Notify, Summary or Full), with the bot as
   their admin. Or make the group yourself and send `/link Acme` in it. Each card with a
-  conversation gets a topic there, named by its state, with a pinned header (column, links,
+  conversation gets a topic there, named short for a phone (`🟢 DESK-12 :: ABC-123`: state, key, ticket), with a pinned header (column, links,
   cost); the conversation follows (Summary: yours and Claude's words; Full: also its tools),
   requests come with Allow once / Deny / Allow every, what you write (pictures, files, and voice notes as Telegram Premium's transcription of them) goes to its Claude, `/stop`
   stops its turn, `/review` sends its branch and diff with Merge / Push / Open PR (each asked
   twice), `/drawings` its drawings as pictures, `/canvas` its canvas as a picture. A Claude's drawing
-  suggestion comes as a picture with Approve / Rework (your next message goes back to that Claude) / Dismiss. Done or archived closes the topic. Tokens are masked before anything leaves (plus your own
+  suggestion comes as a picture with Approve / Rework (your next message goes back to that Claude) / Dismiss. Messages come as rich text: who said it in bold, dividers, tools folded away. Done or archived deletes the topic (the desk Claude still knows the card). Tokens are masked before anything leaves (plus your own
   `redact` pattern), and `quiet = "22:00-07:00"` makes messages arrive without a sound then.
   The bot's private chat is the General chat: `/board`, `/inbox`, `/find`, `/card DESK-12`,
   `/new @Acme fix the login !high`, `/tickets`, `/alerts`, `/ci`, `/digest week`, `/company`, `/usage`, `/drawings`, `/review DESK-12`, `/canvas DESK-12`, `/widget` (the board as a live HTML widget), `/always`,
@@ -282,7 +282,7 @@ or `NEW_RELIC_LICENSE_KEY`): [desk crashed](https://desk.domivega.com/reference/
   makes or messages cards when you ask (never edits files or runs commands; `/stop` stops its turn,
   `/forget` starts it afresh). With topics on for the bot (BotFather), the private chat gets its own
   Board, Inbox, Digest and Settings topics. An organization with
-  servers also gets an Infra topic: its infra sessions and what each terminal runs, its infra
+  servers also gets an Infra topic (pinned with General at the top, by your account): its infra sessions and what each terminal runs, its infra
   Claude's replies, approvals with Approve / Deny / Always, what you write going to that Claude,
   and `/screen` for a picture of a terminal (off until Settings allows it). A card's own infra
   session asks for its approvals in the card's topic.

@@ -115,7 +115,7 @@ func (u *ui) rmInfra(org string, o orgs.TelegramOrg) *rmJob {
 		}
 		if s.Card == "" && s.Last != "" && o.Mirror != orgs.MirrorNotify && s.Last != j.t.Said {
 			j.said = s.Last
-			j.posts = tgfmt.Split(tgfmt.Redact(s.Last), tgfmt.Max-96)
+			j.posts = tgfmt.Split(tgfmt.Redact(s.Last), tgfmt.RichMax)
 		}
 	}
 	if len(tabs) == 0 {

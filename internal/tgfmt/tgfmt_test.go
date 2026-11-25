@@ -166,3 +166,10 @@ func TestRedactAlso(t *testing.T) {
 		t.Fatal("still masked")
 	}
 }
+
+// TestDetails: a folded block, its body trimmed, Markdown kept inside.
+func TestDetails(t *testing.T) {
+	if d := Details("🔧 2 tools", "\n```\nls\n```\n"); d != "<details><summary>🔧 2 tools</summary>\n\n```\nls\n```\n\n</details>" {
+		t.Fatalf("%q", d)
+	}
+}

@@ -6,6 +6,19 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Desk Control reads better on a phone**:
+  - **Topic names:** a card's topic is named short, by its state, key and ticket (`🟢 DESK-12 :: ABC-123`). The title is in the pinned header.
+  - **Pinned topics:** with your account logged in, the Infra and General topics stay pinned at the top of the topic list.
+  - **Messages:** they use Telegram's rich text:
+    - who said what is in bold, with a divider between messages
+    - a run of tools is folded under "🔧 N tools"
+    - the header lists links with a cost footer
+    - a permission request shows its command as a highlighted `sh` block
+    - long replies arrive as one message instead of several.
+  - **Done and archived cards:** their topic is deleted instead of closed, so the list keeps only work under way. The desk Claude and `/card` still reach the card, and it gets a new topic if it comes back to the board.
+
 ## [2026.11.24] - 2026-11-24
 
 ### Changed

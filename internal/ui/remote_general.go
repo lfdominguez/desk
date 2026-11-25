@@ -83,7 +83,7 @@ func (u *ui) gnPostIn(thread int64, md string, rows [][]tgbot.Button, card strin
 // gnPostAt is gnPost into any chat and thread: an organization's topic too.
 func (u *ui) gnPostAt(chat, thread int64, md string, rows [][]tgbot.Button, card string) {
 	bot := u.phone.bot
-	parts := tgfmt.Split(tgfmt.Redact(md), tgfmt.Max-96)
+	parts := tgfmt.Split(tgfmt.Redact(md), tgfmt.RichMax)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()

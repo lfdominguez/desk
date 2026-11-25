@@ -3,15 +3,22 @@ package ui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/links"
+	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/tgbot"
 	"github.com/lfdominguez/desk/internal/tgbot/tgfake"
+	"github.com/lfdominguez/desk/internal/tgfmt"
+	"github.com/lfdominguez/desk/internal/tgsetup"
 )
 
 // remoteOn mirrors Acme (mode) to group -100555 with a bot that isn't
@@ -91,10 +98,10 @@ func TestRemoteTopic(t *testing.T) {
 	if tp == nil || tp.Thread == 0 || tp.Header == 0 || tp.Sent != 2 {
 		t.Fatalf("topic %+v", tp)
 	}
-	if name := f.Last("createForumTopic")["name"]; name != "🟢 "+c.Key()+" · Fix login" {
+	if name := f.Last("createForumTopic")["name"]; name != "🟢 "+c.Key() {
 		t.Fatalf("name %v", name)
 	}
-	if p := posted(f); len(p) != 2 || !strings.Contains(p[0], "**"+c.Key()+"** · Fix login") || !strings.Contains(p[0], "In progress") || p[1] != "On it." {
+	if p := posted(f); len(p) != 2 || !strings.Contains(p[0], "### "+c.Key()+"\n\nFix login") || !strings.Contains(p[0], "In progress") || p[1] != "On it." {
 		t.Fatalf("posted %q", p)
 	}
 	h.pumpUntil("the group's menu", func() bool { return f.Last("setMyCommands") != nil })
@@ -119,7 +126,7 @@ func TestRemoteTopic(t *testing.T) {
 	h.u.save()
 	h.topicOf(c.ID)
 	last := posted(f)[len(posted(f))-1]
-	for _, s := range []string{"🧑 *You, in desk*\n\nalso the logout", "```\nBash: go test ./...\nEdit auth.go\n```", "‹redacted›", "⚠️ a hiccup", "*CTO*"} {
+	for _, s := range []string{"**🧑 You** · _in desk_\n\nalso the logout", "<details><summary>🔧 2 tools</summary>", "```\nBash: go test ./...\nEdit auth.go\n```", "‹redacted›", "**⚠️ Error**\n\na hiccup", "**💬 CTO**", "\n\n---\n\n"} {
 		if !strings.Contains(last, s) {
 			t.Fatalf("%q lacks %q", last, s)
 		}
@@ -131,7 +138,7 @@ func TestRemoteTopic(t *testing.T) {
 	h.u.onEvent(c.ID, 0, claude.Event{Kind: claude.KindAsk, Ask: &claude.Request{ID: "r1", Tool: "Bash", Line: "Bash: git push", Input: json.RawMessage(`{"command":"git push"}`)}})
 	h.u.save()
 	h.topicOf(c.ID)
-	if name := f.Last("editForumTopic")["name"]; name != "🟡 "+c.Key()+" · Fix login" {
+	if name := f.Last("editForumTopic")["name"]; name != "🟡 "+c.Key() {
 		t.Fatalf("renamed %v", name)
 	}
 	if !strings.Contains(fmt.Sprint(f.Last("editMessageText")["rich_message"]), "Your turn") {
@@ -223,10 +230,26 @@ func TestRemoteTopic(t *testing.T) {
 	}
 }
 
-// TestRemoteLife: Done closes a card's topic, back on the board reopens
-// it, the archive closes it, a deleted card's topic goes; the topics are
-// kept in telegram.json for the next start; a failure says so and the next
-// change tries again.
+// TestRmName: a topic's name is its state, key and ticket, short for a
+// phone's topic list; links that aren't tickets stay out.
+func TestRmName(t *testing.T) {
+	c := &kanban.Card{Num: 77, Status: kanban.StatusWaiting, Title: "A long title nobody reads on a phone",
+		Links: []kanban.Link{{Kind: links.KindGitHubPR, Ref: "PR #12"}, {Kind: links.KindJira, Ref: "ABC-123"}}}
+	if n := rmName(c); n != "🟡 DESK-77 :: ABC-123" {
+		t.Fatal(n)
+	}
+	c.Links = c.Links[:1]
+	if n := rmName(c); n != "🟡 DESK-77" {
+		t.Fatal(n)
+	}
+}
+
+// TestRemoteLife: Done deletes a card's topic (the topic list keeps only
+// work under way), back on the board it gets a new one with its last
+// message, the archive deletes it too, a topic an older desk closed is
+// reopened, a deleted card's topic goes; the topics are kept in
+// telegram.json for the next start; a failure says so and the next change
+// tries again.
 func TestRemoteLife(t *testing.T) {
 	h := newHarness(t)
 	f := remoteOn(t, h, "summary")
@@ -236,13 +259,13 @@ func TestRemoteLife(t *testing.T) {
 	h.topicOf(c.ID)
 	h.u.moveTo(c.ID, "Done")
 	h.u.save()
-	if tp := h.topicOf(c.ID); !tp.Closed || f.Last("closeForumTopic") == nil {
-		t.Fatalf("not closed %+v", tp)
+	if tp := h.topicOf(c.ID); tp != nil || f.Last("deleteForumTopic") == nil || f.Last("closeForumTopic") != nil {
+		t.Fatalf("Done kept its topic %+v", tp)
 	}
 	h.u.moveTo(c.ID, "In progress")
 	h.u.save()
-	if tp := h.topicOf(c.ID); tp.Closed || f.Last("reopenForumTopic") == nil {
-		t.Fatalf("not reopened %+v", tp)
+	if tp := h.topicOf(c.ID); tp == nil || len(f.Calls("createForumTopic")) != 2 || posted(f)[len(posted(f))-1] != "On it." {
+		t.Fatalf("no new topic %+v %q", tp, posted(f))
 	}
 	h.u.sayMsg(c.ID, kanban.ChatMsg{Who: "tool", Text: "Bash: ls"}) // summary: no tools
 	h.u.save()
@@ -252,10 +275,10 @@ func TestRemoteLife(t *testing.T) {
 			t.Fatal("a tool in a summary")
 		}
 	}
-	h.u.b.ArchiveCard(c.ID)
+	h.u.rm.topics[c.ID].Closed = true // as an older desk left it
 	h.u.save()
-	if tp := h.topicOf(c.ID); !tp.Closed || !strings.Contains(tp.Head, "Archived") {
-		t.Fatalf("archived %+v", tp)
+	if tp := h.topicOf(c.ID); tp.Closed || f.Last("reopenForumTopic") == nil {
+		t.Fatalf("not reopened %+v", tp)
 	}
 	b, _ := os.ReadFile(h.u.rmFile())
 	if !strings.Contains(string(b), `"thread"`) {
@@ -265,10 +288,18 @@ func TestRemoteLife(t *testing.T) {
 	if h.u.rm.topics[c.ID] == nil {
 		t.Fatal("not read back")
 	}
+	deleted := len(f.Calls("deleteForumTopic"))
+	h.u.b.ArchiveCard(c.ID)
+	h.u.save()
+	if tp := h.topicOf(c.ID); tp != nil || len(f.Calls("deleteForumTopic")) != deleted+1 {
+		t.Fatalf("archived kept its topic %+v", tp)
+	}
 	h.u.b.Restore(c.ID)
+	h.u.save()
+	h.topicOf(c.ID)
 	h.u.b.Delete(c.ID)
 	h.u.save()
-	if h.topicOf(c.ID) != nil || f.Last("deleteForumTopic") == nil {
+	if h.topicOf(c.ID) != nil || len(f.Calls("deleteForumTopic")) != deleted+2 {
 		t.Fatal("topic of a deleted card kept")
 	}
 
@@ -382,7 +413,7 @@ func TestRemoteRun(t *testing.T) {
 	if !strings.HasPrefix(j.failure, "send a request") {
 		t.Fatalf("%q", j.failure)
 	}
-	for _, step := range []struct{ method, act string }{{"closeForumTopic", "close"}, {"deleteForumTopic", "delete"}} {
+	for _, step := range []struct{ method, act string }{{"deleteForumTopic", "delete"}} {
 		f.Fail(step.method, "Bad Request: no")
 		j := &rmJob{t: rmTopic{Chat: -100, Thread: 4}, act: step.act}
 		rmRun(ctx, bot, j)
@@ -400,8 +431,70 @@ func TestRemoteRun(t *testing.T) {
 	}
 	c := &kanban.Card{Title: "x", Links: []kanban.Link{{URL: "https://github.com/globex-org/web/pull/12", Ref: "PR #12", State: "approved"}, {URL: "https://globex.atlassian.net/browse/ABC-123"}},
 		Session: kanban.Session{Turns: 3, Cost: 0.5, Window: 200000, Context: 50000}}
-	if h := rmHead(c, "Review"); !strings.Contains(h, "[PR \\#12](https://github.com/globex-org/web/pull/12) approved") || !strings.Contains(h, "ABC-123") ||
-		!strings.Contains(h, "$0.50 · 3 turns · context 25%") {
+	if h := rmHead(c, "Review"); !strings.Contains(h, "- [PR \\#12](https://github.com/globex-org/web/pull/12) · approved") || !strings.Contains(h, "ABC-123") ||
+		!strings.Contains(h, "<footer>$0.50 · 3 turns · context 25%</footer>") {
 		t.Fatal(h)
+	}
+}
+
+// TestRmPin: with the account logged in, each mirrored group's General
+// topic and its Infra topic are pinned at the top of its list, once a run;
+// no account, or a group desk didn't make, pins nothing; a refusal says so.
+func TestRmPin(t *testing.T) {
+	h := newHarness(t)
+	remoteOn(t, h, "full")
+	var mu sync.Mutex
+	var pins [][]int
+	var fail error
+	old := tgPinTopics
+	tgPinTopics = func(_ tgsetup.Account, _ context.Context, c tgsetup.Chat, topics ...int) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if c.Channel != 555 || c.Access != 5550 {
+			t.Errorf("chat %+v", c)
+		}
+		pins = append(pins, topics)
+		return fail
+	}
+	t.Cleanup(func() { tgPinTopics = old })
+	count := func() int { mu.Lock(); defer mu.Unlock(); return len(pins) }
+	acct := "[telegram]\ntoken = \"T0K\"\nchat_id = 42\napi_id = 5\n[telegram.api_hash]\ntoken = \"h\"\n[telegram.orgs.Acme]\nmirror = \"full\"\nchat_id = -100555\n"
+	settingsFile(t, acct+"channel = 555\naccess_hash = 5550\n")
+	h.u.rmConfig() // not logged in
+	settingsFile(t, acct)
+	os.MkdirAll(filepath.Dir(orgs.TelegramSession()), 0o700)
+	os.WriteFile(orgs.TelegramSession(), nil, 0o600)
+	h.u.rmConfig() // no channel: linked by hand
+	if count() != 0 {
+		t.Fatalf("pinned %v", pins)
+	}
+	settingsFile(t, acct+"channel = 555\naccess_hash = 5550\n")
+	h.u.rmConfig()
+	h.pumpUntil("General pinned", func() bool { return count() == 1 })
+	h.u.rm.topics[rmInfraKey("Acme")] = &rmTopic{Chat: -100555, Thread: 7}
+	fail = errors.New("pin topic 7: CHAT_ADMIN_REQUIRED")
+	h.u.rmPin()
+	h.u.rmPin() // tried once a run
+	h.pumpUntil("the refusal", func() bool { return strings.Contains(h.u.toast, "CHAT_ADMIN_REQUIRED") })
+	if count() != 2 || fmt.Sprint(pins) != "[[1] [7]]" {
+		t.Fatalf("pins %v", pins)
+	}
+}
+
+// TestRmPack: parts share a post, divided, until the next would pass
+// RichMax; a part longer than one is cut.
+func TestRmPack(t *testing.T) {
+	big := strings.Repeat("w", tgfmt.RichMax-2)
+	p := rmPack([]string{"a", "b", big, strings.Repeat("x\n\n", tgfmt.RichMax)})
+	if len(p) < 4 || p[0] != "a\n\n---\n\nb" || p[1] != big {
+		t.Fatalf("%d posts, first %.40q", len(p), p[0])
+	}
+	for _, s := range p {
+		if tgfmt.Len(s) > tgfmt.RichMax {
+			t.Fatal("a post over RichMax")
+		}
+	}
+	if rmPack(nil) != nil {
+		t.Fatal("posts from nothing")
 	}
 }

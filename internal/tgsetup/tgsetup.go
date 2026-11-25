@@ -297,6 +297,20 @@ func forum(ctx context.Context, api *tg.Client, title, about, bot string) (Chat,
 	return c, nil
 }
 
+// PinTopics pins topics (by id; the General topic is 1) at the top of
+// forum c's topic list: a bot can't, the group's owner can.
+func (a Account) PinTopics(ctx context.Context, c Chat, topics ...int) error {
+	return act(ctx, a, func(ctx context.Context, api *tg.Client) error {
+		peer := &tg.InputPeerChannel{ChannelID: c.Channel, AccessHash: c.Access}
+		for _, id := range topics {
+			if _, err := api.MessagesUpdatePinnedForumTopic(ctx, &tg.MessagesUpdatePinnedForumTopicRequest{Peer: peer, TopicID: id, Pinned: true}); err != nil {
+				return fmt.Errorf("pin topic %d: %w", id, err)
+			}
+		}
+		return nil
+	})
+}
+
 // botUser is the bot as a user the account can add, its chat started so
 // it can go in a folder.
 func botUser(ctx context.Context, api *tg.Client, bot string) (*tg.InputUser, error) {

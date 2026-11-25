@@ -14,6 +14,7 @@ import (
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/tgbot"
 	"github.com/lfdominguez/desk/internal/tgfmt"
+	"github.com/lfdominguez/desk/internal/tgsetup"
 )
 
 // Desk Control's card topics: in each mirrored organization's forum group
@@ -21,9 +22,9 @@ import (
 // topic. Its name carries the card's state, a pinned header its column,
 // links and cost; the conversation follows as the mirror allows (Notify:
 // the turns that end on the user; Summary: the user's and Claude's words;
-// Full: also its tools), and a request comes with buttons. Done or
-// archived closes the topic, a restore reopens it, a deleted card takes it
-// along. What's typed in a topic goes to the card's Claude.
+// Full: also its tools), and a request comes with buttons. Done,
+// archived or deleted takes the topic away (the conversation stays in desk);
+// back on the board, the card gets a new one. What's typed in a topic goes to the card's Claude.
 //
 // Each board change (save) plans what Telegram lacks on the UI goroutine,
 // then one goroutine sends it, one plan at a time; what went is kept in
@@ -53,6 +54,7 @@ type remote struct {
 	from   map[string]string // a card's message that came from its topic: not sent back
 	menus  map[int64]bool    // the groups whose command menu is set this run
 	screen bool              // [telegram] screen, for the Settings topic
+	pinned map[string]bool   // "chat:topic" pinned (or tried) this run
 }
 
 // rmCommands is an organization group's command menu.
@@ -70,7 +72,7 @@ func (u *ui) rmFile() string { return filepath.Join(filepath.Dir(u.path), "teleg
 
 // startRemote reads the topics desk made; after startPhone.
 func (u *ui) startRemote() {
-	u.rm = &remote{topics: map[string]*rmTopic{}, from: map[string]string{}, menus: map[int64]bool{}}
+	u.rm = &remote{topics: map[string]*rmTopic{}, from: map[string]string{}, menus: map[int64]bool{}, pinned: map[string]bool{}}
 	if b, err := os.ReadFile(u.rmFile()); err == nil {
 		json.Unmarshal(b, &u.rm.topics)
 	}
@@ -101,6 +103,53 @@ func (u *ui) rmConfig() {
 		}
 	}
 	u.remoteKick()
+	u.rmPin()
+}
+
+// tgPinTopics pins topics in a forum's list as the user's account; tests
+// replace it.
+var tgPinTopics = tgsetup.Account.PinTopics
+
+// rmPin keeps each mirrored group's General topic and its Infra topic at
+// the top of the topic list, where a phone sees them first. Only the
+// user's logged-in account can pin (a bot can't); each is tried once a run.
+func (u *ui) rmPin() {
+	t := orgs.TelegramSettings()
+	a, err := tgAccount(t)
+	if err != nil || !a.LoggedIn() {
+		return
+	}
+	for org, o := range u.rm.orgs {
+		if o.Chat == 0 || o.Channel == 0 {
+			continue
+		}
+		var topics []int
+		for _, id := range []int64{1, u.rmThread(rmInfraKey(org))} { // 1: General
+			if k := fmt.Sprint(o.Chat, ":", id); id != 0 && !u.rm.pinned[k] {
+				u.rm.pinned[k] = true
+				topics = append(topics, int(id))
+			}
+		}
+		if len(topics) == 0 {
+			continue
+		}
+		c := tgsetup.Chat{ID: o.Chat, Channel: o.Channel, Access: o.Access}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			if err := tgPinTopics(a, ctx, c, topics...); err != nil {
+				u.later(func() { u.showToast("Telegram: "+firstLine(err.Error()), true) })
+			}
+		}()
+	}
+}
+
+// rmThread is key's topic thread, 0 none yet.
+func (u *ui) rmThread(key string) int64 {
+	if t := u.rm.topics[key]; t != nil {
+		return t.Thread
+	}
+	return 0
 }
 
 // rmMirror is how card c's organization is mirrored ("" none) and its group.
@@ -139,7 +188,7 @@ type rmJob struct {
 	ask     *tgbot.Out // a request's message, buttons and all
 	askID   string
 	askEnd  string // the old request's message once it's answered
-	act     string // "close", "reopen" or "delete"
+	act     string // "reopen" or "delete"
 	sent    int
 	said    string
 	failure string
@@ -193,6 +242,8 @@ func (u *ui) remoteDone(jobs []*rmJob) {
 		u.showToast("Telegram: "+failed[0], true)
 	}
 	u.rm.busy = false
+	// An Infra topic may have just been made.
+	u.rmPin()
 	if u.rm.again && len(failed) == 0 { // a failure waits for the next change: no loop on a dead network
 		u.rm.again = false
 		u.remoteKick()
@@ -244,11 +295,10 @@ func (u *ui) rmCard(c *kanban.Card, col string, archived bool) *rmJob {
 	} else {
 		j.t = *t
 	}
-	closed := archived || col == "Done"
-	switch {
-	case closed && !j.t.Closed:
-		j.act = "close"
-	case !closed && j.t.Closed:
+	if archived || col == "Done" { // done work leaves the topic list: the General chat and the desk Claude still reach it
+		return &rmJob{id: c.ID, t: j.t, act: "delete"}
+	}
+	if j.t.Closed { // closed by an older desk
 		j.act = "reopen"
 	}
 	if name := rmName(c); name != j.t.Name {
@@ -325,48 +375,55 @@ func rmEmoji(status string) string {
 	return "⏸"
 }
 
-// rmName is card c's topic name (Telegram takes 128 characters).
+// rmName is card c's topic name: its state, key and ticket, short enough
+// to read in a phone's topic list (the title is in the pinned header).
 func rmName(c *kanban.Card) string {
-	return tgfmt.Clip(rmEmoji(c.Status)+" "+c.Key()+" · "+c.Title, 128)
+	name := rmEmoji(c.Status) + " " + c.Key()
+	if t := ticketOf(c); t != nil && t.Ref != "" {
+		name += " :: " + t.Ref
+	}
+	return tgfmt.Clip(name, 128)
 }
 
 // rmHead is card c's pinned header: what it is, where, its links, cost.
 func rmHead(c *kanban.Card, col string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "**%s** · %s\n\n", c.Key(), tgfmt.Escape(c.Title))
+	fmt.Fprintf(&b, "### %s\n\n%s\n\n", c.Key(), tgfmt.Escape(c.Title))
 	where := col
 	if where == "" {
 		where = "Archived"
 	}
 	fmt.Fprintf(&b, "%s **%s** · %s\n", rmEmoji(c.Status), tgfmt.Escape(where), tgfmt.Escape(statusWords(c)))
-	var links []string
 	for _, l := range c.Links {
-		s := "[" + tgfmt.Escape(cmp.Or(l.Ref, l.URL)) + "](" + l.URL + ")"
+		s := "- [" + tgfmt.Escape(cmp.Or(l.Ref, l.URL)) + "](" + l.URL + ")"
 		if l.State != "" {
-			s += " " + tgfmt.Escape(l.State)
+			s += " · " + tgfmt.Escape(l.State)
 		}
-		links = append(links, s)
-	}
-	if len(links) > 0 {
-		b.WriteString("\n" + strings.Join(links, " · ") + "\n")
+		b.WriteString("\n" + s)
 	}
 	if s := c.Session; s.Turns > 0 {
-		fmt.Fprintf(&b, "\n$%.2f · %d turns", s.Cost, s.Turns)
+		foot := fmt.Sprintf("$%.2f · %d turns", s.Cost, s.Turns)
 		if s.Window > 0 && s.Context > 0 {
-			fmt.Fprintf(&b, " · context %d%%", s.Context*100/s.Window)
+			foot += fmt.Sprintf(" · context %d%%", s.Context*100/s.Window)
 		}
+		b.WriteString("\n\n<footer>" + foot + "</footer>")
 	}
 	return strings.TrimSpace(b.String())
 }
 
-// rmPosts are new chat messages as the mode shows them, run together into
-// as few posts as fit (every post a message of its own, paced).
+// rmPosts are new chat messages as the mode shows them, packed into as few
+// rich posts as fit (every post a message of its own, paced): a divider
+// between messages, who said it in bold, a run of tools folded away.
 func (u *ui) rmPosts(id, mode string, msgs []kanban.ChatMsg) []string {
 	var parts []string
 	var tools []string
 	flushTools := func() {
 		if len(tools) > 0 {
-			parts = append(parts, "🔧\n"+tgfmt.Fence("", strings.Join(tools, "\n")))
+			what := fmt.Sprintf("🔧 %d tools", len(tools))
+			if len(tools) == 1 {
+				what = "🔧 " + tgfmt.Escape(tgfmt.Clip(tools[0], 48))
+			}
+			parts = append(parts, tgfmt.Details(what, tgfmt.Fence("", clipKeep(strings.Join(tools, "\n"), 3000))))
 			tools = nil
 		}
 	}
@@ -389,20 +446,40 @@ func (u *ui) rmPosts(id, mode string, msgs []kanban.ChatMsg) []string {
 		flushTools()
 		switch m.Who {
 		case "you":
-			parts = append(parts, "🧑 *You, in desk*\n\n"+text)
+			parts = append(parts, "**🧑 You** · _in desk_\n\n"+text)
 		case "claude":
 			parts = append(parts, text)
 		case "error":
-			parts = append(parts, "⚠️ "+text)
+			parts = append(parts, "**⚠️ Error**\n\n"+text)
 		default: // a peer, the workspace, a lead, a shell
-			parts = append(parts, "💬 *"+tgfmt.Escape(cmp.Or(m.Name, m.Who))+"*\n\n"+text)
+			parts = append(parts, "**💬 "+tgfmt.Escape(cmp.Or(m.Name, m.Who))+"**\n\n"+text)
 		}
 	}
 	flushTools()
-	if len(parts) == 0 {
-		return nil
+	return rmPack(parts)
+}
+
+// rmPack joins parts with a divider into posts of at most tgfmt.RichMax,
+// cutting only a part too long for one.
+func rmPack(parts []string) (posts []string) {
+	const sep = "\n\n---\n\n"
+	cur := ""
+	for _, p := range parts {
+		for _, piece := range tgfmt.Split(p, tgfmt.RichMax) {
+			if cur != "" && tgfmt.Len(cur)+tgfmt.Len(sep)+tgfmt.Len(piece) > tgfmt.RichMax {
+				posts, cur = append(posts, cur), ""
+			}
+			if cur == "" {
+				cur = piece
+			} else {
+				cur += sep + piece
+			}
+		}
 	}
-	return tgfmt.Split(strings.Join(parts, "\n\n———\n\n"), tgfmt.Max-96)
+	if cur != "" {
+		posts = append(posts, cur)
+	}
+	return posts
 }
 
 // rmAsk is card c's request as a message with its buttons: Allow once,
@@ -410,14 +487,18 @@ func (u *ui) rmPosts(id, mode string, msgs []kanban.ChatMsg) []string {
 func (u *ui) rmAsk(c *kanban.Card, a *askState) *tgbot.Out {
 	o := &tgbot.Out{}
 	if len(a.r.Questions) == 0 {
-		o.Markdown = "🔐 **Wants to run**\n\n" + tgfmt.Fence("", tgfmt.Redact(a.r.Line))
+		lang := ""
+		if a.r.Tool == "Bash" {
+			lang = "sh"
+		}
+		o.Markdown = "### 🔐 Wants to run\n\n" + tgfmt.Fence(lang, tgfmt.Redact(a.r.Line))
 		allow, deny := u.phoneButton("Allow once", phoneAsk{c.ID, a.r.ID, true, -1, false}), u.phoneButton("Deny", phoneAsk{c.ID, a.r.ID, false, -1, false})
 		allow.Style, deny.Style = "success", "danger"
 		every := u.phoneButton("Allow every "+cmp.Or(a.r.Tool, "use"), phoneAsk{c.ID, a.r.ID, true, -1, true})
 		o.Rows = [][]tgbot.Button{{allow, deny}, {every}}
 		return o
 	}
-	o.Markdown = "❓ " + tgfmt.Redact(interviewText(a.r.Questions))
+	o.Markdown = "### ❓ A question\n\n" + tgfmt.Redact(interviewText(a.r.Questions))
 	if q := a.r.Questions[0]; len(a.r.Questions) == 1 && !q.Multi {
 		for j, opt := range q.Options {
 			o.Rows = append(o.Rows, []tgbot.Button{u.phoneButton(opt.Label, phoneAsk{c.ID, a.r.ID, true, j, false})})
@@ -494,12 +575,6 @@ func rmRun(ctx context.Context, bot *tgbot.Bot, j *rmJob) {
 			return
 		}
 		t.Ask, t.AskMsg, t.AskText = j.askID, msg, o.Markdown
-	}
-	if j.act == "close" {
-		if fail("close a topic", bot.Topic(ctx, t.Chat, t.Thread, "close")) {
-			return
-		}
-		t.Closed = true
 	}
 }
 

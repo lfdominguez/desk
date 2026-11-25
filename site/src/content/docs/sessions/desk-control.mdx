@@ -15,7 +15,9 @@ until you pick what its group gets. A login that doesn't finish (canceled, or a 
 
 ## A card's topic
 
-The topic opens the first time the card has something to say, named by the card and its state:
+The topic opens the first time the card has something to say. Its name is short, to read on a
+phone: the card's state, its key and, when it tracks one, its ticket (`🟢 DESK-12 :: ABC-123`).
+The title is in the pinned header.
 
 | Name starts with | The card |
 |---|---|
@@ -28,8 +30,8 @@ The topic opens the first time the card has something to say, named by the card 
 | ⏸ | idle |
 
 Its first message, pinned, is the card's header: its key and title, its column and state, its
-links (pull requests, tickets) with their state, and what the session has cost, how many turns and
-how much of the context it uses. It changes in place as the card does.
+links (pull requests, tickets) with their state as a list, and, in its footer, what the session has
+cost, how many turns and how much of the context it uses. It changes in place as the card does.
 
 A card that was already talking when you turned its organization on starts its topic with its last
 message, not its whole history.
@@ -42,14 +44,16 @@ That depends on what the organization's group gets:
 |---|---|---|---|
 | Your messages written in desk | | ✓ | ✓ |
 | Claude's replies | | ✓ | ✓ |
-| Its tools (commands, edits), run together in a block | | | ✓ |
+| Its tools (commands, edits), run together in a block folded under "🔧 N tools" | | | ✓ |
 | Errors, and what other Claudes and leads tell it | | ✓ | ✓ |
 | A turn that ends on you (your turn, blocked, failed, review) | ✓ | | |
 | A permission request or a question, with buttons | ✓ | ✓ | ✓ |
 
 Replies arrive as Claude finishes each one, in Telegram's rich text: headings, lists, tables, code
-blocks. Messages that come together go as one, cut where a message would get too long, without
-cutting a code block. Anything that looks like a token or a private key is masked
+blocks. Who said what is in bold (**🧑 You** · _in desk_, **⚠️ Error**, **💬** another Claude or a
+lead), and a divider sits between messages. Messages that come together go as one (up to 16,000
+characters), cut where a message would get too long, without cutting a code block. A permission
+request shows its shell command as a highlighted `sh` block. Anything that looks like a token or a private key is masked
 (`‹redacted›`) before it leaves your machine, and so is what your own pattern matches
 ([**Also mask**](/orgs/settings/#telegram)). During your **Quiet hours** messages arrive without a
 sound.
@@ -98,9 +102,13 @@ hand with `/link` can't be named to your account, so there it says so.
 
 ## When the card moves
 
-- To **Done**, or into the archive: the topic closes.
-- Back on the board: it opens again.
+- To **Done**, or into the archive: the topic is deleted, so the list keeps only work under way.
+  The conversation stays in desk; from Telegram, ask the desk Claude in the bot's chat about the
+  card, or `/card DESK-12`.
+- Back on the board: it gets a new topic, starting with its last message.
 - Deleted: its topic goes too.
+
+A topic an older desk closed opens again.
 
 A card your organization's autopilot runs reports to the autopilot's card, not to a topic of its
 own. While an organization is mirrored, its cards' news comes to its topics instead of to the
@@ -111,7 +119,9 @@ desk keeps which topic belongs to which card in `telegram.json`, beside the boar
 ## The Infra topic
 
 An organization with [servers](/servers/overview/) gets one more topic in its group, **Infra**,
-once an infra session is open. Its name follows the infra Claudes: 🔐 waiting for an approval,
+once an infra session is open. With your account logged in, desk pins **Infra** and the group's
+**General** topic at the top of the topic list, so they don't sink below the cards (a bot can't
+pin topics; a group you linked by hand isn't pinned). Its name follows the infra Claudes: 🔐 waiting for an approval,
 🟢 working, ⏸ otherwise. Its pinned header lists each infra session (the organization's own, and a
 card's) with its state and what each terminal runs right now ("running make deploy", "idle
 prompt").
