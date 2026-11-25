@@ -167,14 +167,20 @@ with [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) from 
 sudo apt install ./desk_<version>_amd64.deb
 ```
 
-### Arch Linux (AUR)
+### Arch Linux
+
+desk isn't on the AUR yet (its registration is closed for now). Build the PKGBUILD from this repo,
+set to the latest release:
 
 ```sh
-yay -S desk-kanban   # or paru, or: git clone https://aur.archlinux.org/desk-kanban.git && cd desk-kanban && makepkg -si
+git clone https://github.com/lfdominguez/desk && cd desk/packaging/aur
+sed -i "s/^pkgver=.*/pkgver=$(git describe --tags --abbrev=0)/" PKGBUILD
+makepkg -si
 ```
 
-It builds the tagged release from source and installs `desk`. The AUR's `desk` is another program
-(a shell workspace manager), so the two conflict. Claude Code itself is the AUR's `claude-code`.
+It builds that release from source and installs `desk` as the package `desk-kanban`. The AUR's
+`desk` is another program (a shell workspace manager), so the two conflict. Claude Code itself is
+the AUR's `claude-code`. Or use the AppImage above.
 
 ### From source
 
@@ -728,7 +734,7 @@ has the versions copied.
 Planned, not there yet:
 
 - **X11 in every package.** The AppImage opens under X11 (and pastes images there), but the Nix,
-  .deb and AUR builds still use `-tags nox11`.
+  .deb and Arch (PKGBUILD) builds still use `-tags nox11`.
 - **Apple signing and Homebrew.** macOS support is done (see [Install](#macos)), but the release's
   `desk.app` is only ad-hoc signed: signing it with a Developer ID and notarizing it needs an Apple
   Developer account, which the developer doesn't have and doesn't plan to get for now. The release

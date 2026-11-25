@@ -59,21 +59,18 @@ sudo apt install ./desk_<version>_amd64.deb
 It pulls in the Wayland, EGL and xkbcommon libraries it needs, and recommends PipeWire (only the infra workspace's virtual camera uses it). Claude Code and `bwrap` you install yourself.
 
 </TabItem>
-<TabItem label="Arch Linux (AUR)">
+<TabItem label="Arch Linux">
+
+desk isn't on the AUR yet: its registration is closed for now. Build the PKGBUILD from desk's repository, set to the latest release:
 
 ```sh
-yay -S desk-kanban
-```
-
-Or with `paru`, or by hand:
-
-```sh
-git clone https://aur.archlinux.org/desk-kanban.git
-cd desk-kanban
+git clone https://github.com/lfdominguez/desk
+cd desk/packaging/aur
+sed -i "s/^pkgver=.*/pkgver=$(git describe --tags --abbrev=0)/" PKGBUILD
 makepkg -si
 ```
 
-It builds the tagged release from source and installs `desk`. The AUR's own `desk` package is another program (a shell workspace manager), so the two conflict. Claude Code is the AUR's `claude-code`; `bubblewrap` and `openssh` are listed as optional dependencies.
+It builds that release from source and installs `desk` as the package `desk-kanban`. Or use the AppImage, which runs on Arch as it is. The AUR's own `desk` package is another program (a shell workspace manager), so the two conflict. Claude Code is the AUR's `claude-code`; `bubblewrap` and `openssh` are listed as optional dependencies.
 
 </TabItem>
 <TabItem label="macOS">
@@ -149,7 +146,7 @@ go build -tags nox11 -ldflags "-H windowsgui" -o desk.exe ./cmd/desk
 
 ## Releases and nightly
 
-Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb`, an AppImage, the macOS zip and the Windows MSI and zip on the [releases page](https://github.com/lfdominguez/desk/releases), and updates the AUR package.
+Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb`, an AppImage, the macOS zip and the Windows MSI and zip on the [releases page](https://github.com/lfdominguez/desk/releases). (The AUR package comes once AUR registration reopens.)
 
 Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly): a `.deb`, an AppImage, a macOS zip and the Windows MSI and zip of that commit. Its version reads like `2026.11.04~git1a2b3c4`. Use it to try what's coming; use a dated release otherwise.
 
