@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Telegram being unreachable (no network, a dropped connection) is no longer reported to Sentry
+  as an error of desk's.
+
 ## [2026.11.26] - 2026-11-26
 
 ### Added

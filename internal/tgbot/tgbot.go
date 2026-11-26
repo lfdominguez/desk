@@ -15,6 +15,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -251,6 +252,17 @@ type retryError struct{ after time.Duration }
 
 func (e *retryError) Error() string { return "retry after " + e.after.String() }
 
+// unreachable keeps why a call failed (a net.Error stays one, for whoever
+// tells the network from a bug) but not the *url.Error's own text, which
+// holds the URL, and the URL the token.
+func unreachable(what string, err error) error {
+	var ue *url.Error
+	if errors.As(err, &ue) {
+		err = ue.Err
+	}
+	return fmt.Errorf("telegram %s: unreachable: %w", what, err)
+}
+
 func (b *Bot) post(ctx context.Context, method, ctype string, body io.Reader, v any) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", API+"/bot"+b.Token+"/"+method, body)
 	if err != nil {
@@ -259,7 +271,7 @@ func (b *Bot) post(ctx context.Context, method, ctype string, body io.Reader, v 
 	req.Header.Set("Content-Type", ctype)
 	resp, err := b.client().Do(req)
 	if err != nil {
-		return fmt.Errorf("telegram %s: unreachable", method) // its text holds the URL, and the URL the token
+		return unreachable(method, err)
 	}
 	defer resp.Body.Close()
 	var out struct {
@@ -515,7 +527,7 @@ func (b *Bot) Download(ctx context.Context, id string) ([]byte, error) {
 	}
 	resp, err := b.client().Do(req)
 	if err != nil {
-		return nil, errors.New("telegram file: unreachable")
+		return nil, unreachable("file", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {

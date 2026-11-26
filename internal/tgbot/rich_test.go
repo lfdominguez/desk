@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -152,8 +153,9 @@ func TestFiles(t *testing.T) {
 		t.Fatal("getFile refused")
 	}
 	API = "http://127.0.0.1:1"
-	if _, err := b.SendFile(ctx, 1, 0, "photo", "a", nil, "", nil); err == nil || strings.Contains(err.Error(), "T0K") {
-		t.Fatalf("unreachable, token kept out: %v", err)
+	var ne net.Error
+	if _, err := b.SendFile(ctx, 1, 0, "photo", "a", nil, "", nil); err == nil || strings.Contains(err.Error(), "T0K") || !errors.As(err, &ne) {
+		t.Fatalf("unreachable, a net.Error, token kept out: %v", err)
 	}
 	API = "://bad"
 	if _, err := b.Download(ctx, "abc"); err == nil {
@@ -254,7 +256,7 @@ func TestEdges(t *testing.T) {
 	}
 	gb := &Bot{Token: "T0K", Client: &http.Client{Transport: noGet{}}}
 	f.Files["abc"] = []byte("x")
-	if _, err := gb.Download(ctx, "abc"); err == nil || err.Error() != "telegram file: unreachable" {
+	if _, err := gb.Download(ctx, "abc"); err == nil || err.Error() != "telegram file: unreachable: no" {
 		t.Fatalf("download refused: %v", err)
 	}
 	if _, err := b.Download(ctx, "%zz"); err == nil {
