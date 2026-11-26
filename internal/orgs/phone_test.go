@@ -26,10 +26,10 @@ func TestPhone(t *testing.T) {
 	if err := SavePhone(Phone{Secret: Secret{TokenCmd: "pass tg"}, Always: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := SaveTelemetry(NewRelic{LicenseKey: "k", AppName: "a"}); err != nil {
+	if err := SaveTelemetry(Sentry{DSN: "https://k@o1.ingest.sentry.io/1"}); err != nil {
 		t.Fatal(err)
 	}
-	if p, nr := PhoneSettings(), Telemetry(); p.TokenCmd != "pass tg" || p.Chat != 0 || nr.LicenseKey != "k" || Me() != "a dev" {
+	if p, nr := PhoneSettings(), Telemetry(); p.TokenCmd != "pass tg" || p.Chat != 0 || nr.DSN != "https://k@o1.ingest.sentry.io/1" || Me() != "a dev" {
 		t.Fatalf("%+v %+v", p, nr)
 	}
 }

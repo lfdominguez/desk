@@ -385,7 +385,7 @@ func (u *ui) loop(next func() event.Event) error {
 	}
 }
 
-// crashNote adds a line to crash.log beside the board, and reports it to New Relic.
+// crashNote adds a line to crash.log beside the board, and reports it to Sentry.
 func (u *ui) crashNote(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	telemetry.Error("window", msg)

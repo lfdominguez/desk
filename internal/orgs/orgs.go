@@ -448,7 +448,7 @@ type settings struct {
 	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
 	Me       string            `toml:"me,omitempty"`        // who the user is, told to every Claude desk starts (AboutMe)
 	UserMCP  bool              `toml:"user_mcp,omitempty"`  // cards load the user's own MCP servers too (UserMCP)
-	NewRelic NewRelic          `toml:"newrelic,omitempty"`  // where desk reports its own crashes and performance (internal/telemetry)
+	Sentry   Sentry            `toml:"sentry,omitempty"`    // where desk reports its own crashes (internal/telemetry)
 	Phone    Phone             `toml:"phone,omitempty"`     // an older settings.toml's bot, moved to Telegram's by migrateTelegram
 	Telegram Telegram          `toml:"telegram,omitempty"`  // Desk Control (telegram.go)
 }
@@ -476,10 +476,10 @@ func SavePhone(p Phone) error {
 	return saveSettings(s)
 }
 
-// SaveTelemetry keeps [newrelic] as n, the rest as it is.
-func SaveTelemetry(n NewRelic) error {
+// SaveTelemetry keeps [sentry] as n, the rest as it is.
+func SaveTelemetry(n Sentry) error {
 	s := loadSettings()
-	s.NewRelic = n
+	s.Sentry = n
 	return saveSettings(s)
 }
 
@@ -490,15 +490,14 @@ func SetPhoneChat(chat int64) error {
 	return saveSettings(s)
 }
 
-// NewRelic is settings.toml's [newrelic]: desk's own crashes, errors and
-// performance go to that account. No license key, nothing is sent.
-type NewRelic struct {
-	LicenseKey string `toml:"license_key,omitempty"`
-	AppName    string `toml:"app_name,omitempty"` // "desk" when empty
+// Sentry is settings.toml's [sentry]: desk's own crashes and errors go to
+// that project. No DSN, nothing is sent.
+type Sentry struct {
+	DSN string `toml:"dsn,omitempty"`
 }
 
-// Telemetry is settings.toml's [newrelic].
-func Telemetry() NewRelic { return loadSettings().NewRelic }
+// Telemetry is settings.toml's [sentry].
+func Telemetry() Sentry { return loadSettings().Sentry }
 
 // Me is who the user is, in their own words: the settings' Who am I.
 func Me() string { return loadSettings().Me }
@@ -589,7 +588,7 @@ func saveSettings(s settings) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	// 0600: the phone's token and New Relic's key may be here
+	// 0600: the phone's token and Sentry's DSN may be here
 	if err := os.WriteFile(path+".tmp", b.Bytes(), 0o600); err != nil {
 		return err
 	}

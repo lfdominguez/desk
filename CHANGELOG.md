@@ -8,6 +8,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Changed
 
+- **desk reports its own crashes to Sentry instead of New Relic.** Give it your Sentry project's
+  DSN in **Settings → Diagnostics** (`[sentry] dsn`, or `SENTRY_DSN`): crashes arrive as fatal
+  issues with the crashing goroutine's stack trace and the version that crashed, the full trace
+  attached. Nothing is sent without a DSN. `[newrelic]` and `NEW_RELIC_LICENSE_KEY` are no longer
+  read.
+
 - An autopilot's cards move their tickets with their column, as any card does: a card in Review
   moves its Jira ticket at once, instead of waiting for the autopilot to reach Done.
 

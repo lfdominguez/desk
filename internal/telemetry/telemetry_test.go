@@ -1,14 +1,25 @@
 package telemetry
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/getsentry/sentry-go"
 )
+
+// sent is a transport that keeps the events instead of sending them.
+type sent struct{ events []*sentry.Event }
+
+func (s *sent) Flush(time.Duration) bool              { return true }
+func (s *sent) FlushWithContext(context.Context) bool { return true }
+func (s *sent) Configure(sentry.ClientOptions)        {}
+func (s *sent) SendEvent(e *sentry.Event)             { s.events = append(s.events, e) }
+func (s *sent) Close()                                {}
 
 const trace = "panic: runtime error: index out of range [3] with length 3\n\n" +
 	"goroutine 1 [running]:\n" +
@@ -79,34 +90,43 @@ func TestStarted(t *testing.T) {
 	Started(filepath.Join(log, "not-a-dir", "x"), "v") // can't write: nothing
 }
 
-// TestOff: without a license nothing starts and every call is a no-op.
+// TestOff: without a DSN nothing starts and every call is a no-op.
 func TestOff(t *testing.T) {
-	t.Setenv("NEW_RELIC_LICENSE_KEY", "")
-	if err := Start("", "", "v"); err != nil || app != nil {
-		t.Fatalf("Start = %v, app %v", err, app)
+	t.Setenv("SENTRY_DSN", "")
+	started = false
+	if err := Start("", "v"); err != nil || on() {
+		t.Fatalf("Start = %v, on %v", err, on())
 	}
 	Error("x", "y")
-	Crashes(filepath.Join(t.TempDir(), "crash.log"))
+	log := filepath.Join(t.TempDir(), "crash.log")
+	os.WriteFile(log, []byte(trace), 0o600)
+	Crashes(log)
+	if _, err := os.Stat(log + ".reported"); err == nil {
+		t.Fatal("marked while off")
+	}
 	Stop()
 }
 
-// TestOn runs every call against an agent that never connects.
+// TestOn: errors and the log's new crashes reach Sentry as events, a crash
+// as the version that crashed; a bad DSN doesn't start.
 func TestOn(t *testing.T) {
-	if err := Start("bad key", "", "v"); err == nil {
-		t.Fatal("a malformed license started")
+	if err := Start("not a dsn", "v"); err == nil {
+		t.Fatal("a malformed DSN started")
 	}
-	key := "0123456789012345678901234567890123456789"
-	if err := Start(key, "desk-test", "v", newrelic.ConfigEnabled(false)); err != nil || app == nil {
+	tr := &sent{}
+	if err := Start("https://key@o1.ingest.sentry.io/1", "dev-1a2b3c4", func(o *sentry.ClientOptions) { o.Transport = tr }); err != nil || !on() {
 		t.Fatalf("Start = %v", err)
 	}
-	t.Cleanup(func() { Stop(); app = nil })
-	if c, _ := app.Config(); c.RuntimeSampler.Enabled {
-		t.Fatal("runtime metrics on")
+	t.Cleanup(func() { sentry.CurrentHub().BindClient(nil); started = false })
+	if o := sentry.CurrentHub().Client().Options(); o.Environment != "development" || o.Release != "desk@dev-1a2b3c4" {
+		t.Fatalf("options %q %q", o.Environment, o.Release)
 	}
-	Error("x", "y")
+	Error("window", "lost")
+	if len(tr.events) != 1 || tr.events[0].Message != "lost" || tr.events[0].Tags["class"] != "window" || tr.events[0].Level != sentry.LevelError {
+		t.Fatalf("error events %+v", tr.events)
+	}
 
-	dir := t.TempDir()
-	log := filepath.Join(dir, "crash.log")
+	log := filepath.Join(t.TempDir(), "crash.log")
 	Crashes(log) // no log yet: nothing, no mark
 	if _, err := os.Stat(log + ".reported"); err == nil {
 		t.Fatal("marked a missing log")
@@ -116,10 +136,34 @@ func TestOn(t *testing.T) {
 	if got := since(log+".reported", 100); got != 4 {
 		t.Fatalf("first run's mark %d, want 4", got)
 	}
-	data := "old\n" + trace + "\npanic: no frames\n"
+	data := "old\n2026-11-19T09:00:00Z desk 2026.11.19.3 started\n" + trace + "\n"
 	os.WriteFile(log, []byte(data), 0o600)
 	Crashes(log)
+	Stop()
 	if got := since(log+".reported", len(data)); got != len(data) {
 		t.Fatalf("mark %d, want %d", got, len(data))
+	}
+	ev := tr.events[len(tr.events)-1]
+	if len(tr.events) != 2 || ev.Level != sentry.LevelFatal || ev.Release != "desk@2026.11.19.3" || ev.Tags["where"] != "ui.(*ui).frame (app.go:470)" {
+		t.Fatalf("crash event %+v", ev)
+	}
+}
+
+// TestCrashEvent: the panic's kind and text, the crashing goroutine's frames
+// caller first (desk's in the app, the runtime's not), none for a signal in C.
+func TestCrashEvent(t *testing.T) {
+	ex := crashEvent(crash{trace, ""}).Exception[0]
+	if ex.Type != "panic" || ex.Value != "runtime error: index out of range [3] with length 3" {
+		t.Fatalf("exception %q %q", ex.Type, ex.Value)
+	}
+	fs := ex.Stacktrace.Frames
+	if len(fs) != 3 || fs[0].Function != "main.main" || fs[1].Module != "github.com/acme/desk/internal/ui" ||
+		fs[1].Function != "github.com/acme/desk/internal/ui.(*ui).frame" || fs[1].Filename != "app.go" || fs[1].Lineno != 470 ||
+		!fs[1].InApp || fs[2].InApp {
+		t.Fatalf("frames %+v", fs)
+	}
+	e := crashEvent(crash{"SIGSEGV\nPC=0x0", "v"})
+	if e.Exception[0].Type != "crash" || e.Exception[0].Value != "SIGSEGV" || e.Exception[0].Stacktrace != nil || e.Release != "desk@v" {
+		t.Fatalf("signal %+v", e.Exception[0])
 	}
 }

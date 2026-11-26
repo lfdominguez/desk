@@ -233,10 +233,10 @@ func TestConfigPhone(t *testing.T) {
 	h.clickIn(sz, all, w, "cfgPhonealways")
 	d.set.sub[cfgFolders] = "diag"
 	h.draw(sz, w)
-	d.diag.ed("license_key").SetText("nr-key")
+	d.diag.ed("dsn").SetText("https://k@o1.ingest.sentry.io/1")
 	h.u.saveConfig()
 	p, nr := orgs.PhoneSettings(), orgs.Telemetry()
-	if p.Chat != 0 || p.TokenEnv != "DESK_TG" || p.Token != "" || !p.Always || nr.LicenseKey != "nr-key" {
+	if p.Chat != 0 || p.TokenEnv != "DESK_TG" || p.Token != "" || !p.Always || nr.DSN != "https://k@o1.ingest.sentry.io/1" {
 		t.Fatalf("%+v %+v", p, nr)
 	}
 	for _, src := range []int{srcCmd, srcFile} { // each source writes its own key

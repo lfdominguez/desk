@@ -38,7 +38,7 @@ var deskParts = []cfgPart{
 	{"general", "General", "Who you are, the languages new cards start with, the text size, and whether cards use your MCP servers.", "who am i me languages card chat text size zoom mcp servers tools"},
 	{"folders", "Search folders", "The folders desk searches for organizations.", "folders depth only toml root organizations scan"},
 	{"telegram", "Telegram", "Desk Control: a bot for the cards that need you, and a group per organization with a topic per card.", "telegram phone bot token pair chat always notify account api folder group forum topic mirror desk control"},
-	{"diag", "Diagnostics", "Where desk reports its own crashes.", "diagnostics new relic license crash telemetry"},
+	{"diag", "Diagnostics", "Where desk reports its own crashes.", "diagnostics sentry dsn crash error telemetry"},
 }
 
 // orgParts are an organization's parts, in the nav's order.
@@ -54,7 +54,7 @@ var orgParts = []cfgPart{
 }
 
 // phoneKind, tgAcctKind and diagKind are settings.toml's [telegram] (the
-// bot, then the account for setup) and [newrelic] as entries, drawn and
+// bot, then the account for setup) and [sentry] as entries, drawn and
 // checked as an account's fields are.
 var (
 	phoneKind = cfgKind{"phone", "Telegram bot", []cfgField{
@@ -71,8 +71,7 @@ var (
 		{key: "folder", label: "Folder", hint: "Desk Control (12 characters at most)"},
 	}}
 	diagKind = cfgKind{"diag", "Diagnostics", []cfgField{
-		{key: "license_key", label: "New Relic license key", hint: "empty: nothing is sent"},
-		{key: "app_name", label: "App name", hint: "desk"},
+		{key: "dsn", label: "Sentry DSN", hint: "https://…@….ingest.sentry.io/…; empty: nothing is sent"},
 	}}
 )
 
@@ -508,7 +507,7 @@ func (u *ui) cfgTriggers(gtx layout.Context) layout.Dimensions {
 }
 
 // loadPhone is settings.toml's [telegram] (the bot, the account and each
-// organization's mirror as "mirror.<org>") and [newrelic] as entries.
+// organization's mirror as "mirror.<org>") and [sentry] as entries.
 func loadPhone() (phone, acct, diag *cfgEntry) {
 	t, nr := orgs.TelegramSettings(), orgs.Telemetry()
 	raw := map[string]any{"token": t.Token, "token_env": t.TokenEnv, "token_cmd": t.TokenCmd, "always": t.Always, "screen": t.Screen, "chat_id": t.Chat, "quiet": t.Quiet, "redact": t.Redact}
@@ -522,8 +521,8 @@ func loadPhone() (phone, acct, diag *cfgEntry) {
 	for org, o := range t.Orgs {
 		acct.ed("mirror." + org).SetText(o.Mirror)
 	}
-	diag = newEntry(diagKind.key, map[string]any{"license_key": nr.LicenseKey, "app_name": nr.AppName})
-	diag.ed("license_key").Mask = '•'
+	diag = newEntry(diagKind.key, map[string]any{"dsn": nr.DSN})
+	diag.ed("dsn").Mask = '•'
 	return phone.kept(), acct.kept(), diag.kept()
 }
 
@@ -541,7 +540,7 @@ func secretOf(e *cfgEntry, f string) (s orgs.Secret) {
 	return s
 }
 
-// savePhone writes [telegram] and [newrelic] when they changed, keeping
+// savePhone writes [telegram] and [sentry] when they changed, keeping
 // what Settings doesn't edit (the groups made, the folder's id).
 func (d *cfgDialog) savePhone() error {
 	p, a := d.phone, d.tgacct
@@ -589,7 +588,7 @@ func (d *cfgDialog) savePhone() error {
 		}
 	}
 	if e := d.diag; e != nil && e.edited() {
-		return orgs.SaveTelemetry(orgs.NewRelic{LicenseKey: e.text("license_key"), AppName: e.text("app_name")})
+		return orgs.SaveTelemetry(orgs.Sentry{DSN: e.text("dsn")})
 	}
 	return nil
 }
@@ -655,7 +654,7 @@ func (u *ui) cfgDiag(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.cfgFields(gtx, "cfgDiag", d.diag) }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return k.Label(gtx, "With a license key, desk reports its own crashes to that New Relic account: where it crashed and which version. Nothing else, and nothing without a key. Counts once desk starts again.", 12, kit.CText3, kit.Sans, 0)
+				return k.Label(gtx, "With a DSN, desk reports its own crashes and errors to that Sentry project: what failed, where, and which version. Nothing else, and nothing without a DSN. Counts once desk starts again.", 12, kit.CText3, kit.Sans, 0)
 			}))
 	})
 }

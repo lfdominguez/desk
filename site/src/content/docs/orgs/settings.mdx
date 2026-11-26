@@ -269,15 +269,14 @@ organization shows *linked by hand*; add that group to the folder yourself.
 
 <figure class="cut">
 
-![The Diagnostics page: New Relic license key and App name](../../../assets/shots/orgs-settings-diag-page.png)
+![The Diagnostics page: the Sentry DSN field](../../../assets/shots/orgs-settings-diag-page.png)
 
 <figcaption>Empty, nothing is sent.</figcaption>
 </figure>
 
-settings.toml's `[newrelic]`: **New Relic license key** and **App name** (`desk` when empty). With a
-key, desk reports its own crashes to that New Relic account: where it crashed and which version,
-nothing else. It counts once desk starts again. See
-[Report to New Relic](/reference/troubleshooting/#report-to-new-relic).
+settings.toml's `[sentry]`: the **Sentry DSN**. With one, desk reports its own crashes and errors
+to that Sentry project: what failed, where, and which version, nothing else. It counts once desk
+starts again. See [Report to Sentry](/reference/troubleshooting/#report-to-sentry).
 
 ## An organization's parts
 

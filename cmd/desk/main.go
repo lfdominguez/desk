@@ -179,10 +179,9 @@ func run(args []string) int {
 		debug.SetCrashOutput(f, debug.CrashOptions{})
 		f.Close()
 	}
-	// New Relic, when the user gave a license key: the last run's crashes, then this run's errors.
-	nr := orgs.Telemetry()
-	if err := telemetry.Start(nr.LicenseKey, nr.AppName, ui.Version); err != nil {
-		fmt.Fprintln(os.Stderr, "desk: New Relic:", err)
+	// Sentry, when the user gave a DSN: the last run's crashes, then this run's errors.
+	if err := telemetry.Start(orgs.Telemetry().DSN, ui.Version); err != nil {
+		fmt.Fprintln(os.Stderr, "desk: Sentry:", err)
 	}
 	telemetry.Crashes(crash)
 	telemetry.Started(crash, ui.Version)

@@ -154,7 +154,7 @@ type cfgDialog struct {
 	me      *cfgEntry // an org page only: its Who am I (config_me.go)
 	git     *cfgEntry // an org page only: [git] (on["worktrees"]); comp its [company] budgets (config_pages.go)
 	comp    *cfgEntry
-	phone   *cfgEntry // cfgFolders only: settings.toml's [telegram] bot, its account in tgacct, and [newrelic] in diag, saved with the folders
+	phone   *cfgEntry // cfgFolders only: settings.toml's [telegram] bot, its account in tgacct, and [sentry] in diag, saved with the folders
 	tgacct  *cfgEntry
 	diag    *cfgEntry
 	list    layout.List
