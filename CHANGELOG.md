@@ -6,13 +6,20 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.26] - 2026-11-26
+
 ### Added
 
-- **More to Sentry, each behind its own switch** in Settings → Diagnostics (all off by default):
-  desk's own errors it only showed as a toast (link checks, ticket moves, Telegram, SSH, a Claude
-  that ended badly; not your setup's, as a 401, a timeout or a server down), window freezes with every goroutine's stack, breadcrumbs of the actions before an error
-  or crash, desk's logs, metrics (turn time, tokens and cost by model), and AI agent monitoring:
-  each card turn as a span with its tools, model, tokens and cost. No card's words are sent.
+- **More to Sentry, each behind its own switch** in Settings → Diagnostics, all off by default:
+  - **Errors:** desk's own failures it only showed as a toast: link checks, ticket moves,
+    Telegram, SSH, a Claude that ended badly. Failures of your setup (a 401, a timeout, a server
+    down) stay out.
+  - **Freezes:** a window that stops answering, with every goroutine's stack.
+  - **Breadcrumbs:** the actions before an error or crash.
+  - **Logs** and **Metrics:** desk's own lines; turn time, tokens and cost by model.
+  - **AI agent monitoring:** each card turn as a span with its tools, model, tokens and cost.
+
+  No card's words are sent, nor the machine's name.
 - Release tags become Sentry releases with their commits, given the `SENTRY_AUTH_TOKEN` secret.
 
 ### Changed
@@ -22,7 +29,6 @@ day). A release's section here is its notes on GitHub. The format follows
   issues with the crashing goroutine's stack trace and the version that crashed, the full trace
   attached. Nothing is sent without a DSN. `[newrelic]` and `NEW_RELIC_LICENSE_KEY` are no longer
   read.
-
 - An autopilot's cards move their tickets with their column, as any card does: a card in Review
   moves its Jira ticket at once, instead of waiting for the autopilot to reach Done.
 
@@ -816,7 +822,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.25...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.26...HEAD
+[2026.11.26]: https://github.com/lfdominguez/desk/compare/2026.11.25...2026.11.26
 [2026.11.25]: https://github.com/lfdominguez/desk/compare/2026.11.24...2026.11.25
 [2026.11.24]: https://github.com/lfdominguez/desk/compare/2026.11.23...2026.11.24
 [2026.11.23]: https://github.com/lfdominguez/desk/compare/2026.11.20.1...2026.11.23
