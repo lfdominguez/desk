@@ -11,6 +11,11 @@ day). A release's section here is its notes on GitHub. The format follows
 - An autopilot's cards move their tickets with their column, as any card does: a card in Review
   moves its Jira ticket at once, instead of waiting for the autopilot to reach Done.
 
+### Fixed
+
+- A card's organization field no longer says "No folder like that" for a folder that's there but
+  has no `desk.toml` while *Only with desk.toml* is on: it says the folder has no `desk.toml`.
+
 ## [2026.11.25] - 2026-11-25
 
 ### Changed

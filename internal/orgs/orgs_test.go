@@ -173,8 +173,8 @@ func TestScanOnlyToml(t *testing.T) {
 	t.Setenv("DESK_ROOT", work)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	SaveFolders([]Folder{{Path: work, Depth: 1, OnlyToml: true}})
-	if l := List(work); !slices.Equal(l, []string{"Acme"}) {
-		t.Fatalf("list %v", l)
+	if l := List(work); !slices.Equal(l, []string{"Acme"}) || !slices.Equal(Skipped(work), []string{"Globex", "Initech"}) {
+		t.Fatalf("list %v, skipped %v", l, Skipped(work))
 	}
 }
 

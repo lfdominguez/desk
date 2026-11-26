@@ -610,12 +610,22 @@ func Expand(p string) string {
 }
 
 // found is the organizations List found, by root, then name: their folder;
+// skipped the folders it left out for having no desk.toml, by root;
 // accounts what Account said, by root and org.
 var (
 	foundMu  sync.Mutex
 	found    = map[string]map[string]string{}
+	skipped  = map[string][]string{}
 	accounts = map[string]string{}
 )
+
+// Skipped is the folders the last List of root left out for having no
+// desk.toml (only_toml): what a name typed that matches none may be.
+func Skipped(root string) []string {
+	foundMu.Lock()
+	defer foundMu.Unlock()
+	return skipped[root]
+}
 
 func hidden(name string) bool { return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") }
 
@@ -723,13 +733,14 @@ func hasToml(dir string) bool { _, ok := tomlOrg(dir); return ok }
 func List(root string) []string {
 	m := map[string]string{}
 	var out []string
-	fs, _ := Scan(Folders(root))
+	fs, left := Scan(Folders(root))
 	for _, f := range fs {
 		m[f.Name] = f.Dir
 		out = append(out, f.Name)
 	}
 	foundMu.Lock()
 	found[root] = m
+	skipped[root] = left
 	clear(accounts)
 	foundMu.Unlock()
 	slices.SortFunc(out, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })

@@ -455,6 +455,28 @@ func TestNewCardTokens(t *testing.T) {
 	}
 }
 
+// TestOrgSkipped: a typed organization that only_toml left out for having
+// no desk.toml says so, instead of "no folder like that".
+func TestOrgSkipped(t *testing.T) {
+	h := newHarness(t)
+	orgs.SaveFolders([]orgs.Folder{{Path: h.u.root, Depth: 2, OnlyToml: true}})
+	os.MkdirAll(filepath.Join(h.u.root, "Acme", ".desk"), 0o755)
+	os.WriteFile(filepath.Join(h.u.root, "Acme", ".desk", "desk.toml"), nil, 0o600)
+	h.u.newCard(0)
+	s := h.u.edit
+	s.more = true
+	s.org.SetText("globex")
+	h.frame()
+	if !h.has("Globex has no desk.toml") {
+		t.Fatal("no word of Globex's missing desk.toml")
+	}
+	s.org.SetText("Nowhere")
+	h.frame()
+	if !h.has("No folder like that") {
+		t.Fatal("an unknown name")
+	}
+}
+
 // TestPills: a new card's pills come from its request's tokens (a click
 // makes the word plain) unless a field says otherwise (a click shows the
 // fields); an org is asked for until there is one; the last pill toggles

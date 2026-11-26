@@ -525,7 +525,11 @@ func (u *ui) placePicker(gtx layout.Context, s *sheet) layout.Dimensions {
 			}))
 		}
 		if len(ws) == 0 {
-			return layout.Inset{Top: 6}.Layout(gtx, k.Lbl("No folder like that in "+u.root, 11, kit.CRed, kit.Sans))
+			msg := "No folder like that in " + u.root
+			if i := slices.IndexFunc(orgs.Skipped(u.root), func(n string) bool { return strings.EqualFold(n, org) }); i >= 0 {
+				msg = orgs.Skipped(u.root)[i] + " has no desk.toml, and your search folder only takes folders with one (Settings → Search folders)"
+			}
+			return layout.Inset{Top: 6}.Layout(gtx, k.Lbl(msg, 11, kit.CRed, kit.Sans))
 		}
 		return layout.Inset{Top: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 4, ws) })
 	}
