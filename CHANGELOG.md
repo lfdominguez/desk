@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.26.1] - 2026-11-26
+
 ### Fixed
 
 - Telegram being unreachable (no network, a dropped connection) is no longer reported to Sentry
@@ -827,7 +829,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.26...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.26.1...HEAD
+[2026.11.26.1]: https://github.com/lfdominguez/desk/compare/2026.11.26...2026.11.26.1
 [2026.11.26]: https://github.com/lfdominguez/desk/compare/2026.11.25...2026.11.26
 [2026.11.25]: https://github.com/lfdominguez/desk/compare/2026.11.24...2026.11.25
 [2026.11.24]: https://github.com/lfdominguez/desk/compare/2026.11.23...2026.11.24
