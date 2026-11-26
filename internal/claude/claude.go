@@ -684,6 +684,18 @@ func bwrapBin() string {
 	return ""
 }
 
+// BwrapOnPath puts the Nix store's bwrap on PATH when PATH has none:
+// Claude Code looks it up there itself (its sandbox), and said "bubblewrap
+// (bwrap) not installed" in every Claude desk starts though desk found one.
+func BwrapOnPath() {
+	if _, err := exec.LookPath("bwrap"); err == nil || NoBwrap {
+		return
+	}
+	if b := bwrapBin(); b != "" {
+		os.Setenv("PATH", filepath.Dir(b)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+}
+
 // sshBinds are bwrap's binds of a copy, kept in dir, over each ssh config
 // that is a symlink (sshConfig), for every bwrap desk starts: a profile's,
 // and Jail's own around the default account.

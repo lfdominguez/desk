@@ -77,7 +77,8 @@ account, and so do the plan limits desk shows for them.
 
 :::note
 On Linux, per-organization profiles need `bwrap`. desk finds it on `PATH` (or in the Nix store on
-NixOS); without it, a session of an organization with a profile fails to start and says that it
+NixOS, whose folder it then adds to `PATH` for the Claudes it starts, since Claude Code looks for
+`bwrap` itself); without it, a session of an organization with a profile fails to start and says that it
 needs bwrap.
 :::
 

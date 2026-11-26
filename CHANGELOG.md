@@ -15,6 +15,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 - A card's organization field no longer says "No folder like that" for a folder that's there but
   has no `desk.toml` while *Only with desk.toml* is on: it says the folder has no `desk.toml`.
+- On NixOS without bubblewrap on `PATH`, every Claude desk started flashed Claude Code's
+  "bubblewrap (bwrap) not installed": desk now puts the Nix store's bwrap on `PATH` for them.
 
 ## [2026.11.25] - 2026-11-25
 

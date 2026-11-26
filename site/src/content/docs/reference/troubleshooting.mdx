@@ -62,7 +62,7 @@ desk fixes this at start. If `$SHELL` isn't a file, desk replaces it with the sh
 
 An organization with a Claude profile (`~/Secure/Claudes/<Org>/`) runs its sessions inside `bwrap`, so they see that profile as `~/.claude`.
 
-- **bwrap not installed.** desk looks for `bwrap` on your `PATH` (and in the Nix store). Without it, the session doesn't start and desk says `profile <Org> needs bwrap`. Install bubblewrap (`bubblewrap` on Debian, Ubuntu, Fedora and Arch).
+- **bwrap not installed.** desk looks for `bwrap` on your `PATH` (and in the Nix store, which it then puts on `PATH` for the Claudes it starts: Claude Code checks for `bwrap` itself and says "bubblewrap (bwrap) not installed" otherwise). Without it, the session doesn't start and desk says `profile <Org> needs bwrap`. Install bubblewrap (`bubblewrap` on Debian, Ubuntu, Fedora and Arch).
 - **bwrap fails.** bwrap needs unprivileged user namespaces. If your system restricts them (some distributions do, through AppArmor or a sysctl), bwrap exits at once: the card turns **failed**, and its line and conversation show bwrap's own error. Allow user namespaces for bwrap, following your distribution's documentation.
 - **To run without a profile**, move the organization's folder out of `~/Secure/Claudes/`. Its sessions then use your own `claude` login, without bwrap.
 

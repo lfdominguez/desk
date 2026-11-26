@@ -17,6 +17,7 @@ import (
 	"gioui.org/app"
 	"gioui.org/x/notify"
 
+	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
@@ -122,6 +123,7 @@ func run(args []string) int {
 	}
 	ui.Version = versionOf(version, bi)
 	fixShell()
+	claude.BwrapOnPath()
 	if len(args) == 2 && (args[1] == "--version" || args[1] == "version") {
 		fmt.Println("desk", ui.Version)
 		return 0

@@ -166,6 +166,35 @@ func TestCommandSeedFails(t *testing.T) {
 	}
 }
 
+// TestBwrapOnPath: a store bwrap off PATH joins PATH, so Claude Code finds
+// it too; with one on PATH, or none at all, PATH stays.
+func TestBwrapOnPath(t *testing.T) {
+	if NoBwrap {
+		t.Skip("bwrap is Linux's")
+	}
+	store := t.TempDir()
+	bin := filepath.Join(store, "x-bubblewrap-0.12.0", "bin")
+	os.MkdirAll(bin, 0o755)
+	os.WriteFile(filepath.Join(bin, "bwrap"), []byte("#!/bin/sh\n"), 0o755)
+	defer func(g string) { storeBwrap = g }(storeBwrap)
+	storeBwrap = filepath.Join(store, "*-bubblewrap-*", "bin", "bwrap")
+	empty := t.TempDir()
+	t.Setenv("PATH", empty)
+	BwrapOnPath()
+	if want := bin + string(os.PathListSeparator) + empty; os.Getenv("PATH") != want {
+		t.Fatalf("PATH %q, want %q", os.Getenv("PATH"), want)
+	}
+	BwrapOnPath() // on PATH now: no second copy
+	if strings.Count(os.Getenv("PATH"), bin) != 1 {
+		t.Fatalf("PATH %q", os.Getenv("PATH"))
+	}
+	storeBwrap = filepath.Join(t.TempDir(), "none")
+	t.Setenv("PATH", empty)
+	if BwrapOnPath(); os.Getenv("PATH") != empty {
+		t.Fatalf("none anywhere: PATH %q", os.Getenv("PATH"))
+	}
+}
+
 // TestCommandNoBwrap: no bwrap on PATH nor in the store is an error.
 func TestCommandNoBwrap(t *testing.T) {
 	home := t.TempDir()
