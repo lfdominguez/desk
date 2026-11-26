@@ -327,8 +327,8 @@ func TestAutopilotEdges(t *testing.T) {
 
 // TestAutopilotGrants: a change outside goes to the user unless the
 // autopilot quotes their grant; with no grants, straight to them, and that
-// notifies. Its cards can't move tickets unasked, nor do their columns
-// move them, until the user moves the autopilot to Done.
+// notifies. Its cards can't move tickets unasked, but their columns move
+// them as any card's do.
 func TestAutopilotGrants(t *testing.T) {
 	h := newHarness(t)
 	var notes []string
@@ -377,12 +377,7 @@ func TestAutopilotGrants(t *testing.T) {
 	if p := pf.prompts[len(pf.prompts)-1]; !strings.Contains(p, "asks the user to run") || !strings.HasPrefix(h.u.b.Card(kids[0]).Note, youNote) {
 		t.Errorf("no grants: %q", p)
 	}
-	h.u.syncTickets(true)
-	h.frame()
-	if pushed != 0 || h.u.pushing[kids[0]] {
-		t.Fatal("a held ticket moved")
-	}
-	h.u.moveTo(pid, "Done")
+	h.u.moveTo(kids[0], "Review") // its column moves its ticket, the autopilot still running
 	h.u.save()
 	h.pumpUntil("the push", func() bool { return pushed > 0 && !h.u.pushing[kids[0]] })
 }

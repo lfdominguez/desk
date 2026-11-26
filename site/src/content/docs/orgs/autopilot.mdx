@@ -52,15 +52,12 @@ it. The autopilot is still told to leave every outside change to you.
 
 ## Tickets
 
-Moving a ticket changes something outside, so while the autopilot runs:
-
-- its cards can't move their tickets without asking (`ticket_status` asks, and goes through the
-  rules above);
-- a card's column doesn't move its ticket.
+A card's ticket follows its column, as any card's does: a card in **Review** moves its ticket to
+review at once. Its Claude can't move the ticket any other way without asking (`ticket_status`
+asks, and goes through the rules above).
 
 The autopilot and its cards are one piece of work: once its card is in **Done** (moved by you or
-by its Claude), its cards go to Done too, whatever state each was in. Then, or once you archive
-it, each ticket catches up with its card.
+by its Claude), its cards go to Done too, whatever state each was in, and their tickets with them.
 
 ## Budget
 

@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- An autopilot's cards move their tickets with their column, as any card does: a card in Review
+  moves its Jira ticket at once, instead of waiting for the autopilot to reach Done.
+
 ## [2026.11.25] - 2026-11-25
 
 ### Changed

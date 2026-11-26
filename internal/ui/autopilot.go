@@ -30,18 +30,6 @@ func (u *ui) pilotOf(c *kanban.Card) *kanban.Card {
 	return nil
 }
 
-// pilotHeld says whether card c's tickets wait for its autopilot: moving a
-// ticket changes something outside, so they follow their cards only once
-// the user moves the autopilot to Done (or it leaves the board).
-func (u *ui) pilotHeld(c *kanban.Card) bool {
-	pl := u.pilotOf(c)
-	if pl == nil {
-		return false
-	}
-	col, _ := u.b.Find(pl.ID)
-	return col != u.b.Column("Done")
-}
-
 // pilotFollow takes the cards of every autopilot in Done there too, done:
 // an autopilot and its cards are one piece of work, so its Done is theirs
 // (however it got there: a drag, a key, its Claude's status). save runs it.
@@ -188,7 +176,7 @@ You are %s, an autopilot: you run other cards to finish their tickets, and never
 - %s
 - The user allows, without asking: %s.
 - desk holds you to it: allowing a request that changes something outside the cards' folders needs grant=<the user's words above that allow it>, else it goes to the user; with no grants such requests go to the user straight. Leave any request to the user with pilot_answer user=true.
-- The cards' tickets move only once the user moves you to Done.%s
+- A card's ticket follows its column (Review moves it to review); its Claude can't move it otherwise without asking.%s
 - To ask the user, end your turn with the question and the card it is about; their answer is your next message. Ask rarely, and batch what you can.
 - A card is finished when it is ready for review. When all are, end with DESK-STATUS: done and what each card did.
 `, c.Key(), cmp.Or(p.Max, 3), rule, grants, budget)
