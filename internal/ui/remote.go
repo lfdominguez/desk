@@ -12,6 +12,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/tgbot"
 	"github.com/lfdominguez/desk/internal/tgfmt"
 	"github.com/lfdominguez/desk/internal/tgsetup"
@@ -516,6 +517,7 @@ func rmRun(ctx context.Context, bot *tgbot.Bot, j *rmJob) {
 			return false
 		}
 		j.failure = what + ": " + firstLine(err.Error())
+		telemetry.Report("telegram "+what, err)
 		return true
 	}
 	if j.act == "delete" {

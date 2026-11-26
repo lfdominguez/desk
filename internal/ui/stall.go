@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sync/atomic"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/telemetry"
 )
 
 // stall watches a window's goroutine while it is away from Gio's event
@@ -81,4 +83,5 @@ func (s *stall) check(now time.Time) {
 	buf = buf[:runtime.Stack(buf, true)]
 	head := fmt.Sprintf("%s window %s, %s: %s\n\n", now.Format(time.RFC3339), s.name, d, what)
 	os.WriteFile(filepath.Join(filepath.Dir(s.u.path), "stall.log"), append([]byte(head), buf...), 0o600)
+	telemetry.Stall(s.name, what, d, string(buf))
 }

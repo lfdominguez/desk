@@ -5,6 +5,7 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -389,6 +390,7 @@ func (u *ui) loop(next func() event.Event) error {
 func (u *ui) crashNote(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	telemetry.Error("window", msg)
+	telemetry.Crumb("window", msg)
 	if f, err := os.OpenFile(filepath.Join(filepath.Dir(u.path), "crash.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
 		fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.RFC3339), msg)
 		f.Close()
@@ -487,6 +489,15 @@ func (u *ui) frame(gtx layout.Context) {
 	id, _ := u.termCard()
 	u.shownTerm.Store(id)
 	u.sweepSels(gtx.Now)
+	if v, _, ok := strings.Cut(u.view, ":"); ok || v != u.crumbView { // its kind only: a view's name holds an org or a card
+		if ok {
+			v += ":"
+		}
+		if v != u.crumbView {
+			u.crumbView = v
+			telemetry.Crumb("view", cmp.Or(v, "board"))
+		}
+	}
 	before := u.sig() // after the work above: this frame draws it, only what layout changes needs another
 	defer func() {    // also when work, terminal output or a new infra snapshot arrived meanwhile: its Invalidate, sent mid-frame, is lost
 		if u.sig() != before || len(u.events) > 0 || u.termGen.Load() != tg || u.infraGen() != ig {

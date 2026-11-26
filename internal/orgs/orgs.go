@@ -493,7 +493,13 @@ func SetPhoneChat(chat int64) error {
 // Sentry is settings.toml's [sentry]: desk's own crashes and errors go to
 // that project. No DSN, nothing is sent.
 type Sentry struct {
-	DSN string `toml:"dsn,omitempty"`
+	DSN         string `toml:"dsn,omitempty"`
+	Errors      bool   `toml:"errors,omitempty"`      // failures desk shows as a toast or drops
+	Stalls      bool   `toml:"stalls,omitempty"`      // a window frozen for seconds, its stacks
+	Breadcrumbs bool   `toml:"breadcrumbs,omitempty"` // the actions before an error or crash
+	Logs        bool   `toml:"logs,omitempty"`        // desk's own log lines
+	Metrics     bool   `toml:"metrics,omitempty"`     // turns, tokens, cost, errors, stalls as numbers
+	Agents      bool   `toml:"agents,omitempty"`      // each card turn as an AI agent span, its tools inside
 }
 
 // Telemetry is settings.toml's [sentry].

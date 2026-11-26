@@ -29,6 +29,7 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 | `crash.log` | If desk crashes, the trace goes here. desk runs detached, with no terminal to print it on. A window the display dropped is noted here too, with why, before desk opens it again, and each start, with desk's version. |
 | `stall.log` | Every goroutine's stack when a window stayed away from its events for more than 3 seconds ([not responding](/reference/troubleshooting/#the-compositor-says-desk-is-not-responding)). |
 | `crash.log.reported` | How far into `crash.log` desk has sent crashes to [Sentry](/reference/troubleshooting/#report-to-sentry), with a DSN set. |
+| `crumbs.json` | The last actions desk took, for a crash's [breadcrumbs](/reference/troubleshooting/#report-to-sentry) at the next start; only with **Breadcrumbs** on. |
 
 The folder and everything in it are readable by you alone (folders `700`, files `600`): conversations
 hold commands, their output and servers' details. desk sets that on what was there before too, each

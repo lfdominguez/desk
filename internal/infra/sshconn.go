@@ -13,6 +13,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/sshc"
 	"github.com/lfdominguez/desk/internal/sshconfig"
+	"github.com/lfdominguez/desk/internal/telemetry"
 )
 
 // desk speaks SSH itself (internal/sshc, no ssh binary): one connection per
@@ -231,6 +232,7 @@ func (t *Term) connect(p *sshProc, host, dir string) {
 		t.err, t.reached = err, false // a question answered, then refused: failed, not connected
 		t.mu.Unlock()
 		t.print(err.Error())
+		telemetry.Report("ssh", err)
 		return
 	}
 	p.start(s, release)

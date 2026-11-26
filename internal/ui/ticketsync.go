@@ -9,6 +9,7 @@ import (
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/vault"
 )
 
@@ -81,6 +82,7 @@ func (u *ui) push(id, key, org, col string, ls []kanban.Link, check bool) {
 		case errors.As(perr, &na): // no account to move it with: nothing to do, nothing to say
 		case perr != nil:
 			failed = true
+			telemetry.Report("ticket move", perr)
 			u.later(func() { u.pushFailed(id, key+": couldn't move "+l.Ref+": "+firstLine(perr.Error())) })
 		case s.Moved && !followed:
 			followed = true

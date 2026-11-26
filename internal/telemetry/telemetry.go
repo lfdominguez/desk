@@ -18,16 +18,29 @@ import (
 	"github.com/getsentry/sentry-go"
 )
 
-// Start sets Sentry up for dsn, labelled with version (opts: tests' transport).
-// No DSN, no client.
-func Start(dsn, version string, opts ...func(*sentry.ClientOptions)) error {
-	dsn = cmp.Or(dsn, os.Getenv("SENTRY_DSN"))
-	if dsn == "" {
+// Config is what desk reports: crashes with a DSN, the rest each by its switch.
+type Config struct {
+	DSN                                                string
+	Errors, Stalls, Breadcrumbs, Logs, Metrics, Agents bool
+}
+
+// cfg is Start's Config: the switches every call here checks.
+var cfg Config
+
+// Start sets Sentry up for c's DSN, labelled with version (opts: tests'
+// transport). No DSN, no client.
+func Start(c Config, version string, opts ...func(*sentry.ClientOptions)) error {
+	c.DSN = cmp.Or(c.DSN, os.Getenv("SENTRY_DSN"))
+	if c.DSN == "" {
 		return nil
 	}
-	o := sentry.ClientOptions{Dsn: dsn, Release: release(version), Environment: "production"}
+	o := sentry.ClientOptions{Dsn: c.DSN, Release: release(version), Environment: "production",
+		ServerName: "desk"} // not the machine's hostname, which events and metrics carry by default
 	if strings.HasPrefix(version, "dev") {
 		o.Environment = "development"
+	}
+	if c.Agents { // every card turn is a transaction: few, and each one counts
+		o.EnableTracing, o.TracesSampleRate = true, 1
 	}
 	for _, f := range opts {
 		f(&o)
@@ -35,7 +48,7 @@ func Start(dsn, version string, opts ...func(*sentry.ClientOptions)) error {
 	if err := sentry.Init(o); err != nil {
 		return err
 	}
-	started = true
+	started, cfg = true, c
 	return nil
 }
 
@@ -61,6 +74,7 @@ func Stop() {
 
 // Error reports msg as an error of class: what crash.log notes as it runs.
 func Error(class, msg string) {
+	log(sentry.LevelError, class, msg)
 	ev := sentry.NewEvent()
 	ev.Level, ev.Message = sentry.LevelError, msg
 	ev.Tags = map[string]string{"class": class}
@@ -70,6 +84,9 @@ func Error(class, msg string) {
 // Started notes in log that desk version started, so a crash after it is
 // reported with the version that crashed, not the one reporting it.
 func Started(log, version string) {
+	mu.Lock()
+	crumbLog, crumbs = crumbFile(log), nil
+	mu.Unlock()
 	if f, err := os.OpenFile(log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
 		fmt.Fprintf(f, "%s desk %s started\n", time.Now().Format(time.RFC3339), version)
 		f.Close()
@@ -89,8 +106,11 @@ func Crashes(log string) {
 		return
 	}
 	mark := log + ".reported"
+	before := lastCrumbs(log) // the last run's: its crashes' lead-up
 	for _, c := range crashes(string(data[since(mark, len(data)):])) {
-		sentry.CaptureEvent(crashEvent(c))
+		ev := crashEvent(c)
+		ev.Breadcrumbs = before
+		sentry.CaptureEvent(ev)
 	}
 	os.WriteFile(mark, []byte(strconv.Itoa(len(data))), 0o600)
 }

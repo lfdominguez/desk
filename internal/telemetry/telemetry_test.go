@@ -94,7 +94,7 @@ func TestStarted(t *testing.T) {
 func TestOff(t *testing.T) {
 	t.Setenv("SENTRY_DSN", "")
 	started = false
-	if err := Start("", "v"); err != nil || on() {
+	if err := Start(Config{}, "v"); err != nil || on() {
 		t.Fatalf("Start = %v, on %v", err, on())
 	}
 	Error("x", "y")
@@ -110,15 +110,15 @@ func TestOff(t *testing.T) {
 // TestOn: errors and the log's new crashes reach Sentry as events, a crash
 // as the version that crashed; a bad DSN doesn't start.
 func TestOn(t *testing.T) {
-	if err := Start("not a dsn", "v"); err == nil {
+	if err := Start(Config{DSN: "not a dsn"}, "v"); err == nil {
 		t.Fatal("a malformed DSN started")
 	}
 	tr := &sent{}
-	if err := Start("https://key@o1.ingest.sentry.io/1", "dev-1a2b3c4", func(o *sentry.ClientOptions) { o.Transport = tr }); err != nil || !on() {
+	if err := Start(Config{DSN: "https://key@o1.ingest.sentry.io/1"}, "dev-1a2b3c4", func(o *sentry.ClientOptions) { o.Transport = tr }); err != nil || !on() {
 		t.Fatalf("Start = %v", err)
 	}
 	t.Cleanup(func() { sentry.CurrentHub().BindClient(nil); started = false })
-	if o := sentry.CurrentHub().Client().Options(); o.Environment != "development" || o.Release != "desk@dev-1a2b3c4" {
+	if o := sentry.CurrentHub().Client().Options(); o.Environment != "development" || o.Release != "desk@dev-1a2b3c4" || o.ServerName != "desk" {
 		t.Fatalf("options %q %q", o.Environment, o.Release)
 	}
 	Error("window", "lost")

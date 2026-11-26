@@ -160,9 +160,26 @@ Restart desk. Its reports then show in the project's **Issues**:
 - **Errors**, level `error`, tag `class: window`: each other `crash.log` line as it's written (a
   window lost, a window away from its events).
 
-Nothing else: no tracing, no performance data, no user data. Each report carries the running
-desk's version as its release (`desk@<version>`), and the environment `production`, or
-`development` for a build without a release version.
+That much goes with a DSN alone. Each switch under it in **Settings → Diagnostics** (each a key
+of `[sentry]`, off until you turn it on) adds more:
+
+| Switch | Key | What it sends |
+|---|---|---|
+| **Errors** | `errors` | Failures desk only showed as a toast or dropped, level `error`, tag `kind`: a link check (`link jira`…), a ticket move, Telegram's polling and sends, an SSH connection, a Claude that ended badly. The same failure goes once an hour, not on every retry. |
+| **Freezes** | `stalls` | A window away from its events for 3 seconds or more (what desk calls "not responding" below), level `warning`, tag `what` (the step it was in: drawing the frame, an event), every goroutine's stack attached as `stacks.txt`. |
+| **Breadcrumbs** | `breadcrumbs` | The last 50 actions before an error or crash: the kind of view opened (`sess:`, `ws:`, never its name), a card moved (`DESK-12 → Review`), a turn started or stopped, Settings saved, a window detached or lost. Kept in `crumbs.json` beside `crash.log`, so a crash's go with it at the next start. |
+| **Logs** | `logs` | desk's own lines (what `crash.log` notes, each error above) as Sentry logs, beside the issues they lead to. |
+| **Metrics** | `metrics` | `desk.turn.duration`, `desk.turn.tokens` and `desk.turn.cost` by model, `desk.errors` by kind, `desk.stalls` and `desk.stall.duration`. |
+| **AI agent monitoring** | `agents` | Each card turn as a `gen_ai.invoke_agent` transaction in Sentry's AI agents view: its model, input, cached and output tokens and cost, a `gen_ai.execute_tool` span per tool it ran (name, time, failed or not). Every turn is sampled. |
+
+Text is masked as for Telegram before it leaves (tokens, keys, `password=` values, your own
+`[telegram] redact`), and no card's title, notes, prompt or reply is ever sent, nor the machine's name (reports say `desk`). Each report
+carries the running desk's version as its release (`desk@<version>`), and the environment
+`production`, or `development` for a build without a release version.
+
+The release workflow also makes each release tag a Sentry release with its commits (the
+`sentry` job), given the repository's `SENTRY_AUTH_TOKEN` secret and its `SENTRY_ORG` and
+`SENTRY_PROJECT` variables, so an issue names the commits its release brought.
 
 ## The window vanished and came back
 

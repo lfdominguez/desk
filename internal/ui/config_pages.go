@@ -38,7 +38,7 @@ var deskParts = []cfgPart{
 	{"general", "General", "Who you are, the languages new cards start with, the text size, and whether cards use your MCP servers.", "who am i me languages card chat text size zoom mcp servers tools"},
 	{"folders", "Search folders", "The folders desk searches for organizations.", "folders depth only toml root organizations scan"},
 	{"telegram", "Telegram", "Desk Control: a bot for the cards that need you, and a group per organization with a topic per card.", "telegram phone bot token pair chat always notify account api folder group forum topic mirror desk control"},
-	{"diag", "Diagnostics", "Where desk reports its own crashes.", "diagnostics sentry dsn crash error telemetry"},
+	{"diag", "Diagnostics", "Where desk reports its own crashes.", "diagnostics sentry dsn crash error freeze stall breadcrumbs logs metrics agent monitoring telemetry"},
 }
 
 // orgParts are an organization's parts, in the nav's order.
@@ -71,7 +71,13 @@ var (
 		{key: "folder", label: "Folder", hint: "Desk Control (12 characters at most)"},
 	}}
 	diagKind = cfgKind{"diag", "Diagnostics", []cfgField{
-		{key: "dsn", label: "Sentry DSN", hint: "https://…@….ingest.sentry.io/…; empty: nothing is sent"},
+		{key: "dsn", label: "Sentry DSN", hint: "https://…@….ingest.sentry.io/…; empty: nothing is sent. Crashes always go once it is set"},
+		{key: "errors", label: "Errors", hint: "failures desk only shows as a toast: a link, a ticket move, Telegram, SSH, a Claude that ended badly", toggle: true},
+		{key: "stalls", label: "Freezes", hint: "a window that stops answering for seconds, with every goroutine's stack", toggle: true},
+		{key: "breadcrumbs", label: "Breadcrumbs", hint: "the actions before an error or crash: views opened, cards moved, sessions started (no card text)", toggle: true},
+		{key: "logs", label: "Logs", hint: "desk's own log lines, beside the issues they lead to", toggle: true},
+		{key: "metrics", label: "Metrics", hint: "turn time, tokens and cost by model; errors and freezes counted", toggle: true},
+		{key: "agents", label: "AI agent monitoring", hint: "each card turn as a span with its tools: model, tokens, cost (no prompts or replies)", toggle: true},
 	}}
 )
 
@@ -521,7 +527,8 @@ func loadPhone() (phone, acct, diag *cfgEntry) {
 	for org, o := range t.Orgs {
 		acct.ed("mirror." + org).SetText(o.Mirror)
 	}
-	diag = newEntry(diagKind.key, map[string]any{"dsn": nr.DSN})
+	diag = newEntry(diagKind.key, map[string]any{"dsn": nr.DSN, "errors": nr.Errors, "stalls": nr.Stalls,
+		"breadcrumbs": nr.Breadcrumbs, "logs": nr.Logs, "metrics": nr.Metrics, "agents": nr.Agents})
 	diag.ed("dsn").Mask = '•'
 	return phone.kept(), acct.kept(), diag.kept()
 }
@@ -588,7 +595,8 @@ func (d *cfgDialog) savePhone() error {
 		}
 	}
 	if e := d.diag; e != nil && e.edited() {
-		return orgs.SaveTelemetry(orgs.Sentry{DSN: e.text("dsn")})
+		return orgs.SaveTelemetry(orgs.Sentry{DSN: e.text("dsn"), Errors: e.on["errors"], Stalls: e.on["stalls"],
+			Breadcrumbs: e.on["breadcrumbs"], Logs: e.on["logs"], Metrics: e.on["metrics"], Agents: e.on["agents"]})
 	}
 	return nil
 }
@@ -654,7 +662,7 @@ func (u *ui) cfgDiag(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.cfgFields(gtx, "cfgDiag", d.diag) }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return k.Label(gtx, "With a DSN, desk reports its own crashes and errors to that Sentry project: what failed, where, and which version. Nothing else, and nothing without a DSN. Counts once desk starts again.", 12, kit.CText3, kit.Sans, 0)
+				return k.Label(gtx, "With a DSN, desk reports its own crashes to that Sentry project: what failed, where, and which version; each switch above adds what it says. Text is masked as for Telegram first, and no card's words, prompt or reply is sent. Nothing without a DSN. Counts once desk starts again.", 12, kit.CText3, kit.Sans, 0)
 			}))
 	})
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/vault"
 )
 
@@ -75,6 +76,7 @@ func (u *ui) sayMsg(id string, m kanban.ChatMsg) {
 // there already.
 func (u *ui) moveTo(id, t string) {
 	if col, _ := u.b.Find(id); col >= 0 && col != u.b.Column(t) && u.b.Column(t) >= 0 {
+		telemetry.Crumb("card", u.b.Card(id).Key()+" → "+t)
 		u.b.MoveBefore(id, u.b.Column(t), "")
 	}
 }
@@ -392,6 +394,8 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 	u.heard(id)
 	if u.turnAt[id].IsZero() { // its turn's clock (Session.Work)
 		u.turnAt[id] = time.Now()
+		telemetry.TurnStart(id)
+		telemetry.Crumb("session", "turn")
 	}
 	delete(u.shellOut, id)
 	delete(u.peerOut, id)
@@ -424,6 +428,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		c.Session.ID = e.Session
 		if u.turnAt[id].IsZero() {
 			u.turnAt[id] = time.Now()
+			telemetry.TurnStart(id)
 		}
 		if c.Status != kanban.StatusWorking {
 			c.Status, c.Note = kanban.StatusWorking, ""
@@ -450,6 +455,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			c.Last = clean
 		}
 	case claude.KindTool:
+		telemetry.ToolStart(id, e.ToolID, e.Tool)
 		if e.ToolID != "" {
 			u.toolLines[e.ToolID] = e.Text // ponytail: never pruned; a line per tool use
 			if e.Cmd != "" {
@@ -498,6 +504,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 	case claude.KindTask:
 		u.onTask(id, e.Task)
 	case claude.KindToolDone:
+		telemetry.ToolEnd(id, e.ToolID, e.Error)
 		if p, ok := u.wsPaths[e.ToolID]; ok {
 			delete(u.wsPaths, e.ToolID)
 			u.wsTouched(id, p)
@@ -539,6 +546,8 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			delete(u.turnAt, id)
 		}
 		c.Session.Tokens += e.Tokens
+		telemetry.TurnEnd(id, telemetry.Usage{Model: e.Usage.Model, In: e.Usage.In, Out: e.Usage.Out, CacheRead: e.Usage.CacheRead,
+			CacheNew: e.Usage.CacheWrite, Cost: max(0, base+e.Cost-c.Session.Cost), Failed: e.Error && e.Text != ""})
 		if spent := base + e.Cost - c.Session.Cost; spent > 0 { // what this turn cost: the organization's day
 			if err := company.Spend(orgs.Dir(u.root, c.Org, ""), time.Now(), spent); err != nil {
 				u.showToast("Company spend: "+err.Error(), true)
@@ -599,6 +608,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		if e.Text != "" {
 			c.Status, c.Note = kanban.StatusFailed, firstLine(e.Text)
 			u.say(id, "error", e.Text)
+			telemetry.Report("claude", errors.New(firstLine(e.Text)))
 		}
 	}
 	if c := u.b.Card(id); c != nil && c.Status == kanban.StatusWorking { // a turn, its own included, or work still running: never in Review or Done, whoever put it there
@@ -647,6 +657,7 @@ func (u *ui) addLinks(c *kanban.Card, raw []string) {
 
 // stop interrupts card id's turn.
 func (u *ui) stop(id string) {
+	telemetry.Crumb("session", "stop")
 	if p := u.procs[id]; p != nil {
 		p.Interrupt()
 	}
@@ -727,6 +738,7 @@ func (u *ui) checkLinks(ids []string) {
 			state, tone = "no "+na.Provider+" account", links.ToneWait
 		case err != nil:
 			state, tone = "⚠ "+firstLine(err.Error()), links.ToneBad
+			telemetry.Report("link "+j.l.Kind, err)
 		}
 		u.later(func() {
 			c := u.b.Card(j.id)

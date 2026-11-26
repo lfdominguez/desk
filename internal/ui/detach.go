@@ -16,6 +16,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/keys"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -25,6 +26,7 @@ import (
 // own. u.pane is the one being laid out, so the session code reads u.chatIn
 // and friends whichever window it draws in.
 type pane struct {
+	crumbView string // the kind of view last told to Sentry's breadcrumbs
 	view      string // what the window shows: the main one's sidebar pick (views.go), "" all cards; a detached one's "" its session
 	chatIn    widget.Editor
 	chatList  layout.List
@@ -73,6 +75,7 @@ type detached struct {
 // up): what was written for it in the main window goes along, and the card
 // remembers it, so the window comes back when desk starts again.
 func (u *ui) detach(id string) {
+	telemetry.Crumb("window", "detach")
 	c := u.b.Card(id)
 	if c == nil {
 		return
@@ -180,6 +183,7 @@ func raiseNow(d *detached) {
 // text becomes the card's draft, and the window closes when it is still
 // open (Reattach, not the window's own close).
 func (u *ui) reattach(id string) {
+	telemetry.Crumb("window", "reattach")
 	d := u.detached[id]
 	if d == nil {
 		return

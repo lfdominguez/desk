@@ -532,3 +532,42 @@ jobs:
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: desk ${{ github.ref_name }}
           updpkgsums: false
+
+  # A release tag as a Sentry release with its commits, so desk's reports (release desk@<tag>)
+  # name the commits that came with them; only given the SENTRY_AUTH_TOKEN secret and the
+  # SENTRY_ORG and SENTRY_PROJECT repository variables.
+  sentry:
+    needs: package
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Token
+        id: token
+        env:
+          TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          ORG: ${{ vars.SENTRY_ORG }}
+          PROJECT: ${{ vars.SENTRY_PROJECT }}
+        run: |
+          if [[ -z "$TOKEN" || -z "$ORG" || -z "$PROJECT" ]]; then
+            echo "::warning::no SENTRY_AUTH_TOKEN secret or SENTRY_ORG/SENTRY_PROJECT variable: no Sentry release"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.publish == 'true'
+        with:
+          fetch-depth: 0 # set_commits reads the history since the last release
+
+      - name: Release
+        if: steps.token.outputs.publish == 'true'
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+        with:
+          release: desk@${{ github.ref_name }}
+          environment: production
+          set_commits: auto

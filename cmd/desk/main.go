@@ -180,7 +180,9 @@ func run(args []string) int {
 		f.Close()
 	}
 	// Sentry, when the user gave a DSN: the last run's crashes, then this run's errors.
-	if err := telemetry.Start(orgs.Telemetry().DSN, ui.Version); err != nil {
+	s := orgs.Telemetry()
+	if err := telemetry.Start(telemetry.Config{DSN: s.DSN, Errors: s.Errors, Stalls: s.Stalls, Breadcrumbs: s.Breadcrumbs,
+		Logs: s.Logs, Metrics: s.Metrics, Agents: s.Agents}, ui.Version); err != nil {
 		fmt.Fprintln(os.Stderr, "desk: Sentry:", err)
 	}
 	telemetry.Crashes(crash)

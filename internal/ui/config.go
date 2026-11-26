@@ -16,6 +16,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/keys"
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -477,6 +478,7 @@ func (d *cfgDialog) vaultNames() []string {
 // closes; a page that can't be saved is shown with why. A broken page has
 // none (it can't add accounts), so only the one shown needs the check.
 func (u *ui) saveConfig() {
+	telemetry.Crumb("settings", "save")
 	d := u.cfg
 	if d.broken {
 		return
@@ -1052,7 +1054,9 @@ func (u *ui) cfgFields(gtx layout.Context, id string, e *cfgEntry) layout.Dimens
 		case f.tier:
 			return labeled(f.label, func(gtx layout.Context) layout.Dimensions { return u.cfgTier(gtx, id, e, f) })
 		case f.toggle:
-			return func(gtx layout.Context) layout.Dimensions { return u.cfgToggle(gtx, id+f.key, e, f.key, f.label, f.hint) }
+			return func(gtx layout.Context) layout.Dimensions {
+				return u.cfgToggle(gtx, id+f.key, e, f.key, f.label, f.hint)
+			}
 		case f.choices != nil:
 			return labeled(f.label, func(gtx layout.Context) layout.Dimensions {
 				return u.choice(gtx, id+f.key, f.choices, slices.Index(f.choices, e.text(f.key)), func(int) color.NRGBA { return color.NRGBA{} }, func(i int) { e.ed(f.key).SetText(f.choices[i]) })

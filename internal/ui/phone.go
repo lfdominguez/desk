@@ -11,6 +11,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/telemetry"
 	"github.com/lfdominguez/desk/internal/tgbot"
 	"github.com/lfdominguez/desk/internal/tgfmt"
 )
@@ -127,6 +128,9 @@ func (u *ui) phonePoll(ctx context.Context, bot *tgbot.Bot) {
 	for {
 		us, err := bot.Updates(ctx, offset)
 		if err != nil {
+			if ctx.Err() == nil {
+				telemetry.Report("telegram poll", err)
+			}
 			select {
 			case <-ctx.Done():
 				return

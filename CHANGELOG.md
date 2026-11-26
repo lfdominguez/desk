@@ -6,6 +6,15 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **More to Sentry, each behind its own switch** in Settings → Diagnostics (all off by default):
+  errors desk only showed as a toast (link checks, ticket moves, Telegram, SSH, a Claude that ended
+  badly), window freezes with every goroutine's stack, breadcrumbs of the actions before an error
+  or crash, desk's logs, metrics (turn time, tokens and cost by model), and AI agent monitoring:
+  each card turn as a span with its tools, model, tokens and cost. No card's words are sent.
+- Release tags become Sentry releases with their commits, given the `SENTRY_AUTH_TOKEN` secret.
+
 ### Changed
 
 - **desk reports its own crashes to Sentry instead of New Relic.** Give it your Sentry project's

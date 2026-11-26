@@ -55,8 +55,9 @@ type Event struct {
 	Text    string
 	Session string
 	Tokens  int      // result: the turn's input, cache and output tokens
+	Usage   Usage    // result: those tokens one by one, and the turn's main model
 	Cost    float64  // result: the process's cost so far, USD (cumulative)
-	Error   bool     // result: the turn failed (Text says how); an interrupt has no Text
+	Error   bool     // result: the turn failed (Text says how); an interrupt has no Text; tool done: the tool failed
 	Denied  []string // result: tool calls the permission mode refused
 	Ask     *Request // ask
 	Context int      // usage: tokens in the context (input and cache, the last call's)
@@ -156,6 +157,7 @@ func Parse(line []byte) []Event {
 				Input                map[string]any
 				ToolUseID            string          `json:"tool_use_id"`
 				Content              json.RawMessage `json:"content"`
+				IsError              bool            `json:"is_error"`
 			}
 		}
 		TaskID      string `json:"task_id"`
@@ -172,6 +174,7 @@ func Parse(line []byte) []Event {
 		} `json:"patch"`
 		Models map[string]struct {
 			Window int `json:"contextWindow"`
+			Out    int `json:"outputTokens"`
 		} `json:"modelUsage"`
 		Compact struct {
 			Pre  int `json:"pre_tokens"`
@@ -236,7 +239,7 @@ func Parse(line []byte) []Event {
 				if c.Type != "tool_result" {
 					continue
 				}
-				out = append(out, Event{Kind: KindToolDone, ToolID: c.ToolUseID, Parent: ev.Parent})
+				out = append(out, Event{Kind: KindToolDone, ToolID: c.ToolUseID, Parent: ev.Parent, Error: c.IsError})
 				for _, u := range slices.Compact(artifactURL.FindAllString(string(c.Content), -1)) {
 					out = append(out, Event{Kind: KindArtifact, Text: u, ToolID: c.ToolUseID})
 				}
@@ -294,15 +297,21 @@ func Parse(line []byte) []Event {
 			}
 			return out
 		case "result":
-			e := Event{Kind: KindResult, Session: ev.Session, Cost: ev.Cost, Tokens: ev.Usage.total(), Error: ev.IsError}
+			u := ev.Usage
+			e := Event{Kind: KindResult, Session: ev.Session, Cost: ev.Cost, Tokens: u.total(), Error: ev.IsError,
+				Usage: Usage{In: u.Input, Out: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite}}
 			if ev.IsError {
 				e.Text = ev.Result
 			}
 			for _, d := range ev.Denials {
 				e.Denied = append(e.Denied, d.Tool)
 			}
-			for _, m := range ev.Models {
+			most := -1
+			for name, m := range ev.Models {
 				e.Window = max(e.Window, m.Window)
+				if m.Out > most || m.Out == most && name < e.Usage.Model { // the one that wrote most: a subagent's Haiku isn't the turn's model
+					most, e.Usage.Model = m.Out, name
+				}
 			}
 			return []Event{e}
 		}
@@ -321,6 +330,12 @@ type usage struct {
 }
 
 func (u usage) total() int { return u.Input + u.CacheWrite + u.CacheRead + u.Output }
+
+// Usage is a turn's tokens one by one and the model that wrote most of it.
+type Usage struct {
+	Model                          string
+	In, Out, CacheRead, CacheWrite int
+}
 
 // toolLine is "Bash  go test ./..." : the tool and its most telling input.
 func toolLine(name string, in map[string]any) string {

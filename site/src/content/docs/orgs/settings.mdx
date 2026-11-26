@@ -269,14 +269,18 @@ organization shows *linked by hand*; add that group to the folder yourself.
 
 <figure class="cut">
 
-![The Diagnostics page: the Sentry DSN field](../../../assets/shots/orgs-settings-diag-page.png)
+![The Diagnostics page: the Sentry DSN field and its switches: Errors, Freezes, Breadcrumbs, Logs, Metrics, AI agent monitoring](../../../assets/shots/orgs-settings-diag-page.png)
 
 <figcaption>Empty, nothing is sent.</figcaption>
 </figure>
 
-settings.toml's `[sentry]`: the **Sentry DSN**. With one, desk reports its own crashes and errors
-to that Sentry project: what failed, where, and which version, nothing else. It counts once desk
-starts again. See [Report to Sentry](/reference/troubleshooting/#report-to-sentry).
+settings.toml's `[sentry]`: the **Sentry DSN**. With one, desk reports its own crashes to that
+Sentry project: what failed, where, and which version. The switches under it, all off until you
+turn them on, add **Errors** (failures shown only as a toast), **Freezes** (a window not
+responding, with its stacks), **Breadcrumbs** (the actions before an error or crash), **Logs**,
+**Metrics** (turn time, tokens and cost by model) and **AI agent monitoring** (each card turn with
+its tools). No card's words, prompt or reply is sent. It counts once desk starts again. See
+[Report to Sentry](/reference/troubleshooting/#report-to-sentry).
 
 ## An organization's parts
 

@@ -47,6 +47,14 @@ func TestParseUsage(t *testing.T) {
 	if e[0].Window != 200000 {
 		t.Fatalf("%+v", e)
 	}
+	e = Parse([]byte(`{"type":"result","usage":{"input_tokens":3,"cache_creation_input_tokens":10,"cache_read_input_tokens":400,"output_tokens":50},` +
+		`"modelUsage":{"claude-opus":{"outputTokens":50},"claude-haiku":{"outputTokens":9},"claude-b":{"outputTokens":50}}}`))
+	if u := e[0].Usage; u != (Usage{Model: "claude-b", In: 3, Out: 50, CacheRead: 400, CacheWrite: 10}) {
+		t.Fatalf("usage %+v", u) // the model that wrote most, ties by name
+	}
+	if e := Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu1","is_error":true,"content":"no"}]}}`)); !e[0].Error {
+		t.Fatalf("a failed tool: %+v", e)
+	}
 	e = Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu9","content":"Published: https://claude.ai/code/artifact/0b1c-2d and https://claude.ai/code/artifact/0b1c-2d"}]}}`))
 	if len(e) != 2 || e[0].Kind != KindToolDone || e[1].Kind != KindArtifact || e[1].Text != "https://claude.ai/code/artifact/0b1c-2d" || e[1].ToolID != "tu9" {
 		t.Fatalf("%+v", e)
