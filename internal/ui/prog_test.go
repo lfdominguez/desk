@@ -30,6 +30,13 @@ func TestMain(m *testing.M) {
 		os.Exit(fakeScript(s, os.Args[1:])) // fakeBin's program, on Windows
 	}
 	fakeDir, _ = testtmp.Dir("desk-ui-fakes")
+	// Never the user's folders, even for a write after a test's own t.Setenv
+	// is undone: the infra workspace's last session save, past Close's wait,
+	// once replaced the real session.json with a test's tabs.
+	state, _ := testtmp.Dir("desk-ui-state")
+	for _, v := range []string{"XDG_STATE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"} {
+		os.Setenv(v, state)
+	}
 	tgbot.Gap = func(int64) time.Duration { return 0 } // the fake Telegram takes everything at once
 	tgbot.All = 0
 	// A -cover test binary run without GOCOVERDIR (qa mutate's runs) would
@@ -41,6 +48,7 @@ func TestMain(m *testing.M) {
 	}
 	code := m.Run()
 	os.RemoveAll(fakeDir)
+	os.RemoveAll(state)
 	if cover != "" {
 		os.RemoveAll(cover)
 	}

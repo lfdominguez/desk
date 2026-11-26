@@ -129,11 +129,13 @@ func TestInfraMoves(t *testing.T) {
 }
 
 // TestRestoreOldInfraDirs: a session saved with Infra-Claude dirs comes back
-// in the org's infra dir.
+// in the org's infra dir; a tab whose folder is gone doesn't come back.
 func TestRestoreOldInfraDirs(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	org := filepath.Join(t.TempDir(), "Acme")
-	b, _ := json.Marshal(savedSession{Tabs: []savedTab{{Org: "Acme", Dir: filepath.Join(org, oldInfraDir, "eu"), OrgOnly: true}},
+	os.MkdirAll(filepath.Join(org, infraDir), 0o755)
+	gone := filepath.Join(t.TempDir(), "Globex", infraDir)
+	b, _ := json.Marshal(savedSession{Tabs: []savedTab{{Org: "Acme", Dir: filepath.Join(org, oldInfraDir, "eu"), OrgOnly: true}, {Org: "Globex", Dir: gone, OrgOnly: true}},
 		Forwards: []savedFwd{{Host: "web1", Dir: filepath.Join(org, oldInfraDir), Kind: "L", Spec: "1:localhost:1"}}})
 	write(t, sessionPath(), string(b))
 	m := model{}

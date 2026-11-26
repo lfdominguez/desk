@@ -150,6 +150,9 @@ func (m *model) restore() {
 		return
 	}
 	for _, st := range ss.Tabs {
+		if fi, err := os.Stat(movedInfra(st.Dir)); err != nil || !fi.IsDir() {
+			continue // its folder is gone: its Claude and shells couldn't start there
+		}
 		t := m.newTab(st.Org, st.Group, movedInfra(st.Dir), st.Name)
 		t.orgOnly, t.card, t.session, t.model = st.OrgOnly, st.Card, st.Claude, st.Model
 		t.ctxTokens, t.ctxWindow = st.Ctx, st.CtxWindow

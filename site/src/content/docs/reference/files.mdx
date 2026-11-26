@@ -83,7 +83,7 @@ Your Telegram account's session after **Log in** on [Settings → Telegram](/org
 
 | Path | What's in it |
 |---|---|
-| `session.json` | The open tabs and panes, each tab's recent chat and Claude session, and port forwards: what the workspace reopens. |
+| `session.json` | The open tabs and panes, each tab's recent chat and Claude session, and port forwards: what the workspace reopens (a tab whose folder is gone stays closed). |
 | `pins` | Pinned servers, one per line. |
 | `audit/<org>/<date>.jsonl` | The audit log: every command that ran and every approval, who did it (you or Claude), the exit code, time and the output's end. |
 | `recordings/<org>/<time>-<server>.cast` | Recordings of the panes, as asciicasts (`asciinema play <file>`). `record = false` in `desk.toml` turns them off. |
