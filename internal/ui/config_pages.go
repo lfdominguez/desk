@@ -72,7 +72,7 @@ var (
 	}}
 	diagKind = cfgKind{"diag", "Diagnostics", []cfgField{
 		{key: "dsn", label: "Sentry DSN", hint: "https://…@….ingest.sentry.io/…; empty: nothing is sent. Crashes always go once it is set"},
-		{key: "errors", label: "Errors", hint: "failures desk only shows as a toast: a link, a ticket move, Telegram, SSH, a Claude that ended badly", toggle: true},
+		{key: "errors", label: "Errors", hint: "desk's own failures it only shows as a toast: a link, a ticket move, Telegram, SSH, a Claude that ended badly (not a 401, a timeout or a server down)", toggle: true},
 		{key: "stalls", label: "Freezes", hint: "a window that stops answering for seconds, with every goroutine's stack", toggle: true},
 		{key: "breadcrumbs", label: "Breadcrumbs", hint: "the actions before an error or crash: views opened, cards moved, sessions started (no card text)", toggle: true},
 		{key: "logs", label: "Logs", hint: "desk's own log lines, beside the issues they lead to", toggle: true},

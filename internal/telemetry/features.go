@@ -3,8 +3,11 @@ package telemetry
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"time"
 
@@ -33,9 +36,9 @@ const again = time.Hour
 const crumbMax = 50
 
 // Report sends err as an error of kind (Errors): a failure desk only showed
-// as a toast, or dropped.
+// as a toast, or dropped; not one of the user's setup or network (expected).
 func Report(kind string, err error) {
-	if !on() || !cfg.Errors || err == nil {
+	if !on() || !cfg.Errors || err == nil || expected(err) {
 		return
 	}
 	msg := tgfmt.Redact(err.Error())
@@ -250,4 +253,23 @@ func TurnEnd(id string, u Usage) {
 	}
 	tx.EndTime = now
 	tx.Finish()
+}
+
+// outside matches what a failure says when its cause is outside desk: an
+// account refused, gone or limited (401, 403, 404, 407, 408, 429), a server's
+// trouble (5xx), the network, a certificate, SSH's login and host keys.
+var outside = regexp.MustCompile(`(?i)\b(40[13478]|429|5\d\d)\b|unauthori[sz]ed|forbidden|not found|too many requests|` +
+	`rate limit|timeout|timed out|deadline exceeded|no such host|connection (refused|reset)|network is unreachable|` +
+	`no route to host|broken pipe|tls:|x509:|certificate|unable to authenticate|handshake failed|host key|` +
+	`permission denied|eof$`)
+
+// expected says err is the user's setup or the world's, not a bug of desk's:
+// Sentry is for those. A request desk built wrong (400, 422), a reply it
+// couldn't read or a Claude that crashed still go.
+func expected(err error) bool {
+	var ne net.Error
+	if errors.As(err, &ne) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	return outside.MatchString(err.Error())
 }

@@ -1,7 +1,9 @@
 package telemetry
 
 import (
+	"context"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,9 +75,10 @@ func TestSwitchesOff(t *testing.T) {
 func TestReport(t *testing.T) {
 	tr := startAll(t, Config{Errors: true})
 	Report("link", nil)
-	Report("ticket move", errors.New("401 token=hunter2secret"))
-	Report("ticket move", errors.New("401 token=hunter2secret"))
-	Report("ticket move", errors.New("500"))
+	Report("ticket move", errors.New("400 Bad Request token=hunter2secret"))
+	Report("ticket move", errors.New("400 Bad Request token=hunter2secret"))
+	Report("ticket move", errors.New("422 transition"))
+	Report("link jira", errors.New("globex.atlassian.net: 401 Unauthorized")) // the user's account: not desk's
 	if len(tr.events) != 2 || strings.Contains(tr.events[0].Message, "hunter2") || tr.events[0].Tags["kind"] != "ticket move" {
 		t.Fatalf("events %q", kinds(tr))
 	}
@@ -84,7 +87,7 @@ func TestReport(t *testing.T) {
 		seen[k] = time.Now().Add(-2 * again)
 	}
 	mu.Unlock()
-	Report("ticket move", errors.New("500"))
+	Report("ticket move", errors.New("422 transition"))
 	if len(tr.events) != 3 {
 		t.Fatalf("an hour later: %q", kinds(tr))
 	}
@@ -192,5 +195,33 @@ func TestTurn(t *testing.T) {
 	}
 	if s := e.Spans[1]; s.EndTime.IsZero() {
 		t.Fatal("an unended tool without an end")
+	}
+}
+
+// TestExpected: failures of the user's setup, a server or the network aren't
+// desk's bugs; a bad request, an unreadable reply or a crashed Claude are.
+func TestExpected(t *testing.T) {
+	for msg, want := range map[string]bool{
+		"globex.atlassian.net: 401 Unauthorized":               true,
+		"403 Forbidden":                                        true,
+		"GET /issue/ABC-1: 404 Not Found":                      true,
+		"429 Too Many Requests":                                true,
+		"502 Bad Gateway":                                      true,
+		"dial tcp: lookup jira.example.com: no such host":      true,
+		"dial tcp 192.0.2.1:22: connect: connection refused":   true,
+		"ssh: handshake failed: ssh: unable to authenticate":   true,
+		"x509: certificate signed by unknown authority":        true,
+		"unexpected EOF":                                       true,
+		"Bad Request: can't parse entities: unclosed tag":      false,
+		"422 Unprocessable Entity: transition 31 is not valid": false,
+		"invalid character '<' looking for beginning of value": false,
+		"claude exited: signal: segmentation fault":            false,
+	} {
+		if got := expected(errors.New(msg)); got != want {
+			t.Errorf("expected(%q) = %v, want %v", msg, got, want)
+		}
+	}
+	if !expected(&net.DNSError{Err: "x", Name: "h"}) || !expected(context.DeadlineExceeded) {
+		t.Error("a net.Error or a deadline is expected")
 	}
 }
